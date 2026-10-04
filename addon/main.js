@@ -60,10 +60,9 @@ var CiteLens = {
           }
           hoverEpoch++;last='';pdfdoc.defaultView.clearTimeout(timer);this.dismissFloating(reader);return;
         }
-        hoverEpoch++;
-        const refs=overlay.references||[overlay],key=refs.map(CiteLensCore.charsText).join('|');if(!key||key===last)return;last=key;pdfdoc.defaultView.clearTimeout(timer);
+        const refs=overlay.references||[overlay],key=refs.map(CiteLensCore.charsText).join('|');if(!key||key===last)return;const ticket=++hoverEpoch;last=key;pdfdoc.defaultView.clearTimeout(timer);
         const frame=view._iframeWindow.frameElement?.getBoundingClientRect(),xy={x:e.clientX+(frame?.left||0),y:e.clientY+(frame?.top||0)};
-        timer=pdfdoc.defaultView.setTimeout(()=>{if(!this.dead)this.floating(doc,reader,refs.map(CiteLensCore.fromReference),xy);},500);
+        timer=pdfdoc.defaultView.setTimeout(async()=>{try{await this.references(reader);if(!this.dead&&ticket===hoverEpoch)this.floating(doc,reader,refs.map(ref=>this.referenceRecord(reader,ref)),xy);}catch(e){Zotero.logError(e);}},500);
       };pdfdoc.addEventListener('pointermove',move,{passive:true});const cleanup=()=>{pdfdoc.removeEventListener('pointermove',move);pdfdoc.defaultView.clearTimeout(timer);};cleanup.doc=pdfdoc;state.hooks.push(cleanup);
     }
     if(!state.refPromise)this.references(reader).then(()=>{if(!this.dead)this.enhance(reader);}).catch(e=>Zotero.logError(e));
@@ -79,7 +78,7 @@ var CiteLens = {
       const signature=rows.map(row=>row.firstElementChild?.textContent||'').join('\n')+'|'+(source?.offset??'')+'|'+(source?.position?.pageIndex??'')+'|'+!!state.referenceList;
       const old=popup.querySelector(':scope > [data-cite-lens="group"]');if(old?.dataset.raw===signature){if(!popup.classList.contains('cl-native-host'))popup.classList.add('cl-native-host');CiteLensUI.fitPopup(popup,doc);continue;}
       if(popup._clFailedSignature===signature)continue;
-      let records=rows.map((row,i)=>{const raw=row.firstElementChild?.textContent||'',ref=source?.references[i],same=ref&&CiteLensCore.norm(CiteLensCore.charsText(ref))===CiteLensCore.norm(raw);return same?CiteLensCore.fromReference(ref):CiteLensCore.parse(raw);});
+      let records=rows.map((row,i)=>{const raw=row.firstElementChild?.textContent||'',ref=source?.references[i],same=ref&&CiteLensCore.norm(CiteLensCore.charsText(ref))===CiteLensCore.norm(raw);return this.referenceRecord(reader,same?ref:{text:raw});});
       const citation=popup.classList.contains('citation-popup');let audit;
       if(citation){audit=CiteLensCitationLinks.resolve(source,state.citationPages?.get(source?.position?.pageIndex),state.referenceList||[]);records=audit.records;}popup.classList.toggle('cl-non-citation',!!(citation&&state.referenceList&&audit.expected===0));
       try {
@@ -101,12 +100,15 @@ var CiteLens = {
     root.append(CiteLensUI.citationGroup(doc,records.slice(0,100),reader));doc.body.append(root);const state=this.readers.get(reader);root.addEventListener('pointerenter',()=>doc.defaultView.clearTimeout(state?.floatingCloseTimer));root.addEventListener('pointerleave',()=>this.dismissFloating(reader));
     root.style.left=Math.max(12,Math.min(xy.x,doc.defaultView.innerWidth-root.offsetWidth-12))+'px';root.style.top=Math.max(12,Math.min(xy.y+12,doc.defaultView.innerHeight-root.offsetHeight-12))+'px';
   },
+  referenceRecord(reader,ref) {
+    const state=this.readers.get(reader),record=CiteLensBibliography.fromReference(ref,state?.runningHeaders),matches=(state?.referenceList||[]).filter(r=>record.number?r.number===record.number:CiteLensCore.identity(r)===CiteLensCore.identity(record));return matches.length===1?matches[0]:record;
+  },
   async references(reader) {
     const state=this.readers.get(reader);if(state?.refPromise)return state.refPromise;
     const promise=(async()=>{
       const pdf=reader._internalReader?._primaryView?._iframeWindow?.PDFViewerApplication?.pdfDocument;
       if(!pdf?.getProcessedData)throw Error('此阅读器尚未提供原生参考文献数据；请选中参考文献后使用「识别引文」。');
-      const data=await pdf.getProcessedData(),refs=new Map(),runningHeaders=CiteLensBibliography.runningHeaders(data.pages);if(state)state.citationPages=new Map(Object.entries(data.pages||{}).map(([i,page])=>[Number(i),CiteLensCitationLinks.page(page.chars)]));
+      const data=await pdf.getProcessedData(),refs=new Map(),runningHeaders=CiteLensBibliography.runningHeaders(data.pages);if(state)state.runningHeaders=runningHeaders;if(state)state.citationPages=new Map(Object.entries(data.pages||{}).map(([i,page])=>[Number(i),CiteLensCitationLinks.page(page.chars)]));
       for(const [pageIndex,page] of Object.entries(data.pages||{}))for(const overlay of page.overlays||[]) {
         const list=overlay.references||(overlay.type==='reference'?[overlay]:[]);
         for(const ref of list){const r=CiteLensBibliography.fromReference(ref,runningHeaders);if(r.raw.length<12)continue;const key=CiteLensCore.identity(r);if(!refs.has(key))refs.set(key,r);}

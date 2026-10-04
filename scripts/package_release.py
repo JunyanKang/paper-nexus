@@ -16,6 +16,7 @@ source=dist/f'paper-nexus-{version}-source.zip'
 with zipfile.ZipFile(source,'w',zipfile.ZIP_DEFLATED) as z:
  for name in sorted(filter(None,files)):
   assert not name.startswith(('.build/','test-results/','qa-','dist/','test-fixtures/'))
-  z.write(root/name,Path('paper-nexus')/name)
+  info=zipfile.ZipInfo((Path('paper-nexus')/name).as_posix(),(2026,10,5,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16
+  z.writestr(info,subprocess.check_output(['git','show',':'+name],cwd=root))
 assets=[xpi,dist/'updates.json',source];(dist/'SHA256SUMS.txt').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n' for p in assets))
 for p in assets:print(p.name,p.stat().st_size)

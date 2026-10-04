@@ -860,11 +860,31 @@
           "ok": true
         },
         {
+          "name": "Bibliography hover uses the same cleaned reference 15",
+          "ok": true
+        },
+        {
+          "name": "Text-only bibliography popup retains correct numbered identity 15",
+          "ok": true
+        },
+        {
           "name": "Repeated publisher header DOI removed from reference 59",
           "ok": true
         },
         {
+          "name": "Bibliography hover uses the same cleaned reference 59",
+          "ok": true
+        },
+        {
+          "name": "Text-only bibliography popup retains correct numbered identity 59",
+          "ok": true
+        },
+        {
           "name": "Live popup reflects source-verified group 20",
+          "ok": true
+        },
+        {
+          "name": "Repeated pointer movement over bibliography keeps cleaned hover",
           "ok": true
         },
         {
@@ -1570,7 +1590,7 @@
       ]
     }
   ],
-  "xpiSHA256": "1a5d1de1e69c3435cb2870cb0f1fa4ecc4a31785eeb0d186858334eff8250c04",
+  "xpiSHA256": "7a98fd85e79b836e4f3cb98a85aa626e3e357baa4b752c1b8d1e4301d9aff7cb",
   "limits": [
     "No whole-corpus gold-standard precision or recall measurement",
     "No official JCR value-by-value validation",

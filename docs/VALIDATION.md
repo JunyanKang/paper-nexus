@@ -2,7 +2,7 @@
 
 日期：2026-10-05。环境：macOS Apple Silicon，Zotero 10.0.6-beta.1+77a1c03f7。所有写入及安装测试均在隔离资料库执行。
 
-纯逻辑／服务测试 **90 项通过**；原生测试 **16 套、239 项检查通过**。结果只表示下述范围通过，不承诺所有 PDF 无错误。
+纯逻辑／服务测试 **90 项通过**；原生测试 **16 套、244 项检查通过**。结果只表示下述范围通过，不承诺所有 PDF 无错误。
 
 | 测试套件 | 检查数 | 状态 |
 |---|---:|---|
@@ -17,7 +17,7 @@
 | local-network | 11 | 通过 |
 | network-interaction | 10 | 通过 |
 | network-layout | 6 | 通过 |
-| citation-verification | 36 | 通过 |
+| citation-verification | 41 | 通过 |
 | native-updater | 6 | 通过 |
 | manual-migration | 5 | 通过 |
 | lifecycle | 9 | 通过 |
@@ -43,7 +43,7 @@
 
 最终 XPI 实际安装并激活；保留旧 ID、清单、外观、作者缓存与设置。自动／手动检查和安装由 Zotero 原生 AddonManager 管理。公开更新的传输验证在发布后单独记录，使用带新更新地址的明确标注 QA 旧版本种子；它不是曾经发布过的正式旧版。原 CiteLens 0.3.3 需一次手动安装迁移。
 
-XPI SHA256：`1a5d1de1e69c3435cb2870cb0f1fa4ecc4a31785eeb0d186858334eff8250c04`。
+XPI SHA256：`7a98fd85e79b836e4f3cb98a85aa626e3e357baa4b752c1b8d1e4301d9aff7cb`。
 
 ## 尚未验证的范围
 
