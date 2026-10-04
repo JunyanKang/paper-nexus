@@ -1,0 +1,14 @@
+const base=Zotero.CiteLensTestRoot,{CiteLens:P,CiteLensCore:C,CiteLensServices:S,CiteLensUI:U}=Zotero.CiteLensQA,r=Zotero.Reader._readers.find(x=>x._internalReader?._primaryView?._iframeWindow?.PDFViewerApplication?.pdfDocument.numPages===36),d=r._iframeWindow.document,settings={...S.state.settings},report={run:'single-quartile',version:P.version,checks:[]},check=(name,ok)=>{report.checks.push({name,ok});if(!ok)throw Error(name);};
+let host;
+try{
+ S.state.settings={...settings,theme:'paper',fontSize:13,autoAuthors:false,autoLookup:false,metricYear:'2025',preferInstalledMetrics:false,easyPubMedEnabled:true};U.appearance(d);await Zotero.Reader.open(r.itemID);r._internalReader._primaryView._onSetOverlayPopup(null);for(const n of d.querySelectorAll('.cl-root,.cl-floating,.cl-overlay'))n.remove();
+ const record=Object.values(S.state.cache).flatMap(x=>x.value?.ranked||[]).map(x=>x.record).find(x=>x.title?.startsWith('Nocturnal tarsier retina'));
+ check('Real screenshot paper remains in metadata cache',!!record);host=U.el(d,'div',null,'cl-floating');host.style.cssText='left:150px;top:100px';d.body.append(host);host.append(U.card(d,record,r,{compact:true}));await Zotero.Promise.delay(160);
+ const metric=S.metricFor(record),row=host.querySelector('.cl-metrics');report.metric={year:metric.metricYear,IF:metric.jif,categories:metric.categories,provider:metric.provider};
+ check('Retained 2025 dataset has the observed two subject quartiles',metric.metricYear===2025&&metric.jif===2.3&&metric.categories.some(x=>x.name==='NEUROSCIENCES'&&x.quartile==='Q3')&&metric.categories.some(x=>x.name==='ZOOLOGY'&&x.quartile==='Q1'));
+ check('Real card shows only IF and the single best quartile',row.textContent==='IF 2.3Q1'&&!row.textContent.includes('JCR')&&!row.textContent.includes('–'));
+ check('Tooltip discloses best-category rule and both subjects',row.title.includes('最佳学科分区 Q1')&&row.title.includes('NEUROSCIENCES · Q3')&&row.title.includes('ZOOLOGY · Q1'));
+ check('Legacy SICI DOI is complete in clickable link',host.querySelector('.cl-doi').title==='10.1002/1096-9861(20000904)424:4<718::aid-cne12>3.0.co;2-z'&&decodeURI(host.querySelector('.cl-doi').href).includes('<718::aid-cne12>'));
+ const b=host.getBoundingClientRect(),canvas=d.createElement('canvas');canvas.width=Math.ceil(b.width+20)*2;canvas.height=Math.ceil(b.height+20)*2;const ctx=canvas.getContext('2d');ctx.scale(2,2);ctx.drawWindow(d.defaultView,b.x-10,b.y-10,canvas.width/2,canvas.height/2,'#fff');await IOUtils.write(base+'/test-results/38-single-quartile.png',Uint8Array.from(d.defaultView.atob(canvas.toDataURL('image/png').split(',')[1]),x=>x.charCodeAt(0)));report.passed=true;
+}catch(e){report.passed=false;report.error=String(e);report.stack=e.stack;}
+finally{host?.remove();S.state.settings=settings;U.appearance(d);await IOUtils.writeUTF8(base+'/test-results/single-quartile.json',JSON.stringify(report,null,2));}return report;

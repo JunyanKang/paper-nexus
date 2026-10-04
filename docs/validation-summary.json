@@ -1,0 +1,1581 @@
+{
+  "date": "2026-10-05",
+  "release": "0.4.0",
+  "platform": "macOS Apple Silicon",
+  "zotero": "10.0.6-beta.1+77a1c03f7",
+  "unitTests": 90,
+  "native": {
+    "native-integration": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Reader toolbar is attached",
+          "ok": true
+        },
+        {
+          "name": "Screenshot reference Polyak 1957 resolved",
+          "ok": true
+        },
+        {
+          "name": "Screenshot reference Müller 1856 resolved",
+          "ok": true
+        },
+        {
+          "name": "Screenshot reference Rowe 1982 resolved",
+          "ok": true
+        },
+        {
+          "name": "Screenshot reference Provis 1998 resolved",
+          "ok": true
+        },
+        {
+          "name": "Screenshot reference Chievitz 1888 resolved",
+          "ok": true
+        },
+        {
+          "name": "Screenshot reference Mastronarde 1984 resolved",
+          "ok": true
+        },
+        {
+          "name": "Screenshot reference Kelling 1989 resolved",
+          "ok": true
+        },
+        {
+          "name": "Screenshot reference Reichenbach 1991 resolved",
+          "ok": true
+        },
+        {
+          "name": "Screenshot reference Kuhrt 2012 resolved",
+          "ok": true
+        },
+        {
+          "name": "Polyak maps to the book on PDF page 35",
+          "ok": true
+        },
+        {
+          "name": "Missing native Müller reference recovered locally",
+          "ok": true
+        },
+        {
+          "name": "Native hover popup receives one enhanced card",
+          "ok": true
+        },
+        {
+          "name": "Book shows publisher instead of journal metric badges",
+          "ok": true
+        },
+        {
+          "name": "Card source corresponds to 1957, not 1941",
+          "ok": true
+        },
+        {
+          "name": "Repeated book save reuses an item",
+          "ok": true
+        },
+        {
+          "name": "Item placed in selected collection",
+          "ok": true
+        },
+        {
+          "name": "Source relation added",
+          "ok": true
+        },
+        {
+          "name": "Repeated save does not duplicate source notes",
+          "ok": true
+        },
+        {
+          "name": "Concurrent repeated saves are serialized",
+          "ok": true
+        },
+        {
+          "name": "Invalid or unwritable library is rejected",
+          "ok": true
+        },
+        {
+          "name": "Metric data import keeps source and metric year",
+          "ok": true
+        },
+        {
+          "name": "Invalid metric import leaves previous dataset intact",
+          "ok": true
+        },
+        {
+          "name": "Reading list deduplicates",
+          "ok": true
+        },
+        {
+          "name": "Queue persists to local file",
+          "ok": true
+        },
+        {
+          "name": "Save dialog provides target and new collection inputs",
+          "ok": true
+        },
+        {
+          "name": "References panel loads and has a search field",
+          "ok": true
+        },
+        {
+          "name": "Live Crossref DOI resolution matches the original paper",
+          "ok": true
+        },
+        {
+          "name": "Exact DOI save deduplicates case-insensitively",
+          "ok": true
+        }
+      ]
+    },
+    "streamlined-ui": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Background ambiguous lookup never opens candidates or any dialog",
+          "ok": true
+        },
+        {
+          "name": "Background ambiguous lookup stays silent",
+          "ok": true
+        },
+        {
+          "name": "Menu has exactly the requested four actions",
+          "ok": true
+        },
+        {
+          "name": "Only explicit update can open candidate selection",
+          "ok": true
+        },
+        {
+          "name": "Manual candidate window closes with Escape",
+          "ok": true
+        },
+        {
+          "name": "No background consent prompt or request when permission is absent",
+          "ok": true
+        },
+        {
+          "name": "Turning off automatic updates discards an in-flight result",
+          "ok": true
+        },
+        {
+          "name": "Real cached screenshot chapter is available",
+          "ok": true
+        },
+        {
+          "name": "Legacy cached title displays italic fovea centralis without literal tags",
+          "ok": true
+        },
+        {
+          "name": "Title safely renders Greek letters, superscripts, subscripts and JATS",
+          "ok": true
+        },
+        {
+          "name": "Main card has no details, tabs, raw bibliography or source panels",
+          "ok": true
+        },
+        {
+          "name": "Popover does not add a row or increase card height",
+          "ok": true
+        },
+        {
+          "name": "Popover fits viewport and avoids clipping",
+          "ok": true
+        },
+        {
+          "name": "Arrow keys navigate menu",
+          "ok": true
+        },
+        {
+          "name": "End selects Settings",
+          "ok": true
+        },
+        {
+          "name": "Menu survives asynchronous card redraw",
+          "ok": true
+        },
+        {
+          "name": "Redrawn ellipsis keeps accessible expanded state",
+          "ok": true
+        },
+        {
+          "name": "Escape closes only menu and restores ellipsis focus",
+          "ok": true
+        },
+        {
+          "name": "Click outside dismisses menu",
+          "ok": true
+        },
+        {
+          "name": "Copy action produces readable citation without formatting tags",
+          "ok": true
+        },
+        {
+          "name": "Save-as opens library and collection chooser",
+          "ok": true
+        },
+        {
+          "name": "Save form title has no legacy HTML tags",
+          "ok": true
+        },
+        {
+          "name": "Settings is one page without tabs, preview or provider names",
+          "ok": true
+        },
+        {
+          "name": "Settings shows only three primary groups",
+          "ok": true
+        },
+        {
+          "name": "Rare settings start collapsed",
+          "ok": true
+        },
+        {
+          "name": "Settings has no horizontal overflow",
+          "ok": true
+        },
+        {
+          "name": "Appearance setting applies immediately",
+          "ok": true
+        },
+        {
+          "name": "Settings reopen retains preference",
+          "ok": true
+        },
+        {
+          "name": "Selected workbench card shrinks to content",
+          "ok": true
+        },
+        {
+          "name": "Workbench title uses safe inline formatting",
+          "ok": true
+        },
+        {
+          "name": "Real native citation menu remains visible when pointer enters it",
+          "ok": true
+        }
+      ]
+    },
+    "single-quartile": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Real screenshot paper remains in metadata cache",
+          "ok": true
+        },
+        {
+          "name": "Retained 2025 dataset has the observed two subject quartiles",
+          "ok": true
+        },
+        {
+          "name": "Real card shows only IF and the single best quartile",
+          "ok": true
+        },
+        {
+          "name": "Tooltip discloses best-category rule and both subjects",
+          "ok": true
+        },
+        {
+          "name": "Legacy SICI DOI is complete in clickable link",
+          "ok": true
+        }
+      ]
+    },
+    "responsive-gecko": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "360px settings dialog fits its viewport",
+          "ok": true
+        },
+        {
+          "name": "Narrow settings stays one page with scrollable content",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "Narrow control remains within dialog",
+          "ok": true
+        },
+        {
+          "name": "360px hover content wraps without horizontal overflow",
+          "ok": true
+        },
+        {
+          "name": "Dense journal IF quartile DOI remain in one row at 360px",
+          "ok": true
+        },
+        {
+          "name": "Only IF is visible, JCI is in tooltip and JCR prefix is removed",
+          "ok": true
+        },
+        {
+          "name": "Six aligned author slots preserve full names as tooltips",
+          "ok": true
+        },
+        {
+          "name": "Menu fits a narrow viewport at large font size",
+          "ok": true
+        },
+        {
+          "name": "Verified edits take precedence over cached metadata",
+          "ok": true
+        }
+      ]
+    },
+    "ui-behavior": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Listing a card does not trigger automatic network lookup",
+          "ok": true
+        },
+        {
+          "name": "Opted-in hover triggers exactly one lookup",
+          "ok": true
+        },
+        {
+          "name": "Metadata is rendered as text, not executable markup",
+          "ok": true
+        },
+        {
+          "name": "Save target input is present",
+          "ok": true
+        },
+        {
+          "name": "Actual save button creates an item and closes dialog",
+          "ok": true
+        },
+        {
+          "name": "New collection input reaches library save service",
+          "ok": true
+        },
+        {
+          "name": "Escape closes the dialog",
+          "ok": true
+        }
+      ]
+    },
+    "selection-race": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Late lookup never overwrites the newly selected reference",
+          "ok": true
+        },
+        {
+          "name": "Only the newly selected card remains",
+          "ok": true
+        }
+      ]
+    },
+    "automatic-authors": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Six-slot author layout preserves order for 0",
+          "ok": true
+        },
+        {
+          "name": "Middle ellipsis appears only above six authors 0",
+          "ok": true
+        },
+        {
+          "name": "Six-slot author layout preserves order for 1",
+          "ok": true
+        },
+        {
+          "name": "Middle ellipsis appears only above six authors 1",
+          "ok": true
+        },
+        {
+          "name": "Six-slot author layout preserves order for 2",
+          "ok": true
+        },
+        {
+          "name": "Middle ellipsis appears only above six authors 2",
+          "ok": true
+        },
+        {
+          "name": "Six-slot author layout preserves order for 3",
+          "ok": true
+        },
+        {
+          "name": "Middle ellipsis appears only above six authors 3",
+          "ok": true
+        },
+        {
+          "name": "Six-slot author layout preserves order for 5",
+          "ok": true
+        },
+        {
+          "name": "Middle ellipsis appears only above six authors 5",
+          "ok": true
+        },
+        {
+          "name": "Six-slot author layout preserves order for 6",
+          "ok": true
+        },
+        {
+          "name": "Middle ellipsis appears only above six authors 6",
+          "ok": true
+        },
+        {
+          "name": "Six-slot author layout preserves order for 7",
+          "ok": true
+        },
+        {
+          "name": "Middle ellipsis appears only above six authors 7",
+          "ok": true
+        },
+        {
+          "name": "Six-slot author layout preserves order for 10",
+          "ok": true
+        },
+        {
+          "name": "Middle ellipsis appears only above six authors 10",
+          "ok": true
+        },
+        {
+          "name": "Visible card automatically retrieves complete real author list 0",
+          "ok": true
+        },
+        {
+          "name": "Authors remain on one line 0",
+          "ok": true
+        },
+        {
+          "name": "Actions occupy the top-right with no footer row 0",
+          "ok": true
+        },
+        {
+          "name": "Real card uses exact first-three last-three order 0",
+          "ok": true
+        },
+        {
+          "name": "No role or verification labels on main card 0",
+          "ok": true
+        },
+        {
+          "name": "DOI follows JCR on the same visual row 0",
+          "ok": true
+        },
+        {
+          "name": "DOI keeps full identifier in tooltip 0",
+          "ok": true
+        },
+        {
+          "name": "Six-author hover stays compact 0",
+          "ok": true
+        },
+        {
+          "name": "Menu keeps only four actions 0",
+          "ok": true
+        },
+        {
+          "name": "Visible card automatically retrieves complete real author list 1",
+          "ok": true
+        },
+        {
+          "name": "Authors remain on one line 1",
+          "ok": true
+        },
+        {
+          "name": "Actions occupy the top-right with no footer row 1",
+          "ok": true
+        },
+        {
+          "name": "Real card uses exact first-three last-three order 1",
+          "ok": true
+        },
+        {
+          "name": "No role or verification labels on main card 1",
+          "ok": true
+        },
+        {
+          "name": "DOI follows JCR on the same visual row 1",
+          "ok": true
+        },
+        {
+          "name": "DOI keeps full identifier in tooltip 1",
+          "ok": true
+        },
+        {
+          "name": "Six-author hover stays compact 1",
+          "ok": true
+        },
+        {
+          "name": "Menu keeps only four actions 1",
+          "ok": true
+        },
+        {
+          "name": "Real citation without DOI resolves before retrieving authors",
+          "ok": true
+        },
+        {
+          "name": "Late author query cannot overwrite selected citation",
+          "ok": true
+        },
+        {
+          "name": "Disabled author lookup makes no query",
+          "ok": true
+        }
+      ]
+    },
+    "hover-first-paint": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Real source-verified single and grouped fixtures exist",
+          "ok": true
+        },
+        {
+          "name": "Every visible frame directly shows enhanced card 0",
+          "ok": true
+        },
+        {
+          "name": "Every visible frame directly shows enhanced card 1",
+          "ok": true
+        },
+        {
+          "name": "Every visible frame directly shows enhanced card 2",
+          "ok": true
+        },
+        {
+          "name": "Every visible frame directly shows enhanced card 3",
+          "ok": true
+        },
+        {
+          "name": "Every visible frame directly shows enhanced card 4",
+          "ok": true
+        },
+        {
+          "name": "One group per native popup",
+          "ok": true
+        },
+        {
+          "name": "Native class updates cannot remove compact width",
+          "ok": true
+        },
+        {
+          "name": "Detach restores native original immediately",
+          "ok": true
+        },
+        {
+          "name": "Failed enhancement leaves native text usable",
+          "ok": true
+        },
+        {
+          "name": "Reattach clears failure marker and restores card",
+          "ok": true
+        }
+      ]
+    },
+    "local-network": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Local metadata aggregates real library items without feeds or trash",
+          "ok": true
+        },
+        {
+          "name": "Native bibliography creates traceable local citation edges",
+          "ok": true
+        },
+        {
+          "name": "Citation evidence carries a real source attachment and page",
+          "ok": true
+        },
+        {
+          "name": "Full-name author associations are available but typed as same-name only",
+          "ok": true
+        },
+        {
+          "name": "Collection scope includes only selected local collection",
+          "ok": true
+        },
+        {
+          "name": "Existing Zotero PDF index is searchable locally",
+          "ok": true
+        },
+        {
+          "name": "Fulltext result includes a bounded readable source snippet",
+          "ok": true
+        },
+        {
+          "name": "A cancelled fulltext search cannot publish late results",
+          "ok": true
+        },
+        {
+          "name": "Network opens from Zotero main document without a web page or server",
+          "ok": true
+        },
+        {
+          "name": "Every visible connection is actionable and graph is interactive",
+          "ok": true
+        },
+        {
+          "name": "No account, API-key or remote-query UI in local workspace",
+          "ok": true
+        }
+      ]
+    },
+    "network-interaction": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Logo loads in the main document",
+          "ok": true
+        },
+        {
+          "name": "Every paper title lies inside its clickable row without overlap",
+          "ok": true
+        },
+        {
+          "name": "Refresh retains explicit all-library scope",
+          "ok": true
+        },
+        {
+          "name": "No-result search cannot leave an unrelated selected paper",
+          "ok": true
+        },
+        {
+          "name": "Fulltext search returns source snippets",
+          "ok": true
+        },
+        {
+          "name": "Editing fulltext query removes stale hits",
+          "ok": true
+        },
+        {
+          "name": "Relationship filter persists when changing focus",
+          "ok": true
+        },
+        {
+          "name": "Graph keyboard zoom changes viewport",
+          "ok": true
+        },
+        {
+          "name": "Opening an item removes the obstructing dialog",
+          "ok": true
+        },
+        {
+          "name": "Reopening works after opening library item",
+          "ok": true
+        }
+      ]
+    },
+    "network-layout": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Network fits 620px viewport",
+          "ok": true
+        },
+        {
+          "name": "Visible controls fit 620px viewport",
+          "ok": true
+        },
+        {
+          "name": "Icon remains loaded in dark reader content",
+          "ok": true
+        },
+        {
+          "name": "Network fits 420px viewport",
+          "ok": true
+        },
+        {
+          "name": "Visible controls fit 420px viewport",
+          "ok": true
+        },
+        {
+          "name": "Icon remains loaded in light reader content",
+          "ok": true
+        }
+      ]
+    },
+    "citation-verification": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Source text and bibliography 36: Zernike, 1955; Land, 1972; Tuchin, 2000",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 36: Franze et al., 2007; Agte et al., 2011; Labin et al., 2014",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 36: Reichenbach and Robinson, 1995; Agte et al., 2011",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 36: Reichenbach and Bringmann (2010, 2017",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 36: Walls, 1942; Polyak, 1957",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 36: Curcio et al., 1990",
+          "ok": true
+        },
+        {
+          "name": "Et al. distinguishes four-author work from the two-author same-year work",
+          "ok": true
+        },
+        {
+          "name": "Article byline does not inherit all cited papers by the same author",
+          "ok": true
+        },
+        {
+          "name": "Live popup reflects source-verified group 36",
+          "ok": true
+        },
+        {
+          "name": "Wrong native destination cannot change source-verified group 36",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 12: [1,2,3]",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 12: [5,6,7]",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 12: [7,8]",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 12: [10,11,12]",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 12: [14,15]",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 12: [8,17,18]",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 12: [7,20]",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 12: [26,27]",
+          "ok": true
+        },
+        {
+          "name": "Live popup reflects source-verified group 12",
+          "ok": true
+        },
+        {
+          "name": "Wrong native destination cannot change source-verified group 12",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 5,6",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 2,7",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 8–13",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 13,15",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 27,28",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 45,46",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 49–51",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 52,53",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 54,55",
+          "ok": true
+        },
+        {
+          "name": "Source text and bibliography 20: 59",
+          "ok": true
+        },
+        {
+          "name": "Repeated publisher header DOI removed from reference 15",
+          "ok": true
+        },
+        {
+          "name": "Repeated publisher header DOI removed from reference 59",
+          "ok": true
+        },
+        {
+          "name": "Live popup reflects source-verified group 20",
+          "ok": true
+        },
+        {
+          "name": "Wrong native destination cannot change source-verified group 20",
+          "ok": true
+        },
+        {
+          "name": "Candidate dialog filters impossible title, author, author-list and year matches",
+          "ok": true
+        },
+        {
+          "name": "All-rejected candidates do not open an empty chooser",
+          "ok": true
+        }
+      ]
+    },
+    "native-updater": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Native background policy false",
+          "ok": true
+        },
+        {
+          "name": "Native background policy true",
+          "ok": true
+        },
+        {
+          "name": "Policy survives reopening settings",
+          "ok": true
+        },
+        {
+          "name": "Manual check immediately disables repeated requests",
+          "ok": true
+        },
+        {
+          "name": "Native check completes with actionable state",
+          "ok": true
+        },
+        {
+          "name": "Closing settings releases update observer",
+          "ok": true
+        }
+      ]
+    },
+    "manual-migration": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Genuine package active 0.3.3",
+          "ok": true
+        },
+        {
+          "name": "Genuine package active 0.4.0",
+          "ok": true
+        },
+        {
+          "name": "Reading list identity preserved",
+          "ok": true
+        },
+        {
+          "name": "Appearance and query settings preserved",
+          "ok": true
+        },
+        {
+          "name": "Author cache retained",
+          "ok": true
+        }
+      ]
+    },
+    "lifecycle": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Queue restored from previous load",
+          "ok": true
+        },
+        {
+          "name": "Unloading removes all CiteLens DOM",
+          "ok": true
+        },
+        {
+          "name": "Unloading removes scoped appearance attributes",
+          "ok": true
+        },
+        {
+          "name": "Network style and modal are cleaned from the main document",
+          "ok": true
+        },
+        {
+          "name": "Reader observer and panel maps released",
+          "ok": true
+        },
+        {
+          "name": "Reload restores reading queue",
+          "ok": true
+        },
+        {
+          "name": "Reload registers only one toolbar per reader",
+          "ok": true
+        },
+        {
+          "name": "Reload retains appearance settings",
+          "ok": true
+        },
+        {
+          "name": "Production has no external listener or runtime process",
+          "ok": true
+        }
+      ]
+    },
+    "production-package": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Production XPI starts in Zotero",
+          "ok": true
+        },
+        {
+          "name": "Production addon is active",
+          "ok": true
+        },
+        {
+          "name": "Production package reads original book reference",
+          "ok": true
+        },
+        {
+          "name": "Production card contains no redundant detail panels",
+          "ok": true
+        },
+        {
+          "name": "Production menu has the four requested actions",
+          "ok": true
+        },
+        {
+          "name": "Library and collection are presented before metadata",
+          "ok": true
+        },
+        {
+          "name": "Production package loads six ordered author slots from retained cache",
+          "ok": true
+        },
+        {
+          "name": "Production main card omits verification and role prompts",
+          "ok": true
+        },
+        {
+          "name": "Production actions are in top line",
+          "ok": true
+        },
+        {
+          "name": "Production main metrics omit JCI and JCR prefix",
+          "ok": true
+        },
+        {
+          "name": "Production DOI is in journal row after quartile",
+          "ok": true
+        },
+        {
+          "name": "Production title renders inline italics without visible markup",
+          "ok": true
+        },
+        {
+          "name": "Production settings has no tabs or provider names",
+          "ok": true
+        },
+        {
+          "name": "Upgrade retained reading list",
+          "ok": true
+        },
+        {
+          "name": "Upgrade retained appearance preferences",
+          "ok": true
+        }
+      ]
+    }
+  },
+  "citationPapers": [
+    {
+      "pages": 36,
+      "overlays": 1785,
+      "counts": {
+        "matched": 1668,
+        "partial": 94,
+        "unresolved": 23
+      }
+    },
+    {
+      "pages": 12,
+      "overlays": 50,
+      "counts": {
+        "matched": 50,
+        "partial": 0,
+        "unresolved": 0
+      }
+    },
+    {
+      "pages": 20,
+      "overlays": 101,
+      "counts": {
+        "matched": 101,
+        "partial": 0,
+        "unresolved": 0
+      }
+    }
+  ],
+  "reviewedCitationExamples": [
+    {
+      "pages": 36,
+      "page": 1,
+      "text": "Zernike, 1955; Land, 1972; Tuchin, 2000",
+      "references": [
+        {
+          "title": "How I discovered phase contrast",
+          "author": "Zernike",
+          "year": "1955"
+        },
+        {
+          "title": "The physics and biology of animal reflectors",
+          "author": "Land",
+          "year": "1972"
+        },
+        {
+          "title": "Tissue Optics",
+          "author": "Tuchin",
+          "year": "2000"
+        }
+      ]
+    },
+    {
+      "pages": 36,
+      "page": 2,
+      "text": "Franze et al., 2007; Agte et al., 2011; Labin et al., 2014",
+      "references": [
+        {
+          "title": "Müller cells are living optical fibers in the vertebrate retina",
+          "author": "Franze",
+          "year": "2007"
+        },
+        {
+          "title": "Müller glial cell-provided cellular light guidance through the vital Guinea-pig retina",
+          "author": "Agte",
+          "year": "2011"
+        },
+        {
+          "title": "Müller cells separate between wavelengths to improve day vision with minimal effect upon night vision",
+          "author": "Labin",
+          "year": "2014"
+        }
+      ]
+    },
+    {
+      "pages": 36,
+      "page": 2,
+      "text": "Reichenbach and Robinson, 1995; Agte et al., 2011",
+      "references": [
+        {
+          "title": "Phylogenetic constraints on retinal organization and development: an Haeckelian perspective",
+          "author": "Reichenbach",
+          "year": "1995"
+        },
+        {
+          "title": "Müller glial cell-provided cellular light guidance through the vital Guinea-pig retina",
+          "author": "Agte",
+          "year": "2011"
+        }
+      ]
+    },
+    {
+      "pages": 36,
+      "page": 2,
+      "text": "Reichenbach and Bringmann (2010, 2017",
+      "references": [
+        {
+          "title": "Müller Cells in the Healthy and Diseased Retina",
+          "author": "Reichenbach",
+          "year": "2010"
+        },
+        {
+          "title": "Comparative anatomy of glial cells in mammals",
+          "author": "Reichenbach",
+          "year": "2017"
+        }
+      ]
+    },
+    {
+      "pages": 36,
+      "page": 2,
+      "text": "Walls, 1942; Polyak, 1957",
+      "references": [
+        {
+          "title": "The Vertebrate Eye and its Adaptive Radiation",
+          "author": "Walls",
+          "year": "1942"
+        },
+        {
+          "title": "The Vertebrate Visual System",
+          "author": "Polyak",
+          "year": "1957"
+        }
+      ]
+    },
+    {
+      "pages": 36,
+      "page": 6,
+      "text": "Curcio et al., 1990",
+      "references": [
+        {
+          "title": "Human photoreceptor topography",
+          "author": "Curcio",
+          "year": "1990"
+        }
+      ]
+    },
+    {
+      "pages": 12,
+      "page": 1,
+      "text": "[1,2,3]",
+      "references": [
+        {
+          "title": "The other pigment cell: specification and development of the pigmented epithelium of the vertebrate eye",
+          "author": "Bharti",
+          "year": "2006",
+          "number": 1
+        },
+        {
+          "title": "Eye morphogenesis and patterning of the optic vesicle",
+          "author": "Fuhrmann",
+          "year": "2010",
+          "number": 2
+        },
+        {
+          "title": "Eye development",
+          "author": "Graw",
+          "year": "2010",
+          "number": 3
+        }
+      ]
+    },
+    {
+      "pages": 12,
+      "page": 1,
+      "text": "[5,6,7]",
+      "references": [
+        {
+          "title": "Chx10 repression of Mitf is required for the maintenance of mammalian neuroretinal identity",
+          "author": "Horsford",
+          "year": "2005",
+          "number": 5
+        },
+        {
+          "title": "Transdifferentiation of the retina into pigmented cells in ocular retardation mice defines a new function of the homeodomain gene Chx10",
+          "author": "Rowan",
+          "year": "2004",
+          "number": 6
+        },
+        {
+          "title": "Signaling and transcriptional regulation in early mammalian eye development: a link between FGF and MITF",
+          "author": "Nguyen",
+          "year": "2000",
+          "number": 7
+        }
+      ]
+    },
+    {
+      "pages": 12,
+      "page": 1,
+      "text": "[7,8]",
+      "references": [
+        {
+          "title": "Signaling and transcriptional regulation in early mammalian eye development: a link between FGF and MITF",
+          "author": "Nguyen",
+          "year": "2000",
+          "number": 7
+        },
+        {
+          "title": "Alternative promoter use in eye development: the complex role and regulation of the transcription factor MITF",
+          "author": "Bharti",
+          "year": "2008",
+          "number": 8
+        }
+      ]
+    },
+    {
+      "pages": 12,
+      "page": 1,
+      "text": "[10,11,12]",
+      "references": [
+        {
+          "title": "Expression of the Vax family homeobox genes suggests multiple roles in eye development",
+          "author": "Ohsaki",
+          "year": "1999",
+          "number": 10
+        },
+        {
+          "title": "A homeobox gene, vax2, controls the patterning of the eye dorsoventral axis",
+          "author": "Barbieri",
+          "year": "1999",
+          "number": 11
+        },
+        {
+          "title": "Vax1 is a novel homeobox-containing gene expressed in the developing anterior ventral forebrain",
+          "author": "Hallonet",
+          "year": "1998",
+          "number": 12
+        }
+      ]
+    },
+    {
+      "pages": 12,
+      "page": 2,
+      "text": "[14,15]",
+      "references": [
+        {
+          "title": "The homeodomain protein vax1 is required for axon guidance and major tract formation in the developing forebrain",
+          "author": "Bertuzzi",
+          "year": "1999",
+          "number": 14
+        },
+        {
+          "title": "Vax2 inactivation in mouse determines alteration of the eye dorsal-ventral axis, misrouting of the optic fibres and eye coloboma",
+          "author": "Barbieri",
+          "year": "2002",
+          "number": 15
+        }
+      ]
+    },
+    {
+      "pages": 12,
+      "page": 2,
+      "text": "[8,17,18]",
+      "references": [
+        {
+          "title": "Alternative promoter use in eye development: the complex role and regulation of the transcription factor MITF",
+          "author": "Bharti",
+          "year": "2008",
+          "number": 8
+        },
+        {
+          "title": "Cytoskeletal and cell adhesion defects in wounded and Pax6+/2 corneal epithelia",
+          "author": "Ou",
+          "year": "2010",
+          "number": 17
+        },
+        {
+          "title": "Chronic wound state exacerbated by oxidative stress in Pax6+/2 aniridiarelated keratopathy",
+          "author": "Ou",
+          "year": "2008",
+          "number": 18
+        }
+      ]
+    },
+    {
+      "pages": 12,
+      "page": 2,
+      "text": "[7,20]",
+      "references": [
+        {
+          "title": "Signaling and transcriptional regulation in early mammalian eye development: a link between FGF and MITF",
+          "author": "Nguyen",
+          "year": "2000",
+          "number": 7
+        },
+        {
+          "title": "Developmental expression of a novel murine homeobox gene (Chx10): evidence for roles in determination of the neuroretina and inner nuclear layer",
+          "author": "Liu",
+          "year": "1994",
+          "number": 20
+        }
+      ]
+    },
+    {
+      "pages": 12,
+      "page": 5,
+      "text": "[26,27]",
+      "references": [
+        {
+          "title": "The microphthalmia-associated transcription factor Mitf interacts with beta-catenin to determine target gene expression",
+          "author": "Schepsky",
+          "year": "2006",
+          "number": 26
+        },
+        {
+          "title": "Microphthalmia-associated transcription factor interacts with LEF-1, a mediator of Wnt signaling",
+          "author": "Yasumoto",
+          "year": "2002",
+          "number": 27
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 1,
+      "text": "5,6",
+      "references": [
+        {
+          "title": "The genetics and molecular biology of the synaptonemal complex",
+          "author": "Page",
+          "year": "2004",
+          "number": 5
+        },
+        {
+          "title": "Molecular organization of mammalian meiotic chromosome axis revealed by expansion STORM microscopy",
+          "author": "Xu",
+          "year": "2019",
+          "number": 6
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 1,
+      "text": "2,7",
+      "references": [
+        {
+          "title": "Control of meiotic crossovers: from doublestrand break formation to designation",
+          "author": "Gray",
+          "year": "2016",
+          "number": 2
+        },
+        {
+          "title": "Numerical constraints and feedback control of double-strand breaks in mouse meiosis",
+          "author": "Kauppi",
+          "year": "2013",
+          "number": 7
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 1,
+      "text": "8–13",
+      "references": [
+        {
+          "title": "Transcriptomics of meiosis in the male mouse",
+          "author": "Geisinger",
+          "year": "2021",
+          "number": 8
+        },
+        {
+          "title": "Cellular source and mechanisms of high transcriptome complexity in the mammalian testis",
+          "author": "Soumillon",
+          "year": "2013",
+          "number": 9
+        },
+        {
+          "title": "Chromatin and transcription transitions of mammalian adult germline stem cells and spermatogenesis",
+          "author": "Hammoud",
+          "year": "2014",
+          "number": 10
+        },
+        {
+          "title": "Reorganized 3D genome structures support transcriptional regulation in mouse spermatogenesis",
+          "author": "Luo",
+          "year": "2020",
+          "number": 11
+        },
+        {
+          "title": "Dynamic reorganization of open chromatin underlies diverse transcriptomes during spermatogenesis",
+          "author": "Maezawa",
+          "year": "2018",
+          "number": 12
+        },
+        {
+          "title": "Transcriptome analysis of highly purified mouse spermatogenic cell populations: gene expression signatures switch from meiotic-to postmeiotic-related processes at pachytene stage",
+          "author": "da Cruz",
+          "year": "2016",
+          "number": 13
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 2,
+      "text": "13,15",
+      "references": [
+        {
+          "title": "Transcriptome analysis of highly purified mouse spermatogenic cell populations: gene expression signatures switch from meiotic-to postmeiotic-related processes at pachytene stage",
+          "author": "da Cruz",
+          "year": "2016",
+          "number": 13
+        },
+        {
+          "title": "An orchestrated intron retention program in meiosis controls timely usage of transcripts during germ cell differentiation",
+          "author": "Naro",
+          "year": "2017",
+          "number": 15
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 2,
+      "text": "27,28",
+      "references": [
+        {
+          "title": "The RNA polymerase II molecule at the 5’ end of the uninduced hsp70 gene of D",
+          "author": "Rougvie",
+          "year": "1988",
+          "number": 27
+        },
+        {
+          "title": "Screening of λ library for differentially expressed genes using in vitro transcripts",
+          "author": "Love",
+          "year": "1985",
+          "number": 28
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 9,
+      "text": "45,46",
+      "references": [
+        {
+          "title": "The expanding family of CREB/CREM transcription factors that are involved with spermatogenesis",
+          "author": "Don",
+          "year": "2002",
+          "number": 45
+        },
+        {
+          "title": "et al. Transcription factor RFX2 is a key regulator of mouse spermiogenesis",
+          "author": "Wu",
+          "year": "2016",
+          "number": 46
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 9,
+      "text": "49–51",
+      "references": [
+        {
+          "title": "The landscape of mouse meiotic double-strand break formation, processing, and repair",
+          "author": "Lange",
+          "year": "2016",
+          "number": 49
+        },
+        {
+          "title": "PRDM9, a driver of the genetic map",
+          "author": "Grey",
+          "year": "2018",
+          "number": 50
+        },
+        {
+          "title": "PRDM9 methyltransferase activity is essential for meiotic DNA double-strand break formation at its binding sites",
+          "author": "Diagouraga",
+          "year": "2018",
+          "number": 51
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 9,
+      "text": "52,53",
+      "references": [
+        {
+          "title": "Dynamic reorganization of the genome shapes the recombination landscape in meiotic prophase",
+          "author": "Patel",
+          "year": "2019",
+          "number": 52
+        },
+        {
+          "title": "Genetic recombination is directed away from functional genomic elements in mice",
+          "author": "Brick",
+          "year": "2012",
+          "number": 53
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 9,
+      "text": "54,55",
+      "references": [
+        {
+          "title": "Identification of active transcriptional regulatory elements from GRO-seq data",
+          "author": "Danko",
+          "year": "2015",
+          "number": 54
+        },
+        {
+          "title": "Prediction of histone post-translational modification patterns based on nascent transcription data",
+          "author": "Wang",
+          "year": "2022",
+          "number": 55
+        }
+      ]
+    },
+    {
+      "pages": 20,
+      "page": 13,
+      "text": "59",
+      "references": [
+        {
+          "title": "Genetic analysis of chromosome pairing, recombination, and cell cycle control during first meiotic prophase in mammals",
+          "author": "Cohen",
+          "year": "2006",
+          "number": 59
+        }
+      ]
+    }
+  ],
+  "xpiSHA256": "1a5d1de1e69c3435cb2870cb0f1fa4ecc4a31785eeb0d186858334eff8250c04",
+  "limits": [
+    "No whole-corpus gold-standard precision or recall measurement",
+    "No official JCR value-by-value validation",
+    "No Windows or Linux runtime certification",
+    "Same-name signatures are not disambiguated people",
+    "Existing fulltext indexes only; no automatic OCR or semantic search"
+  ]
+}
