@@ -1060,6 +1060,43 @@
           "ok": true
         }
       ]
+    },
+    "public-update": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Public manifest identifies release and SHA512",
+          "ok": true
+        },
+        {
+          "name": "Labelled QA seed installed",
+          "ok": true
+        },
+        {
+          "name": "Automatic update installed public release with identical bytes",
+          "ok": true
+        },
+        {
+          "name": "Labelled QA seed installed",
+          "ok": true
+        },
+        {
+          "name": "Settings button discovers exact public version",
+          "ok": true
+        },
+        {
+          "name": "Manual settings update installed identical public bytes",
+          "ok": true
+        },
+        {
+          "name": "Both update paths preserve queue and settings",
+          "ok": true
+        },
+        {
+          "name": "Production toolbar logo loads after update",
+          "ok": true
+        }
+      ]
     }
   },
   "citationPapers": [
@@ -1597,5 +1634,13 @@
     "No Windows or Linux runtime certification",
     "Same-name signatures are not disambiguated people",
     "Existing fulltext indexes only; no automatic OCR or semantic search"
-  ]
+  ],
+  "publicUpdate": {
+    "passed": true,
+    "from": "0.3.99 QA seed (version-adjusted; not a prior official release)",
+    "to": "0.4.0",
+    "automatic": true,
+    "manual": true,
+    "hashVerified": true
+  }
 }

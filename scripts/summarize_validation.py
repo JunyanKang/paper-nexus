@@ -13,8 +13,12 @@ doc={'date':'2026-10-05','release':version,'platform':'macOS Apple Silicon','zot
 update=root/'test-results/public-update.json'
 if update.exists():
  r=json.loads(update.read_text());assert r.get('passed');doc['publicUpdate']={k:r[k] for k in ['passed','from','to','automatic','manual','hashVerified']}
+ runs['public-update']={'passed':True,'checks':[{'name':x['name'],'ok':x['ok']} for x in r['checks']]}
 (root/'docs/validation-summary.json').write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n')
 rows='\n'.join(f'| {name} | {len(r["checks"])} | 通过 |' for name,r in runs.items());total=sum(len(r['checks']) for r in runs.values())
+update_note='公开更新验证尚未执行。'
+if doc.get('publicUpdate'):
+ update_note='发布后从公开 GitHub 地址实测通过：Zotero 后台自动更新、设置按钮手动发现与安装、两次安装后的 XPI 与公开 SHA512 一致、设置和阅读清单保留，以及更新后 Logo 加载。测试使用 0.3.99 QA 种子，目标为未修改的正式 0.4.0 XPI。'
 text=f'''# Paper Nexus {version} 验证记录
 
 日期：2026-10-05。环境：{doc['platform']}，Zotero {doc['zotero']}。所有写入及安装测试均在隔离资料库执行。
@@ -44,6 +48,8 @@ text=f'''# Paper Nexus {version} 验证记录
 ## 安装与更新
 
 最终 XPI 实际安装并激活；保留旧 ID、清单、外观、作者缓存与设置。自动／手动检查和安装由 Zotero 原生 AddonManager 管理。公开更新的传输验证在发布后单独记录，使用带新更新地址的明确标注 QA 旧版本种子；它不是曾经发布过的正式旧版。原 CiteLens 0.3.3 需一次手动安装迁移。
+
+{update_note}
 
 XPI SHA256：`{doc['xpiSHA256']}`。
 
