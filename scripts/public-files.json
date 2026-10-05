@@ -67,6 +67,7 @@
     "docs/images/topics.png",
     "docs/images/translation.png",
     "docs/jcr-template.csv",
+    "model-presets.json",
     "package.json",
     "scripts/audit_release.py",
     "scripts/build.py",

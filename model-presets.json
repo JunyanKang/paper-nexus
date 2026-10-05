@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "version": "2026-10-05.1",
+  "providers": [
+    {
+      "id": "minimax",
+      "endpoint": "https://api.minimax.cn/v1",
+      "model": "MiniMax-M2.7-highspeed",
+      "clusterModel": "MiniMax-M3",
+      "source": "https://platform.minimax.cn/docs/guides/text-generation"
+    },
+    {
+      "id": "deepseek",
+      "endpoint": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "clusterModel": "deepseek-flash",
+      "source": "https://api-docs.deepseek.com/news/news260910/"
+    },
+    {
+      "id": "qwen",
+      "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "model": "qwen-flash",
+      "clusterModel": "qwen-plus",
+      "source": "https://help.aliyun.com/zh/model-studio/text-generation-model"
+    },
+    {
+      "id": "doubao",
+      "endpoint": "https://ark.cn-beijing.volces.com/api/v3",
+      "model": "doubao-seed-2-1-lite-260915",
+      "clusterModel": "doubao-seed-2-1-pro-260915",
+      "source": "https://docs.volcengine.com/docs/82379/1553576"
+    },
+    {
+      "id": "glm",
+      "endpoint": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "glm-4.7-flash",
+      "clusterModel": "glm-4.7",
+      "source": "https://www.zhipuai.cn/zh/news/148"
+    },
+    {
+      "id": "kimi",
+      "endpoint": "https://api.moonshot.cn/v1",
+      "model": "kimi-k2.5",
+      "clusterModel": "kimi-k3",
+      "source": "https://www.kimi.com/help/kimi-api/api-overview"
+    },
+    {
+      "id": "hunyuan",
+      "endpoint": "https://tokenhub.tencentmaas.com/v1",
+      "model": "hy3",
+      "clusterModel": "hy3",
+      "source": "https://cloud.tencent.com/document/product/1823/130051"
+    },
+    {
+      "id": "qianfan",
+      "endpoint": "https://qianfan.baidubce.com/v2",
+      "model": "ernie-speed-pro-128k",
+      "clusterModel": "ernie-4.5-turbo-128k",
+      "source": "https://cloud.baidu.com/doc/qianfan-api/s/Dmba8k71y"
+    },
+    {
+      "id": "openai",
+      "endpoint": "https://api.openai.com/v1",
+      "model": "gpt-4.1-mini",
+      "clusterModel": "gpt-4.1",
+      "source": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "anthropic",
+      "endpoint": "https://api.anthropic.com/v1",
+      "model": "claude-haiku-4-5",
+      "clusterModel": "claude-sonnet-4-6",
+      "source": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "gemini",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-3.5-flash-lite",
+      "clusterModel": "gemini-3.8-flash",
+      "source": "https://ai.google.dev/gemini-api/docs/models"
+    }
+  ]
+}
