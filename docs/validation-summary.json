@@ -1567,6 +1567,44 @@
           "ok": true
         }
       ]
+    },
+    "public-update": {
+      "passed": true,
+      "completedAt": "2026-10-05T03:00:05.975269+00:00",
+      "checks": [
+        {
+          "name": "Public manifest identifies release and SHA512",
+          "ok": true
+        },
+        {
+          "name": "Official 0.4.0 baseline installed",
+          "ok": true
+        },
+        {
+          "name": "Automatic update installed public release with identical bytes",
+          "ok": true
+        },
+        {
+          "name": "Official 0.4.0 baseline installed",
+          "ok": true
+        },
+        {
+          "name": "Settings button discovers exact public version",
+          "ok": true
+        },
+        {
+          "name": "Manual settings update installed identical public bytes",
+          "ok": true
+        },
+        {
+          "name": "Both update paths preserve queue and settings",
+          "ok": true
+        },
+        {
+          "name": "Production toolbar logo loads after update",
+          "ok": true
+        }
+      ]
     }
   },
   "citationPapers": [
@@ -2157,5 +2195,13 @@
     "Same-name signatures are not disambiguated people",
     "Existing fulltext indexes only; no automatic OCR or semantic search",
     "Public abstract availability is provider-dependent; credential routing tests use a synthetic key; live authentication mode is recorded separately"
-  ]
+  ],
+  "publicUpdate": {
+    "passed": true,
+    "from": "0.4.0 official public release",
+    "to": "0.4.2",
+    "automatic": true,
+    "manual": true,
+    "hashVerified": true
+  }
 }
