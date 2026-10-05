@@ -4,7 +4,7 @@
 
 Zotero 的引文阅读与本地文献网络插件。悬停查看与翻译摘要、保存到指定文献夹、搜索本地全文，并沿有依据的关系继续阅读。
 
-**0.4.4** · [下载插件](https://github.com/JunyanKang/paper-nexus/releases/latest) · [使用指南](docs/GUIDE.md) · [验证记录](docs/VALIDATION.md)
+**0.4.5** · [下载插件](https://github.com/JunyanKang/paper-nexus/releases/latest) · [使用指南](docs/GUIDE.md) · [验证记录](docs/VALIDATION.md)
 
 ## 阅读时，只显示需要的信息
 
@@ -42,7 +42,7 @@ Zotero 的引文阅读与本地文献网络插件。悬停查看与翻译摘要�
 
 ## 安装与更新
 
-1. 在 [Releases](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载 `paper-nexus-0.4.4.xpi`。
+1. 在 [Releases](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载 `paper-nexus-0.4.5.xpi`。
 2. Zotero → 工具 → 插件 → 齿轮 → 从文件安装插件，选择该文件。
 3. 打开带文字层的 PDF，点击工具栏的连接节点图标，或从工具菜单进入 **Paper Nexus**。
 

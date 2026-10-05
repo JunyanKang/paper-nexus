@@ -193,12 +193,16 @@ button[data-cite-lens]:is(:hover,:focus-visible){background:var(--cl-soft);color
 .cl-settings .cl-setting-row{min-height:30px}.cl-settings .cl-setting-pair{display:block}
 .cl-settings .cl-dialog-body{min-height:0;max-height:calc(100vh - 155px)}
 .cl-settings-pane .cl-field{margin-top:6px}.cl-settings-pane .cl-actions{margin-top:8px}
-.cl-theme-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px 8px;margin:6px 0 8px}
-.cl-settings button.cl-theme-choice{display:flex;flex-direction:column;gap:3px;padding:0 0 3px;background:transparent;font-size:11px;min-width:0;color:var(--cl-muted)}
-.cl-theme-swatch{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:36px;border-radius:7px;font:600 14px Georgia,serif}
-.cl-theme-swatch i{width:7px;height:7px;border-radius:50%;background:var(--preview-accent)}
-.cl-theme-choice[aria-pressed=true]{color:var(--cl-accent)!important;font-weight:600}.cl-theme-choice[aria-pressed=true] .cl-theme-swatch::after{content:'✓';position:absolute;right:3px;bottom:0;font:10px sans-serif}
-.cl-theme-choice:is(:hover,:focus-visible) .cl-theme-swatch{transform:translateY(-1px);filter:brightness(.96)}
+/* Theme tiles use the same composition and type scale as Paper Voice. */
+.cl-theme-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px 7px;margin:4px 0 6px}
+.cl-settings button.cl-theme-choice{display:block;min-width:0;max-width:none;padding:0;border-radius:8px;background:transparent;font:400 10px/1.5 system-ui,sans-serif;text-align:center}
+.cl-theme-swatch{position:relative;display:flex;flex-direction:column;justify-content:center;gap:4px;width:100%;height:48px;padding:10px 8px 23px;border-radius:10px;isolation:isolate;overflow:hidden;background-size:cover;background-position:center}
+.cl-theme-swatch::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--preview-mask);pointer-events:none}
+.cl-theme-swatch i{display:block;width:62%;height:3px;background:currentColor;border-radius:2px;opacity:.55}.cl-theme-swatch i+i{width:40%}
+.cl-theme-name{position:absolute;left:1px;right:1px;bottom:5px;text-align:center;font:400 10px/14px system-ui,sans-serif;color:var(--preview-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cl-theme-choice[aria-pressed=true] .cl-theme-swatch::after{content:'✓';position:absolute;right:4px;top:4px;display:flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;background:var(--preview-accent);color:var(--preview-ink);font:600 9px/1 system-ui,sans-serif}
+.cl-settings button.cl-theme-choice:is(:hover,:focus,:focus-visible){background:transparent}
+.cl-theme-choice:is(:hover,:focus-visible) .cl-theme-swatch{filter:brightness(1.04)}
 .cl-root,.cl-dialog,.cl-summary{background-color:var(--cl-bg);background-image:linear-gradient(var(--cl-mask),var(--cl-mask)),var(--cl-art);background-size:cover;background-position:center}
 .cl-header,.cl-dialog-header,.cl-dialog-footer,.cl-settings-tabs{position:relative}.cl-root .cl-header{background:transparent}
 .cl-inline-detail{margin:3px -8px 0}.cl-inline-detail .cl-card{padding:6px 8px;background:var(--cl-soft);border-radius:8px}.cl-list-row:has(.cl-inline-detail)>.cl-row-title{display:none}.cl-card .cl-kicker .cl-collapse-detail{display:inline-flex;margin:0 4px 0 0;padding:0;width:20px;min-height:20px;font-size:15px;vertical-align:middle;color:var(--cl-accent)}
@@ -206,5 +210,5 @@ button[data-cite-lens]:is(:hover,:focus-visible){background:var(--cl-soft);color
 .cl-row-title[aria-expanded=true]{color:var(--cl-accent)}
 @keyframes cl-pane-in{from{opacity:.5;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.cl-settings-pane{animation:none}.cl-theme-swatch{transform:none!important}}
-@media(prefers-reduced-transparency:reduce){.cl-root,.cl-dialog,.cl-summary{background-image:none}}
+@media(prefers-reduced-transparency:reduce){.cl-root,.cl-dialog,.cl-summary,.cl-theme-swatch{background-image:none!important}}
 `;
