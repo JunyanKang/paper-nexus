@@ -37,7 +37,8 @@ var CiteLens = {
         // citation for one or more frames before our replacement is ready.
         this.enhance(reader);
       });state.observer.observe(doc.body,{childList:true,characterData:true,attributes:true,attributeFilter:['class'],subtree:true});
-      const key=e=>{if(e.key==='Escape'){doc.querySelector('.cl-floating')?.remove();}};doc.addEventListener('keydown',key);state.hooks.push(()=>doc.removeEventListener('keydown',key));
+      const reflow=()=>{for(const popup of doc.querySelectorAll('.cl-native-host,.cl-floating')){CiteLensUI.fitAuthors(popup,doc);CiteLensUI.fitPopup(popup,doc);}doc._clAbstract?.position?.();};doc.defaultView.addEventListener('resize',reflow);state.hooks.push(()=>doc.defaultView.removeEventListener('resize',reflow));
+      const key=e=>{if(e.key==='Escape'&&!e.defaultPrevented){doc.querySelector('.cl-floating')?.remove();}};doc.addEventListener('keydown',key);state.hooks.push(()=>doc.removeEventListener('keydown',key));
     }
     // Read-only native overlay access; never replace Zotero's event handlers or text layer.
     for(const view of [reader._internalReader?._primaryView,reader._internalReader?._secondaryView]) {
@@ -129,6 +130,23 @@ var CiteLens = {
   },
   async importMetrics() {const file=await this.picker('open','导入有来源的 JCR 指标',[['CSV / JSON','*.csv;*.json']]);if(!file)return null;const stat=await IOUtils.stat(file);if(stat.size>20*1024*1024)throw Error('指标文件大于 20 MB');const n=await CiteLensServices.importMetrics(await IOUtils.readUTF8(file));this.refreshMetrics();return n;},
   async exportRIS(records) {if(!records.length)return;const file=await this.picker('save','导出参考文献',[['RIS','*.ris']]);if(file)await IOUtils.writeUTF8(file,CiteLensCore.ris(records));},
-  detach(reader) {const s=this.readers.get(reader);s?.observer.disconnect();if(s?.timer)s.doc.defaultView.clearTimeout(s.timer);if(s?.floatingCloseTimer)s.doc.defaultView.clearTimeout(s.floatingCloseTimer);for(const h of s?.hooks||[])try{h();}catch(_){}this.panels.get(reader)?.remove();this.panels.delete(reader);if(s?.doc){for(const e of s.doc.querySelectorAll('[data-cite-lens],.cl-overlay,#cite-lens-style'))e.remove();for(const e of s.doc.querySelectorAll('.cl-native-host')){e.classList.remove('cl-native-host','cl-non-citation');e.style.removeProperty('translate');delete e._clShift;}}if(s?.doc)for(const popup of s.doc.querySelectorAll('.citation-popup,.reference-popup'))delete popup._clFailedSignature;s?.doc.documentElement.removeAttribute('data-cl-theme');s?.doc.documentElement.style.removeProperty('--cl-size');s?.doc.documentElement.style.removeProperty('--cl-reading-font');this.readers.delete(reader);},
-  async stop() {this.dead=true;CiteLensUpdater.stop();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);Zotero.Reader.unregisterEventListener('renderTextSelectionPopup',this.selectionHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();delete Zotero.CiteLens;}
+  detach(reader) {
+    const s=this.readers.get(reader);
+    // Zotero may destroy an iframe before notifying plugins that its reader closed.
+    // Releasing all other hooks/maps must still proceed when a DOM wrapper is dead.
+    try{s?.doc._clAbstract?.close();}catch(_){}
+    try{s?.observer.disconnect();}catch(_){}
+    try{if(s?.timer)s.doc.defaultView.clearTimeout(s.timer);if(s?.floatingCloseTimer)s.doc.defaultView.clearTimeout(s.floatingCloseTimer);}catch(_){}
+    for(const cleanup of s?.hooks||[])try{cleanup();}catch(_){}
+    try{this.panels.get(reader)?.remove();}catch(_){}this.panels.delete(reader);
+    try{if(s?.doc){
+      for(const popup of s.doc.querySelectorAll('.cl-native-host,.cl-floating'))popup._clLayoutCleanup?.();
+      for(const e of s.doc.querySelectorAll('[data-cite-lens],.cl-overlay,#cite-lens-style'))e.remove();
+      for(const e of s.doc.querySelectorAll('.cl-native-host')){e.classList.remove('cl-native-host','cl-non-citation');e.style.removeProperty('translate');delete e._clShift;}
+      for(const popup of s.doc.querySelectorAll('.citation-popup,.reference-popup'))delete popup._clFailedSignature;
+      s.doc.documentElement.removeAttribute('data-cl-theme');for(const property of ['--cl-size','--cl-user-size','--cl-reading-font'])s.doc.documentElement.style.removeProperty(property);
+    }}catch(_){}
+    this.readers.delete(reader);
+  },
+  async stop() {this.dead=true;CiteLensUpdater.stop();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);Zotero.Reader.unregisterEventListener('renderTextSelectionPopup',this.selectionHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();delete Zotero.CiteLens;}
 };

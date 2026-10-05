@@ -22,3 +22,11 @@
 - 同名作者不等于同一人，更不代表合作关系已经消歧；缩写署名不生成作者边。
 - 引用关系只表示文末引用，不推断支持、反对、因果或主题相似。
 - JCR/IF 是期刊年度指标，不是文章质量分数。各来源不在主界面堆砌；年份和多学科信息保留在提示中。
+
+## 0.4.1：摘要与自适应连续面板
+
+- [NCBI E-utilities 使用限制与 API key](https://eutilities.github.io/site/API_Key/usageandkey/)：无 key 每秒最多 3 次，默认 key 每秒最多 10 次。实现采用间隔 380／120 ms，并以 POST 传 key。
+- [Biopython Entrez](https://github.com/biopython/biopython/blob/master/Bio/Entrez/__init__.py)：参考集中限流与暂时性错误处理思想；没有引入 Python 运行依赖。浮窗有 12 秒总预算，不做阻塞式长时间重试。
+- [PubMed EFetch](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=26658507&retmode=xml) 和 [PMC EFetch](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=3598659&retmode=xml)：实测 XML 中的结构化摘要、作者、文章级 DOI／PMID／PMCID。解析只读文章头部，排除参考文献列表中的标识符。
+- Zotero Reader 的引用浮窗包含 `.inner`／`.reference-row`，PDF 在子 iframe；摘要保留在引用卡 DOM 下，用原生 Popover 进入顶层显示，避免被滚动容器裁切。外部点击需覆盖 PDF 子文档，卸载与卡片移除时清理。
+- CSS 容器查询处理窄卡头部，视口单位调整字号与宽高，ResizeObserver 在异步内容和缩放后校正位置。摘要只在左右可用宽度至少 220 px 时侧置，否则内联；不浮盖引用卡。

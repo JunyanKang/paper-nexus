@@ -1,14 +1,12 @@
 {
   "date": "2026-10-05",
-  "release": "0.4.1",
-  "sourceSHA256": "15fd42a801f582d158b08dcbd06d6fa24605c1cce5e4b546db50b1ed0819a99d",
+  "release": "0.4.0",
   "platform": "macOS Apple Silicon",
   "zotero": "10.0.6-beta.1+77a1c03f7",
-  "unitTests": 101,
+  "unitTests": 90,
   "native": {
     "native-integration": {
       "passed": true,
-      "completedAt": "2026-10-05T02:19:04.454804+00:00",
       "checks": [
         {
           "name": "Reader toolbar is attached",
@@ -130,7 +128,6 @@
     },
     "streamlined-ui": {
       "passed": true,
-      "completedAt": "2026-10-05T02:19:52.433532+00:00",
       "checks": [
         {
           "name": "Background ambiguous lookup never opens candidates or any dialog",
@@ -260,7 +257,6 @@
     },
     "single-quartile": {
       "passed": true,
-      "completedAt": "2026-10-05T02:19:53.065998+00:00",
       "checks": [
         {
           "name": "Real screenshot paper remains in metadata cache",
@@ -286,7 +282,6 @@
     },
     "responsive-gecko": {
       "passed": true,
-      "completedAt": "2026-10-05T02:19:53.917094+00:00",
       "checks": [
         {
           "name": "360px settings dialog fits its viewport",
@@ -368,7 +363,6 @@
     },
     "ui-behavior": {
       "passed": true,
-      "completedAt": "2026-10-05T02:19:56.828429+00:00",
       "checks": [
         {
           "name": "Listing a card does not trigger automatic network lookup",
@@ -402,21 +396,19 @@
     },
     "selection-race": {
       "passed": true,
-      "completedAt": "2026-10-05T02:19:57.251232+00:00",
       "checks": [
         {
-          "name": "Late lookup updates only its own citation card",
+          "name": "Late lookup never overwrites the newly selected reference",
           "ok": true
         },
         {
-          "name": "Both independent citation cards remain",
+          "name": "Only the newly selected card remains",
           "ok": true
         }
       ]
     },
     "automatic-authors": {
       "passed": true,
-      "completedAt": "2026-10-05T02:20:00.602266+00:00",
       "checks": [
         {
           "name": "Six-slot author layout preserves order for 0",
@@ -559,7 +551,7 @@
           "ok": true
         },
         {
-          "name": "Late author query stays in its own citation card",
+          "name": "Late author query cannot overwrite selected citation",
           "ok": true
         },
         {
@@ -570,7 +562,6 @@
     },
     "hover-first-paint": {
       "passed": true,
-      "completedAt": "2026-10-05T02:20:42.330318+00:00",
       "checks": [
         {
           "name": "Real source-verified single and grouped fixtures exist",
@@ -620,7 +611,6 @@
     },
     "local-network": {
       "passed": true,
-      "completedAt": "2026-10-05T02:20:42.962944+00:00",
       "checks": [
         {
           "name": "Local metadata aggregates real library items without feeds or trash",
@@ -670,7 +660,6 @@
     },
     "network-interaction": {
       "passed": true,
-      "completedAt": "2026-10-05T02:20:45.658027+00:00",
       "checks": [
         {
           "name": "Logo loads in the main document",
@@ -716,7 +705,6 @@
     },
     "network-layout": {
       "passed": true,
-      "completedAt": "2026-10-05T02:20:46.709512+00:00",
       "checks": [
         {
           "name": "Network fits 620px viewport",
@@ -746,7 +734,6 @@
     },
     "citation-verification": {
       "passed": true,
-      "completedAt": "2026-10-05T02:21:13.523940+00:00",
       "checks": [
         {
           "name": "Source text and bibliography 36: Zernike, 1955; Land, 1972; Tuchin, 2000",
@@ -916,7 +903,6 @@
     },
     "native-updater": {
       "passed": true,
-      "completedAt": "2026-10-05T02:17:56.539329+00:00",
       "checks": [
         {
           "name": "Native background policy false",
@@ -941,16 +927,36 @@
         {
           "name": "Closing settings releases update observer",
           "ok": true
+        }
+      ]
+    },
+    "manual-migration": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "Genuine package active 0.3.3",
+          "ok": true
         },
         {
-          "name": "Externally removed settings releases update observer",
+          "name": "Genuine package active 0.4.0",
+          "ok": true
+        },
+        {
+          "name": "Reading list identity preserved",
+          "ok": true
+        },
+        {
+          "name": "Appearance and query settings preserved",
+          "ok": true
+        },
+        {
+          "name": "Author cache retained",
           "ok": true
         }
       ]
     },
     "lifecycle": {
       "passed": true,
-      "completedAt": "2026-10-05T02:21:14.776486+00:00",
       "checks": [
         {
           "name": "Queue restored from previous load",
@@ -992,7 +998,6 @@
     },
     "production-package": {
       "passed": true,
-      "completedAt": "2026-10-05T02:21:38.463881+00:00",
       "checks": [
         {
           "name": "Production XPI starts in Zotero",
@@ -1047,18 +1052,6 @@
           "ok": true
         },
         {
-          "name": "Production package renders joined citations without pagination",
-          "ok": true
-        },
-        {
-          "name": "Production package opens abstract instead of title tooltip",
-          "ok": true
-        },
-        {
-          "name": "Opening save dismisses adjacent abstract",
-          "ok": true
-        },
-        {
           "name": "Upgrade retained reading list",
           "ok": true
         },
@@ -1068,250 +1061,39 @@
         }
       ]
     },
-    "continuous-cards": {
+    "public-update": {
       "passed": true,
-      "completedAt": "2026-10-05T02:18:38.847849+00:00",
       "checks": [
         {
-          "name": "Real grouped citation displays two cards together",
+          "name": "Public manifest identifies release and SHA512",
           "ok": true
         },
         {
-          "name": "No pagination, selector or count header remains",
+          "name": "Labelled QA seed installed",
           "ok": true
         },
         {
-          "name": "Cards share a rounded outer surface and one divider without gaps",
+          "name": "Automatic update installed public release with identical bytes",
           "ok": true
         },
         {
-          "name": "Both source cards fit without scrolling at normal size",
+          "name": "Labelled QA seed installed",
           "ok": true
         },
         {
-          "name": "Popover stays inside the reader",
+          "name": "Settings button discovers exact public version",
           "ok": true
         },
         {
-          "name": "Second card owns its four-action menu",
+          "name": "Manual settings update installed identical public bytes",
           "ok": true
         },
         {
-          "name": "Second card menu stays in viewport",
+          "name": "Both update paths preserve queue and settings",
           "ok": true
         },
         {
-          "name": "Keyboard moves from first card into second card",
-          "ok": true
-        },
-        {
-          "name": "Two cards fit 360px light",
-          "ok": true
-        },
-        {
-          "name": "Long groups scroll inside a bounded window 360",
-          "ok": true
-        },
-        {
-          "name": "Last citation remains reachable 360",
-          "ok": true
-        },
-        {
-          "name": "Two cards fit 420px dark",
-          "ok": true
-        },
-        {
-          "name": "Long groups scroll inside a bounded window 420",
-          "ok": true
-        },
-        {
-          "name": "Last citation remains reachable 420",
-          "ok": true
-        }
-      ]
-    },
-    "adaptive-layout": {
-      "passed": true,
-      "completedAt": "2026-10-05T02:18:26.357153+00:00",
-      "checks": [
-        {
-          "name": "Live resize keeps joined panel inside reader 1000x720",
-          "ok": true
-        },
-        {
-          "name": "No horizontal overflow after resize 1000",
-          "ok": true
-        },
-        {
-          "name": "Cards stay connected after resize 1000",
-          "ok": true
-        },
-        {
-          "name": "Live resize keeps joined panel inside reader 640x480",
-          "ok": true
-        },
-        {
-          "name": "No horizontal overflow after resize 640",
-          "ok": true
-        },
-        {
-          "name": "Cards stay connected after resize 640",
-          "ok": true
-        },
-        {
-          "name": "Live resize keeps joined panel inside reader 360x320",
-          "ok": true
-        },
-        {
-          "name": "No horizontal overflow after resize 360",
-          "ok": true
-        },
-        {
-          "name": "Cards stay connected after resize 360",
-          "ok": true
-        },
-        {
-          "name": "Second citation actions remain reachable at minimal height",
-          "ok": true
-        },
-        {
-          "name": "Live resize keeps joined panel inside reader 1000x720",
-          "ok": true
-        },
-        {
-          "name": "No horizontal overflow after resize 1000",
-          "ok": true
-        },
-        {
-          "name": "Cards stay connected after resize 1000",
-          "ok": true
-        },
-        {
-          "name": "Window shrinking changes width and typography, then restores both",
-          "ok": true
-        }
-      ]
-    },
-    "abstract-preview": {
-      "passed": true,
-      "completedAt": "2026-10-05T02:18:24.280271+00:00",
-      "checks": [
-        {
-          "name": "User screenshot reference exists in the real bibliography",
-          "ok": true
-        },
-        {
-          "name": "Real article resolves to a published abstract",
-          "ok": true
-        },
-        {
-          "name": "Native repeated-title tooltip removed right",
-          "ok": true
-        },
-        {
-          "name": "Title hover opens the published abstract right",
-          "ok": true
-        },
-        {
-          "name": "Abstract chooses right without covering its card",
-          "ok": true
-        },
-        {
-          "name": "Moving into abstract keeps both surfaces open right",
-          "ok": true
-        },
-        {
-          "name": "Explicit close does not immediately reopen right",
-          "ok": true
-        },
-        {
-          "name": "Native repeated-title tooltip removed left",
-          "ok": true
-        },
-        {
-          "name": "Title hover opens the published abstract left",
-          "ok": true
-        },
-        {
-          "name": "Abstract chooses left without covering its card",
-          "ok": true
-        },
-        {
-          "name": "Moving into abstract keeps both surfaces open left",
-          "ok": true
-        },
-        {
-          "name": "Explicit close does not immediately reopen left",
-          "ok": true
-        },
-        {
-          "name": "Real native citation remains while pointer reads adjacent abstract",
-          "ok": true
-        },
-        {
-          "name": "Background card redraw preserves active abstract",
-          "ok": true
-        },
-        {
-          "name": "Escape closes abstract without reopening or removing citation",
-          "ok": true
-        },
-        {
-          "name": "Clicking PDF child document dismisses abstract",
-          "ok": true
-        },
-        {
-          "name": "Late abstract cannot replace another paper preview",
-          "ok": true
-        },
-        {
-          "name": "Removing citation card closes its abstract",
-          "ok": true
-        },
-        {
-          "name": "Narrow reader expands below content without covering it",
-          "ok": true
-        }
-      ]
-    },
-    "pubmed-pmc": {
-      "passed": true,
-      "completedAt": "2026-10-05T02:18:41.547752+00:00",
-      "checks": [
-        {
-          "name": "Direct PubMed retrieves validated record Balaratnasingam",
-          "ok": true
-        },
-        {
-          "name": "Direct PubMed retrieves validated record Ou",
-          "ok": true
-        },
-        {
-          "name": "Direct PMC extracts front abstract and validates article identity",
-          "ok": true
-        },
-        {
-          "name": "Nested cited DOI cannot replace the article DOI",
-          "ok": true
-        },
-        {
-          "name": "Structured sections, entities and subscripts remain readable",
-          "ok": true
-        },
-        {
-          "name": "Mismatch rejected despite PubMed identity match",
-          "ok": true
-        },
-        {
-          "name": "Optional API credential is masked and lives in secondary settings",
-          "ok": true
-        },
-        {
-          "name": "API credential saved only to local preferences",
-          "ok": true
-        },
-        {
-          "name": "User can remove the saved API credential",
+          "name": "Production toolbar logo loads after update",
           "ok": true
         }
       ]
@@ -1845,65 +1627,20 @@
       ]
     }
   ],
-  "liveAbstracts": [
-    {
-      "source": "PubMed",
-      "PMID": "26658507",
-      "PMCID": "",
-      "length": 1746,
-      "ms": 1110
-    },
-    {
-      "source": "PubMed",
-      "PMID": "23555005",
-      "PMCID": "PMC3598659",
-      "length": 1420,
-      "ms": 863
-    },
-    {
-      "source": "PMC",
-      "length": 1420,
-      "PMCID": "PMC3598659"
-    }
-  ],
-  "liveNCBIUsedAPIKey": true,
-  "resizing": [
-    {
-      "width": 1000,
-      "height": 720,
-      "panelWidth": 420,
-      "panelHeight": 274.54998779296875,
-      "font": 16
-    },
-    {
-      "width": 640,
-      "height": 480,
-      "panelWidth": 294.3999938964844,
-      "panelHeight": 268.79998779296875,
-      "font": 14.9167
-    },
-    {
-      "width": 360,
-      "height": 320,
-      "panelWidth": 272,
-      "panelHeight": 179.1999969482422,
-      "font": 14.0667
-    },
-    {
-      "width": 1000,
-      "height": 720,
-      "panelWidth": 420,
-      "panelHeight": 274.54998779296875,
-      "font": 16
-    }
-  ],
-  "xpiSHA256": "fe500a3d4a01cb1346b1c602a24432c7373fe0ec152310d20577d5b2a19422e5",
+  "xpiSHA256": "7a98fd85e79b836e4f3cb98a85aa626e3e357baa4b752c1b8d1e4301d9aff7cb",
   "limits": [
     "No whole-corpus gold-standard precision or recall measurement",
     "No official JCR value-by-value validation",
     "No Windows or Linux runtime certification",
     "Same-name signatures are not disambiguated people",
-    "Existing fulltext indexes only; no automatic OCR or semantic search",
-    "Public abstract availability is provider-dependent; credential routing tests use a synthetic key; live authentication mode is recorded separately"
-  ]
+    "Existing fulltext indexes only; no automatic OCR or semantic search"
+  ],
+  "publicUpdate": {
+    "passed": true,
+    "from": "0.3.99 QA seed (version-adjusted; not a prior official release)",
+    "to": "0.4.0",
+    "automatic": true,
+    "manual": true,
+    "hashVerified": true
+  }
 }

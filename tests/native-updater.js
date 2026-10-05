@@ -7,6 +7,6 @@ try{
  const button=[...doc.querySelectorAll('.cl-dialog button')].find(x=>x.textContent==='检查更新');button.click();check('Manual check immediately disables repeated requests',button.disabled&&up.phase==='checking');
  for(let n=0;n<500&&up.phase==='checking';n++)await Zotero.Promise.delay(100);
  check('Native check completes with actionable state',['error','current','available'].includes(up.phase)&&!button.disabled&&!!doc.querySelector('[data-update-status]').textContent);
- report.transportState=up.phase;doc.querySelector('.cl-dialog-header button').click();check('Closing settings releases update observer',up.subscribers.size===0);report.passed=true;
+ report.transportState=up.phase;doc.querySelector('.cl-dialog-header button').click();check('Closing settings releases update observer',up.subscribers.size===0);U.settingsDialog(doc);doc.querySelector('.cl-settings').closest('.cl-overlay').remove();await Zotero.Promise.delay(50);check('Externally removed settings releases update observer',up.subscribers.size===0);report.passed=true;
 }catch(e){report.passed=false;report.error=String(e);report.stack=e.stack;}
 finally{addon.applyBackgroundUpdates=before;await up.load();doc.querySelector('.cl-settings .cl-dialog-header button')?.click();await IOUtils.writeUTF8(base+'/test-results/native-updater.json',JSON.stringify(report,null,2));}return report;
