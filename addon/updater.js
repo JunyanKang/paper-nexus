@@ -17,7 +17,7 @@ var CiteLensUpdater = {
   },
   async setAutomatic(enabled){
     if(this.dead)return;const ticket=this.epoch;
-    try{const manager=this.manager(),addon=await manager.getAddonByID(this.owner.id);if(this.dead||ticket!==this.epoch)return;if(!addon)throw Error('Plugin unavailable');addon.applyBackgroundUpdates=enabled?manager.AUTOUPDATE_ENABLE:manager.AUTOUPDATE_DISABLE;await this.load();}
+    try{const manager=this.manager(),addon=await manager.getAddonByID(this.owner.id);if(this.dead||ticket!==this.epoch)return;if(!addon)throw Error('Plugin unavailable');addon.applyBackgroundUpdates=enabled?manager.AUTOUPDATE_ENABLE:manager.AUTOUPDATE_DISABLE;if(!['checking','installing','available'].includes(this.phase)){this.phase='idle';this.message='';}await this.load();}
     catch(_){if(!this.dead&&ticket===this.epoch)this.set('error','未能保存更新设置，请重试');}
   },
   checkTimeout:20000,installTimeout:120000,

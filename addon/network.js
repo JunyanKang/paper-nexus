@@ -1,11 +1,18 @@
 /* Local metadata and evidence cache. No document content is sent to remote services. */
 var CiteLensNetwork = {
-  state:{schema:1,sources:{}},views:new Set(),listeners:new Set(),generation:0,dead:true,
+  workers:new Set(),state:{schema:1,sources:{}},views:new Set(),listeners:new Set(),generation:0,dead:true,
   async start(){
     this.dead=false;this.dirty=true;this.generation++;this.path=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-citations.json');
     try{if(await IOUtils.exists(this.path)){if((await IOUtils.stat(this.path)).size>30*1024*1024)throw Error('Cache too large');const data=JSON.parse(await IOUtils.readUTF8(this.path));if(data.schema!==1||!data.sources||typeof data.sources!=='object'||Array.isArray(data.sources))throw Error('Invalid cache');this.state=data;}}
     catch(e){Zotero.logError(e);this.state={schema:1,sources:{}};this.warning='关联缓存无法读取，可重新读取论文中的引文。';}
     this.observer=Zotero.Notifier.registerObserver({notify:()=>{this.dirty=true;this.generation++;for(const f of this.listeners)f();}},['item','collection','collection-item'],'paper-nexus-network');
+  },
+  compute(action,payload,{progress=()=>{},signal=null}={}){
+    const win=Zotero.getMainWindow();return new Promise((resolve,reject)=>{
+      if(this.dead||signal?.aborted){reject(Error('已取消'));return;}let worker,timer;const cancel=()=>finish(Error('已取消'));
+      const finish=(error,value)=>{win.clearTimeout(timer);signal?.removeEventListener('abort',cancel);if(worker){worker.terminate();this.workers.delete(worker);}error?reject(error):resolve(value);};
+      try{worker=new win.ChromeWorker('resource://'+CiteLens.assetResource+'/network-worker.js');this.workers.add(worker);worker.cancel=()=>finish(Error('已关闭'));worker.onmessage=e=>{if(e.data.error)finish(Error(e.data.error));else if(e.data.result)finish(null,e.data.result);else if(e.data.progress)progress(e.data.progress);};worker.onerror=e=>finish(Error(e.message||'网络计算失败'));signal?.addEventListener('abort',cancel,{once:true});timer=win.setTimeout(()=>finish(Error('网络计算超时，请缩小文献夹范围')),45000);worker.postMessage({action,payload});}catch(e){finish(e);}
+    });
   },
   subscribe(fn){this.listeners.add(fn);return ()=>this.listeners.delete(fn);},
   async remember(reader,refs){
@@ -18,25 +25,25 @@ var CiteLensNetwork = {
     if(this.snapshotFlight)return this.snapshotFlight;if(this.data&&!this.dirty&&!force)return this.data;
     const ticket=this.generation;
     const work=(async()=>{
-      const N=CiteLensNetworkCore,nodes=[],libraries=[],collections=[];
+      const N=CiteLensNetworkCore,nodes=[],libraries=[],collections=[];let sliceStarted=Date.now();await Zotero.Promise.delay(0);
       for(const library of Zotero.Libraries.getAll().filter(l=>['user','group'].includes(l.libraryType))){
         if(this.dead)throw Error('已关闭');libraries.push({id:library.libraryID,name:library.name,editable:library.editable});
         for(const col of Zotero.Collections.getByLibrary(library.libraryID,true).filter(c=>!c.deleted))collections.push({id:col.id,name:col.name,libraryID:col.libraryID,parentID:col.parentID||null,level:col.level||0});
         const ids=await Zotero.Items.getAll(library.libraryID,true,false,true);
         for(let i=0;i<ids.length;i+=80){
           if(this.dead)throw Error('已关闭');
-          for(const item of await Zotero.Items.getAsync(ids.slice(i,i+80))){
-            if(!item.isRegularItem()||item.deleted)continue;
+          const batch=await Zotero.Items.getAsync(ids.slice(i,i+80));await Zotero.Items.getAsync(batch.filter(x=>x.isRegularItem()).flatMap(x=>x.getAttachments()));
+          for(const item of batch){
+            if(Date.now()-sliceStarted>=8){await Zotero.Promise.delay(0);sliceStarted=Date.now();if(this.dead)throw Error('已关闭');}if(!item.isRegularItem()||item.deleted)continue;
             const creators=item.getCreators().filter(a=>Zotero.CreatorTypes.getName(a.creatorTypeID)==='author');
             const attachments=[];for(const a of await Zotero.Items.getAsync(item.getAttachments()))if(!a.deleted&&['application/pdf','application/epub+zip'].includes(a.attachmentContentType))attachments.push({id:a.id,key:a.key,type:a.attachmentContentType,dateModified:a.dateModified});
-            nodes.push({id:N.id(item.libraryID,item.key),itemID:item.id,key:item.key,libraryID:item.libraryID,type:Zotero.ItemTypes.getName(item.itemTypeID),title:CiteLensCore.plainTitle(item.getField('title')),DOI:CiteLensCore.doi(item.getField('DOI')),year:String(item.getField('date')).match(/\b(?:1[6-9]|20)\d{2}\b/)?.[0]||'',journal:item.getField('publicationTitle')||item.getField('bookTitle')||item.getField('publisher'),creators,collections:item.getCollections(),relatedKeys:item.relatedItems,attachments});
+            nodes.push({id:N.id(item.libraryID,item.key),itemID:item.id,key:item.key,libraryID:item.libraryID,type:Zotero.ItemTypes.getName(item.itemTypeID),title:CiteLensCore.plainTitle(item.getField('title')),DOI:CiteLensCore.doi(item.getField('DOI')),year:String(item.getField('date')).match(/\b(?:1[6-9]|20)\d{2}\b/)?.[0]||'',journal:item.getField('publicationTitle')||item.getField('bookTitle')||item.getField('publisher'),abstract:CiteLensCore.plainTitle(item.getField('abstractNote')),creators,collections:item.getCollections(),relatedKeys:item.relatedItems,attachments});
           }
           await Zotero.Promise.delay(0);
         }
       }
-      nodes.sort((a,b)=>String(b.year).localeCompare(String(a.year))||a.title.localeCompare(b.title));
       const byID=new Map(nodes.map(n=>[n.id,n])),sources=Object.values(this.state.sources).filter(s=>Array.isArray(s.refs)&&byID.get(s.source)?.attachments.some(a=>a.id===s.attachmentID&&a.key===s.attachmentKey&&a.dateModified===s.modified));
-      const graph=N.build(nodes,sources);this.data={...graph,libraries,collections,builtAt:Date.now()};this.dirty=this.generation!==ticket;return this.data;
+      const graph=await this.compute('snapshot',{nodes,sources});this.data={...graph,libraries,collections,builtAt:Date.now()};this.dirty=this.generation!==ticket;return this.data;
     })();this.snapshotFlight=work;try{return await work;}finally{this.snapshotFlight=null;}
   },
   scope(data,libraryID,collectionID){
@@ -66,5 +73,5 @@ var CiteLensNetwork = {
     const item=await Zotero.Items.getAsync(id);if(!item||item.deleted)throw Error('附件已移除，请刷新文献库');
     await Zotero.Reader.open(id,Number.isInteger(evidence?.pageIndex)?{pageIndex:evidence.pageIndex}:undefined);
   },
-  async stop(){this.dead=true;this.generation++;if(this.observer)Zotero.Notifier.unregisterObserver(this.observer);for(const close of [...this.views])close();this.views.clear();this.listeners.clear();this.data=null;await this.write?.catch(()=>{});}
+  async stop(){this.dead=true;for(const w of [...this.workers])w.cancel?.();this.workers.clear();this.generation++;if(this.observer)Zotero.Notifier.unregisterObserver(this.observer);for(const close of [...this.views])close();this.views.clear();this.listeners.clear();this.data=null;await this.write?.catch(()=>{});}
 };

@@ -1,67 +1,54 @@
-<p align="center"><img src="addon/assets/nexus.png" width="112" alt="Paper Nexus" /></p>
+<p align="center"><img src="addon/assets/nexus.png" width="120" alt="Paper Nexus" /></p>
 <h1 align="center">Paper Nexus</h1>
-<p align="center">从一处引文，读到它背后的文献与关联。</p>
+<p align="center"><strong>读懂一处引用，连接下一篇论文。</strong></p>
+<p align="center"><a href="https://github.com/JunyanKang/paper-nexus/releases/latest">下载安装</a> · <a href="docs/GUIDE.md">使用指南</a> · <a href="README.en.md">English</a></p>
 
-Zotero 的引文阅读与本地文献网络插件。悬停查看与翻译摘要、保存到指定文献夹、搜索本地全文，并沿有依据的关系继续阅读。
+Paper Nexus 是 Zotero 中的引文阅读与文献网络工具。悬停正文引用，查看对应论文；在旁边阅读和翻译摘要，将文献保存到所需文献夹，再沿作者、主题和引用关系继续探索。
 
-**0.4.5** · [下载插件](https://github.com/JunyanKang/paper-nexus/releases/latest) · [使用指南](docs/GUIDE.md) · [验证记录](docs/VALIDATION.md)
+![连续文献卡片](docs/images/hover.png)
 
-## 阅读时，只显示需要的信息
+## 引文、摘要与收藏，在阅读中完成
 
-![引文卡片](docs/images/hover.png)
+**悬停即读。** 紧凑卡片集中呈现题名、作者、期刊、可用的 IF 与 Q 分区；DOI 图标直接打开原文。多篇连引连续排列，已有文献显示具体所在文献夹。
 
-- 正文引文重新对应文末列表：作者、年份、同年后缀、连续年份及编号区间逐项检查。原生跳转目标不作为准确性的保证。
-- 多篇引用连续展示，共用圆角外框，条目之间用细线连接；无需翻页。作者一行显示，超过六位时保留前三位与后三位。
-- 悬停题名展开真实摘要，自动靠左或靠右贴边；无标题栏、正文两端对齐，移出标题且未进入摘要时淡出收起。窄窗口在条目下方展开。
-- 摘要可切换译文与原文。腾讯、微软、Google 免费通道，以及用户配置的大模型 API；设置内选择引擎与目标语言。
-- 浮窗宽度、字号与留白随阅读区域调整，高度最多占 56%，较长内容在面板内滚动，统一隐藏滚动条。
-- 期刊名、IF、Q 分区和 DOI；图书保留出版社，期刊论文不显示出版社。已有记录显示具体文献库与完整文献夹路径。
-- 右上角统一为“保存／打开、稍后读、更多”三个图标按钮；菜单仅保留四项操作，鼠标与键盘共用柔和的状态反馈。后台查询不会主动弹出候选；明显不符的题名、作者、年份或 DOI 在进入候选窗口前剔除。
+**摘要随手展开。** 悬停题名打开摘要，顶部切换原文、译文和双语。拖动顶部空白处移动窗口，拖动边缘调整大小；靠近文献卡片时可向上下左右吸附。
 
-![题名旁的摘要](docs/images/abstract.png)
+![摘要双语阅读](docs/images/translation.png)
 
-![摘要翻译](docs/images/translation.png)
+**留住线索，回到出处。** 书签加入稍后阅读；保存可选择已有或新建文献夹。定位图标旁的数字表示文中引用次数，悬停展开位置，点击返回正文。
 
-## 本地文献，沿证据关联
+## 让本地文献连接起来
 
-![本地文献网络](docs/images/network.png)
+![作者网络](docs/images/network.png)
 
-从工具菜单或 Paper Nexus 面板进入文献网络。按 Library／Collection 筛选、搜索书目信息或已有的本地全文索引，查看命中片段，打开原文。
+选择文献库或文献夹，用**作者／主题**组织网络。首行搜索题名或作者可快速定位，点击节点查看详情，点“聚焦关联”查看直接相邻的文献。
 
-引用关系、Zotero 已有相关条目、同名署名分别显示。引用依据能打开文末来源页；局部关系图支持跟随、返回、拖动、平移和缩放。完整结果在列表中，图按需展开。
+**扩展引文**将参考文献纳入当前网络。新加入或修改的 Zotero 文献会自动反映到图中。双指滑动平移，捏合缩放，拖动节点调整布局；放大和聚焦时逐步呈现更多细节。
 
-**边界：** 同名署名不等于已消歧作者；局部引用网络来自已读取的 PDF 参考文献，不代表全库已完整解析。全文检索为已有索引的字面检索，尚不包含 OCR 或语义检索。[功能与边界](docs/NETWORK.md)
+![主题网络与文献详情](docs/images/topics.png)
 
-## 一套导航与主题
+## 安装
 
-设置直接分为外观、阅读、翻译、数据。十套主题与跟随系统统一覆盖引文、摘要、清单、保存、设置及文献网络；打开子界面后返回，保留原来的搜索与位置。清单文献在原位置展开，不再跳转一整页。
+适用于 Zotero **10.0.5–10.0.x**，无需安装 Python、Node.js 或填写 API key。
 
-![主题设置](docs/images/settings.png)
+1. 在 [最新发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载 **paper-nexus-0.4.6.xpi**。
+2. 打开 Zotero → **工具 → 插件 → 齿轮 → 从文件安装插件**，选择 XPI。
+3. 打开 PDF，悬停正文引文；点击工具栏的 Paper Nexus 图标打开文献列表。
 
-[界面与主题](docs/INTERFACE.md)
+后续升级可在 **设置 → 常规 → 检查更新** 完成，也可开启自动更新。[完整安装说明](docs/INSTALL.md)
 
-## 安装与更新
+## 按自己的阅读习惯设置
 
-1. 在 [Releases](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载 `paper-nexus-0.4.5.xpi`。
-2. Zotero → 工具 → 插件 → 齿轮 → 从文件安装插件，选择该文件。
-3. 打开带文字层的 PDF，点击工具栏的连接节点图标，或从工具菜单进入 **Paper Nexus**。
+设置分为 **常规、外观** 两页。选择翻译服务与目标语言，设置常用引文格式，再挑选主题、字体、字号和界面语言。卡片、摘要、列表、菜单和网络使用一致的外观。
 
-无需 Python、Node、API key 或额外模型。清单支持 Zotero **10.0.5–10.0.x**；实机验证为 macOS 上的 Zotero 10.0.6 beta，其他平台未实机认证。
+<img src="docs/images/settings.png" width="324" alt="外观设置" /> <img src="docs/images/settings-general.png" width="324" alt="常规设置" />
 
-设置底部可以手动检查并安装更新，检查结果与按钮同排，固定在页脚，超时可重试或打开发布页；“数据”中可切换自动更新。自动更新同时受 Zotero 全局开关控制，下载与哈希校验由 Zotero 完成。
+**复制引文**支持 APA、AMA、MLA、NLM、Vancouver，以及 Nature、Science、Cell、PNAS、NEJM、JAMA、eLife、PLOS、Development、IOVS 等格式。在常规页选定后，打开文献的更多菜单，点击复制图标即可。
 
-**从 CiteLens 0.3.3 升级：** 旧版没有有效的公开更新地址，需手动安装一次本版。沿用原插件 ID，保留设置、阅读清单和缓存，之后使用公开更新通道。
+Paper Nexus 与 [Paper Voice](https://github.com/JunyanKang/paper-voice) 使用同系列纸张角色与操作习惯：一个帮助追踪论文联系，一个陪伴听读。
 
-## 指标与隐私
+<a id="指标与隐私"></a>
 
-优先使用用户自备指标和已安装插件可读取的本地指标，缺失时使用可选离线表。主界面不堆砌来源品牌。期刊指标按年份匹配，多学科显示同年最佳分区，并在提示中列出全部学科。JCI 如可用仅放在提示中；不伪造缺失数据，不附带受限 JCR 数据表。
+[安装与更新](docs/INSTALL.md) · [使用指南](docs/GUIDE.md) · [文献网络](docs/NETWORK.md) · [常见问题](docs/FAQ.md) · [隐私说明](docs/PRIVACY.md) · [更新记录](CHANGELOG.md)
 
-本地网络不上传书目或全文。题名悬停按需向 PubMed／PMC、Europe PMC 或 Crossref 查询当前条目的标识符或书目信息，优先读取本地摘要；整体等待最多 12 秒，可重试。设置 → 阅读可填写可选的 NCBI E-utilities API key，不填写也能查询。密钥只存 Zotero 本机偏好设置，只发送到 NCBI；不随阅读清单或导出文件保存。开启作者查询／文献信息更新时，也会向 Crossref／Europe PMC 查询当前条目；指标下载和插件更新分别请求其公开服务。[指标说明](docs/METRICS.md)
-
-点击“翻译摘要”才向所选引擎发送当前摘要；不上传 PDF 或整库。译文是机器翻译，保留原文切换；免费通道可用性受网络与服务限制，大模型 API 使用用户自行配置的服务与额度，密钥保存在本机加密凭据库。
-
-## 开发与证据
-
-`npm test` 执行纯逻辑与服务测试，`npm run build` 生成 XPI 和 `updates.json`。仓库保留可独立运行的自动化测试；桌面实机验证的范围与限制见 [测试指南](docs/TESTING.md) 和 [验证记录](docs/VALIDATION.md)。
-
-[实现调研](docs/RESEARCH.md) · [匹配规则](docs/MATCHING.md) · [MIT License](LICENSE)
+MIT 开源 · [参与开发](CONTRIBUTING.md) · [问题反馈](https://github.com/JunyanKang/paper-nexus/issues)

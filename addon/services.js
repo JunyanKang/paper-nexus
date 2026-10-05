@@ -1,5 +1,5 @@
 var CiteLensServices = {
-  state:{schema:1,queue:[],metrics:[],cache:{},settings:{autoLookup:false,metricYear:''}},
+  state:{schema:1,queue:[],metrics:[],cache:{},settings:{autoLookup:true,autoAuthors:true,networkConsent:true,metricYear:''}},
   inFlight:new Map(), locks:new Map(), active:0, waiting:[], dead:false,
   async init() {
     this.path=PathUtils.join(Zotero.DataDirectory.dir,'cite-lens','state.json');
@@ -8,6 +8,9 @@ var CiteLensServices = {
       try{const s=JSON.parse(await IOUtils.readUTF8(this.path));if(s.schema!==1||!Array.isArray(s.queue)||!Array.isArray(s.metrics)||!s.cache||!s.settings)throw Error('Unsupported state');this.state=s;}
       catch(e){await IOUtils.copy(this.path,this.path+'.backup-'+Date.now());Zotero.logError(e);this.loadWarning='设置文件异常，已保留备份并恢复默认设置';}
     }
+    // Current-item enrichment is automatic, including installations with older opt-out switches.
+    Object.assign(this.state.settings,{autoLookup:true,autoAuthors:true,networkConsent:true,preferInstalledMetrics:true,easyPubMedEnabled:true,metricYear:''});
+    delete this.state.settings.themeArtwork;
     this.dead=false;
     this.state.authorCache||={};this.authorGeneration=(this.authorGeneration||0)+1;
     this.localMetricCache=new Map();this.localMetricFlight=new Map();
@@ -114,15 +117,19 @@ var CiteLensServices = {
   async enqueue(record,context) {const C=CiteLensCore,key=C.identity(record),existing=this.state.queue.find(x=>x.key===key||record.raw&&C.norm(x.record.raw)===C.norm(record.raw));if(existing){existing.status='unread';if(record.verified||!existing.record.verified){existing.record=record;existing.key=key;existing.context=context;}}else this.state.queue.push({key,record,context,addedAt:new Date().toISOString(),status:'unread'});await this.persist();},
   async removeQueue(key) {this.state.queue=this.state.queue.filter(x=>x.key!==key);await this.persist();},
   async importMetrics(text) {const metrics=CiteLensCore.metricsImport(text);this.state.metrics=metrics;await this.persist();return metrics.length;},
-  metricFor(record,year=this.state.settings.metricYear||null) {
+  metricFor(record,year=null) {
     const local=CiteLensCore.metricFor(record,this.state.metrics,year);
-    // User-supplied data, including ambiguities, take precedence over the optional provider.
-    if(local.status!=='missing')return local;
-    if(this.state.settings.preferInstalledMetrics!==false){
-      const cached=this.localMetricCache?.get(this.localMetricKey(record,year));if(cached&&Date.now()-cached.time<60000&&cached.value)return cached.value;
-    }
-    if(!this.epIndex||this.state.settings.easyPubMedEnabled===false)return local;
-    return CiteLensEPMetrics.lookup(record,this.epIndex,year);
+    if(['not-applicable','ambiguous'].includes(local.status))return local;
+    const cached=this.localMetricCache?.get(this.localMetricKey(record,year)),installed=cached&&Date.now()-cached.time<60000?cached.value:null,offline=this.epIndex?CiteLensEPMetrics.lookup(record,this.epIndex,year):null;
+    // Prefer the newest explicit metric year; source priority resolves same-year ties.
+    const candidates=[local,installed,offline].filter(x=>x&&['available','ambiguous'].includes(x.status));
+    return candidates.sort((a,b)=>(Number(b.metricYear)||0)-(Number(a.metricYear)||0))[0]||local;
+  },
+  async ensureOfflineMetrics(){
+    if(this.dead||this.epIndex||Date.now()<(this.epRetryAt||0))return false;
+    if(this.offlinePreparing)return this.offlinePreparing;
+    const work=(async()=>{try{await this.loadEasyPubMed();return !this.dead;}catch(_){this.epRetryAt=Date.now()+600000;return false;}})();this.offlinePreparing=work;
+    try{return await work;}finally{this.offlinePreparing=null;}
   },
   metricYears() {return [...new Set([...this.state.metrics.map(x=>x.metricYear),...(this.epIndex?.years||[])])].sort((a,b)=>b-a);},
   localMetricKey(record,year) {return [String(record.ISSN||''),CiteLensCore.norm(record.journal),year||'latest'].join('|');},
@@ -159,8 +166,9 @@ var CiteLensServices = {
     const canonical=this.epIndex?CiteLensEPMetrics.lookup(record,this.epIndex):null,names=new Set([record.journal]);if(canonical?.status==='available')names.add(canonical.journal);
     return [...names].flatMap(name=>CiteLensLocalMetrics.styleEntries(this.styleCache.data,name)).map(x=>({...x,readAt:new Date().toISOString()}));
   },
-  async prepareLocalMetrics(record,year=this.state.settings.metricYear||null) {
-    if(this.dead||this.state.settings.preferInstalledMetrics===false||['book','bookSection','thesis','preprint'].includes(record.type))return null;
+  async prepareLocalMetrics(record,year=null) {
+    if(this.dead||['book','bookSection','thesis','preprint'].includes(record.type))return null;
+    void this.ensureOfflineMetrics().then(changed=>{if(changed&&!this.dead&&typeof CiteLens!=='undefined')CiteLens.refreshMetrics();});
     if(Date.now()-(this.pluginCheckedAt||0)>30000)await this.detectMetricPlugins();
     const key=this.localMetricKey(record,year),cached=this.localMetricCache.get(key);if(cached&&Date.now()-cached.time<60000)return cached.value;
     if(this.localMetricFlight.has(key))return this.localMetricFlight.get(key);
@@ -168,7 +176,7 @@ var CiteLensServices = {
       const L=CiteLensLocalMetrics;let frog=null,style=null;
       try{if(this.metricPlugins?.greenfrog)frog=L.choose(await this.greenFrogMetrics(record),year);}catch(e){Zotero.logError(e);}
       try{if(this.metricPlugins?.style)style=L.choose(await this.styleMetrics(record),year);}catch(e){Zotero.logError(e);}
-      const value=frog||style;
+      const value=[frog,style].filter(Boolean).sort((a,b)=>(Number(b.metricYear)||0)-(Number(a.metricYear)||0))[0]||null;
       if(frog&&style&&frog.status==='available'&&(style.status!=='available'||L.signature(frog)!==L.signature(style)))frog.alternatives=style.alternatives||[style];
       if(!this.dead){this.localMetricCache.set(key,{time:Date.now(),value});if(this.localMetricCache.size>500)this.localMetricCache.delete(this.localMetricCache.keys().next().value);}
       return value;

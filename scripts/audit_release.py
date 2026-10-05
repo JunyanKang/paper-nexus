@@ -28,7 +28,9 @@ def audit():
     for name in names:
         if not name.endswith('.md'):
             continue
-        for link in re.findall(r'\]\(([^)]+)\)', index_bytes(name).decode()):
+        content = index_bytes(name).decode()
+        links = re.findall(r'\]\(([^)]+)\)', content) + re.findall(r'<(?:img|a)\b[^>]*?\b(?:src|href)=[\"\']([^\"\']+)', content, re.I)
+        for link in links:
             if re.match(r'^(?:[a-z]+:|#)', link, re.I):
                 continue
             target = link.split('#')[0].split(' ')[0]
