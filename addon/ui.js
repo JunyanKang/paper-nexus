@@ -8,7 +8,7 @@ var CiteLensUI = {
     if(className&&/(?:^| )(?:cl-root|cl-dialog|cl-card)(?: |$)/.test(className))e.setAttribute('contenteditable','false');
     return e;
   },
-  logo(doc,size=26) {const img=this.el(doc,'img',null,'pn-logo');img.src=CiteLens.assetURI+'icon.png';img.alt='';img.width=size;img.height=size;return img;},
+  logo(doc,size=26) {const img=this.el(doc,'img',null,'pn-logo');img.src=CiteLens.assetURI+'nexus.png';img.alt='';img.width=size;img.height=size;return img;},
   title(doc,record,tag='div') {
     const text=record.title||record.raw||'',markup=record.titleMarkup&&CiteLensCore.plainTitle(record.titleMarkup)===CiteLensCore.plainTitle(text)?record.titleMarkup:text,node=this.el(doc,tag,null,'cl-title');
     for(const part of CiteLensCore.titleParts(markup)){let parent=node;for(const style of part.styles){const child=doc.createElement(style);parent.append(child);parent=child;}parent.append(doc.createTextNode(part.text));}
@@ -422,7 +422,7 @@ var CiteLensUI = {
     const previous=doc.activeElement,head=this.el(doc,'header',null,'cl-header'),row=this.el(doc,'div',null,'cl-row'),body=this.el(doc,'div',null,'cl-body'),search=this.el(doc,'input',null,'cl-search'),footer=this.el(doc,'footer',null,'cl-panel-footer');
     const close=()=>{root.remove();CiteLens.panels.delete(reader);if(previous?.isConnected)previous.focus();};
     const controls=this.el(doc,'div',null,'cl-header-tools');controls.append(this.quiet(doc,'文献网络',()=>CiteLens.showNetwork(reader)),this.quiet(doc,'设置',()=>this.settingsDialog(doc)),this.quiet(doc,'关闭',close));const brand=this.el(doc,'div','Paper Nexus','cl-brand');brand.prepend(this.logo(doc,28));row.append(brand,controls);
-    const subtitle=this.el(doc,'div','研联 · 阅读与关联','cl-subtitle'),tabs=this.el(doc,'div',null,'cl-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','文献范围');
+    const subtitle=this.el(doc,'div','阅读与关联','cl-subtitle'),tabs=this.el(doc,'div',null,'cl-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','文献范围');
     search.type='search';search.placeholder='搜索题名、作者、年份或 DOI';search.setAttribute('aria-label','搜索参考文献');
     head.append(row,subtitle,tabs,search);root.append(head,body,footer);doc.body.append(root);
     body.id='cl-panel-body-'+(++this.sequence);body.setAttribute('role','tabpanel');
@@ -505,8 +505,10 @@ var CiteLensUI = {
     let unsubscribe=()=>{};
     const {root,footer,close}=this.dialog(doc,'Paper Nexus 设置',{className:'cl-settings',onClose:()=>unsubscribe()}),status=this.el(doc,'div','','cl-status');
     const version=this.quiet(doc,'v'+CiteLens.version,()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));version.title='版本说明与手动下载安装包';version.classList.add('cl-version');
-    const update=this.button(doc,'检查更新',()=>CiteLensUpdater.phase==='available'?CiteLensUpdater.apply():CiteLensUpdater.check()),updateStatus=this.el(doc,'div','','cl-status');updateStatus.dataset.updateStatus='true';
-    footer.append(version,update,this.button(doc,'完成',close));
+    const update=this.button(doc,'检查更新',()=>CiteLensUpdater.phase==='available'?CiteLensUpdater.apply():CiteLensUpdater.check()),updateStatus=this.el(doc,'div','','cl-status');updateStatus.dataset.updateStatus='true';updateStatus.setAttribute('role','status');updateStatus.setAttribute('aria-live','polite');updateStatus.setAttribute('aria-atomic','true');
+    const release=this.quiet(doc,'打开发布页',()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));release.hidden=true;
+    const feedback=this.el(doc,'div',null,'cl-update-feedback');feedback.append(updateStatus,release);feedback.hidden=true;
+    footer.append(version,update,this.button(doc,'完成',close),feedback);
     const persist=async()=>{await S.persist();for(const reader of CiteLens.readers.keys())this.appearance(reader._iframeWindow.document);this.appearance(doc);};
     const row=(parent,label,key,input,description='')=>{const row=this.el(doc,'div',null,'cl-setting-row'),text=this.el(doc,'div'),lab=this.el(doc,'label',label);input.id='cl-setting-'+key;lab.htmlFor=input.id;text.append(lab);if(description)text.append(this.el(doc,'p',description,'cl-muted'));row.append(text,input);parent.append(row);return input;};
     const select=(parent,label,key,choices)=>{
@@ -541,12 +543,12 @@ var CiteLensUI = {
 
     const automatic=this.el(doc,'input');automatic.type='checkbox';row(more,'自动更新插件','autoUpdate',automatic);
     automatic.addEventListener('change',async()=>{automatic.disabled=true;try{await CiteLensUpdater.setAutomatic(automatic.checked);}finally{automatic.disabled=false;}});
-    unsubscribe=CiteLensUpdater.subscribe(state=>{try{if(!root.isConnected){unsubscribe();return;}}catch(_){unsubscribe();return;}automatic.checked=state.automatic;automatic.title=state.globallyEnabled?'由 Zotero 定期检查并安装更新':'Zotero 的全局自动更新已关闭';version.textContent='v'+state.version;update.textContent=state.phase==='available'?'安装 v'+state.availableVersion:state.phase==='checking'?'检查中…':state.phase==='installing'?'更新中…':'检查更新';update.disabled=['checking','installing'].includes(state.phase);this.status(updateStatus,state.message||(!state.globallyEnabled?'Zotero 自动更新已关闭，仍可手动检查。':''),state.phase==='error');});
+    unsubscribe=CiteLensUpdater.subscribe(state=>{try{if(!root.isConnected){unsubscribe();return;}}catch(_){unsubscribe();return;}automatic.checked=state.automatic;automatic.title=state.globallyEnabled?'由 Zotero 定期检查并安装更新':'Zotero 的全局自动更新已关闭';version.textContent='v'+state.version;update.textContent=state.phase==='available'?'安装 v'+state.availableVersion:state.phase==='checking'?'检查中…':state.phase==='installing'?'更新中…':state.phase==='error'?'重试检查':'检查更新';update.disabled=['checking','installing'].includes(state.phase);this.status(updateStatus,state.message||(!state.globallyEnabled?'Zotero 自动更新已关闭，仍可手动检查。':''),state.phase==='error');release.hidden=state.phase!=='error';feedback.hidden=!updateStatus.textContent;});
     toggle(more,'使用本地已有指标','preferInstalledMetrics',S.state.settings.preferInstalledMetrics!==false,'',()=>CiteLens.refreshMetrics());
     toggle(more,'使用离线指标','easyPubMedEnabled',S.state.settings.easyPubMedEnabled!==false,'',()=>CiteLens.refreshMetrics());
     const actions=this.el(doc,'div',null,'cl-actions');
     actions.append(this.button(doc,'导入指标文件',async()=>{const file=await CiteLens.picker('open','导入期刊指标',[['CSV / JSON / ZIP','*.csv;*.json;*.zip']]);if(!file)return;if(/\.zip$/i.test(file)){await load(file);return;}if((await IOUtils.stat(file)).size>20*1024*1024)throw Error('指标文件大于 20 MB');await S.importMetrics(await IOUtils.readUTF8(file));CiteLens.refreshMetrics();sync();this.status(status,'指标已导入');}),this.button(doc,'清除查询缓存',async()=>{S.state.cache={};S.state.authorCache={};S.state.abstractCache={};S.authorGeneration=(S.authorGeneration||0)+1;await persist();this.status(status,'缓存已清除');}));more.append(actions);
-    root.append(this.el(doc,'p','仅查询当前参考文献，不上传 PDF 或文献库。','cl-settings-note'),status,updateStatus);
+    root.append(this.el(doc,'p','仅查询当前参考文献，不上传 PDF 或文献库。','cl-settings-note'),status);
     if(S.metricWarning||S.loadWarning)this.status(status,S.metricWarning||S.loadWarning,true);
   }
 };

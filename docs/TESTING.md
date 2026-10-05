@@ -12,7 +12,7 @@ npm run build
 ```sh
 python3 scripts/qa.py --fixtures /absolute/path/to/test-pdfs
 python3 scripts/run_native.py native-integration.js native-corpus.js
-python3 scripts/run_native.py native-abstract.js native-pubmed.js native-continuous-cards.js native-adaptive-layout.js native-streamline.js native-metric-card.js native-responsive.js native-ui.js native-selection-race.js native-authors.js native-hover-paint.js native-network.js native-network-interaction.js native-network-layout.js native-citation-verification.js native-updater.js native-lifecycle.js native-package.js
+python3 scripts/run_native.py native-abstract.js native-pubmed.js native-continuous-cards.js native-adaptive-layout.js native-streamline.js native-metric-card.js native-responsive.js native-ui.js native-selection-race.js native-authors.js native-hover-paint.js native-network.js native-network-interaction.js native-network-layout.js native-citation-verification.js native-updater.js native-update-feedback.js native-scrollbars.js native-brand.js native-network-density.js native-lifecycle.js native-package.js
 ```
 
 QA 工具只使用仓库内的 `qa-profile`／`qa-library`，不指向日常资料库。测试桥接只存在于临时 QA XPI，不包含在生产 XPI。`run_native.py` 必须串行执行。结束时先将 `test-results/command.js` 写为 `return {passed:true,ready:true};`，再关闭使用该隔离 profile 的 Zotero；不要关闭其他 Zotero 进程。

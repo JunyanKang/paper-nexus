@@ -1,5 +1,5 @@
 var CiteLens = {
-  id:'cite-lens@local.research',name:'Paper Nexus',label:'研联',homepage:'https://github.com/JunyanKang/paper-nexus',readers:new Map(),panels:new Map(),windows:new Map(),dead:false,
+  id:'cite-lens@local.research',name:'Paper Nexus',label:'Paper Nexus',homepage:'https://github.com/JunyanKang/paper-nexus',readers:new Map(),panels:new Map(),windows:new Map(),dead:false,
   async start() {
     if(this.rootURI){const resources=Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler);this.assetResource='paper-nexus-'+this.version.replace(/\./g,'-');resources.setSubstitutionWithFlags(this.assetResource,Services.io.newURI(this.rootURI),resources.ALLOW_CONTENT_ACCESS);this.assetURI='resource://'+this.assetResource+'/assets/';}
     await Zotero.uiReadyPromise;await CiteLensServices.init();this.dead=false;await CiteLensUpdater.start(this);await CiteLensNetwork.start();
@@ -17,9 +17,9 @@ var CiteLens = {
     for(const win of Zotero.getMainWindows())this.addWindow(win);
     this.scan();this.timer=Zotero.getMainWindow().setInterval(()=>this.scan(),1200);Zotero.CiteLens=this;
   },
-  addWindow(win) {if(this.windows.has(win))return;const e=win.document.createXULElement('menuitem');e.id='cite-lens-tools';e.setAttribute('class','menuitem-iconic');e.setAttribute('image',this.assetURI+'icon.png');e.setAttribute('label','Paper Nexus · 研联');e.addEventListener('command',()=>{const reader=Zotero.Reader.getByTabID(win.Zotero_Tabs.selectedID);CiteLensNetworkUI.open(reader);});win.document.getElementById('menu_ToolsPopup')?.append(e);this.windows.set(win,e);},
+  addWindow(win) {if(this.windows.has(win))return;const e=win.document.createXULElement('menuitem');e.id='cite-lens-tools';e.setAttribute('class','menuitem-iconic');e.setAttribute('image',this.assetURI+'nexus.png');e.setAttribute('label','Paper Nexus');e.addEventListener('command',()=>{const reader=Zotero.Reader.getByTabID(win.Zotero_Tabs.selectedID);CiteLensNetworkUI.open(reader);});win.document.getElementById('menu_ToolsPopup')?.append(e);this.windows.set(win,e);},
   removeWindow(win) {this.windows.get(win)?.remove();this.windows.delete(win);},
-  toolbar(doc,reader) {const b=CiteLensUI.button(doc,'研联',()=>this.showPanel(reader));b.prepend(CiteLensUI.logo(doc,20));b.dataset.citeLens='toolbar';b.title='Paper Nexus · 研联';b.setAttribute('aria-label',b.title);b.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:3px 7px;min-height:28px;font-size:12px';return b;},
+  toolbar(doc,reader) {const b=CiteLensUI.button(doc,'',()=>this.showPanel(reader));b.prepend(CiteLensUI.logo(doc,24));b.dataset.citeLens='toolbar';b.title='Paper Nexus';b.setAttribute('aria-label',b.title);b.style.cssText='display:inline-flex;align-items:center;justify-content:center;padding:3px;width:32px;min-height:30px;font-size:12px';return b;},
   scan() {
     if(this.dead)return;const active=new Set(Zotero.Reader._readers);
     for(const reader of active){try{this.attach(reader);}catch(e){Zotero.logError(e);}}

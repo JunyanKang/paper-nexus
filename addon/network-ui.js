@@ -3,8 +3,8 @@ var CiteLensNetworkUI={
   open(reader=null,{doc=Zotero.getMainWindow().document}={}){
     const U=CiteLensUI,N=CiteLensNetwork,C=CiteLensCore,NC=CiteLensNetworkCore;
     const existing=doc.querySelector('.pn-network');if(existing){existing.focus();return existing;}
-    let loaded=false,activeKinds=new Set(['cites','related','author']),alive=true,unsubscribe=()=>{},searchEpoch=0,data,nodes=[],results=[],selected='',graphVisible=false,fulltext=null,history=[];
-    const dialog=U.dialog(doc,'Paper Nexus · 文献网络',{className:'pn-network',onClose:()=>{alive=false;searchEpoch++;unsubscribe();N.views.delete(dialog.close);}}),{root,frame,footer}=dialog;N.views.add(dialog.close);
+    let loaded=false,activeKinds=new Set(['cites','related','author']),alive=true,unsubscribe=()=>{},searchEpoch=0,data,nodes=[],results=[],selected='',graphVisible=false,fulltext=null,history=[],evidenceDialog=null;
+    const dialog=U.dialog(doc,'Paper Nexus · 文献网络',{className:'pn-network',onClose:()=>{alive=false;searchEpoch++;unsubscribe();evidenceDialog?.close();N.views.delete(dialog.close);}}),{root,frame,footer}=dialog;N.views.add(dialog.close);
     frame.dataset.paperNexus='network';root.classList.add('pn-body');
     const controls=U.el(doc,'div',null,'pn-controls'),library=U.el(doc,'select'),collection=U.el(doc,'select'),search=U.el(doc,'input'),mode=U.el(doc,'select'),status=U.el(doc,'div','','cl-status');
     library.setAttribute('aria-label','文献库');collection.setAttribute('aria-label','文献夹');search.type='search';search.placeholder='题名、作者或关键词';search.setAttribute('aria-label','搜索本地文献');mode.setAttribute('aria-label','搜索范围');
@@ -25,14 +25,17 @@ var CiteLensNetworkUI={
       }shown+=50;if(shown<results.length){const more=U.button(doc,'继续显示',()=>{more.remove();append();});more.classList.add('pn-load-more');list.append(more);}};
       if(!results.length)list.append(U.el(doc,'p',search.value?'没有匹配文献。试试更短的关键词。':'此范围暂无文献。','pn-empty'));else append();
     };
-    const relationText=r=>r.kind==='cites'?(r.direction==='out'?'当前文献引用':'引用当前文献'):r.kind==='related'?'Zotero 相关条目':'同名署名 · '+r.name;
     const evidence=(relation,node,parent)=>{
-      const reason=U.el(doc,'div',null,'pn-reason');reason.append(U.el(doc,'span',relationText(relation),'pn-relation-label'));
-      if(relation.kind==='author'){reason.title='完整署名相同，不代表已确认是同一位作者';parent.append(reason);return;}
-      parent.append(reason);
       if(relation.kind==='cites'){
-        const show=U.disclosure(doc,'引用依据');
-        for(const e of relation.evidence){show.append(U.el(doc,'p',e.raw,'pn-snippet'));const source=relation.direction==='out'?data.byID.get(selected):node;show.append(U.quiet(doc,Number.isInteger(e.pageIndex)?'打开来源 · 第 '+(e.pageIndex+1)+' 页':'打开来源 PDF',async()=>{await N.openPDF(source,e);dialog.close();}));}parent.append(show);
+        const source=relation.direction==='out'?data.byID.get(selected):node;
+        const button=U.quiet(doc,relation.direction==='out'?'引用':'被引用',()=>{
+          evidenceDialog?.close();const proof=U.dialog(doc,'引用依据');evidenceDialog=proof;
+          for(const e of relation.evidence){proof.root.append(U.el(doc,'p',e.raw,'pn-snippet'));proof.root.append(U.quiet(doc,Number.isInteger(e.pageIndex)?'打开来源 · 第 '+(e.pageIndex+1)+' 页':'打开来源 PDF',async()=>{await N.openPDF(source,e);proof.close();dialog.close();}));}
+          proof.footer.append(U.button(doc,'完成',proof.close));
+        });button.classList.add('pn-citation-evidence');button.title=(relation.direction==='out'?'当前文献引用此文':'此文引用当前文献')+' · 查看引用依据';parent.append(button);
+      }else{
+        const reason=U.el(doc,'span',relation.kind==='author'?'同名署名 · '+relation.name:'相关条目','pn-relation-label');
+        if(relation.kind==='author')reason.title='完整署名相同，不代表已确认是同一位作者';parent.append(reason);
       }
     };
     const renderDetail=()=>{
@@ -40,20 +43,30 @@ var CiteLensNetworkUI={
       const head=U.el(doc,'header',null,'pn-detail-head'),nav=U.el(doc,'div',null,'cl-actions'),back=U.quiet(doc,'返回',()=>{selected=history.pop()||selected;renderDetail();renderList();});back.disabled=!history.length;
       const graph=U.quiet(doc,graphVisible?'收起关系图':'关系图',()=>{graphVisible=!graphVisible;renderDetail();});graph.setAttribute('aria-pressed',String(graphVisible));
       const openPDF=U.quiet(doc,'打开全文',async()=>{await N.openPDF(node);dialog.close();});openPDF.disabled=!node.attachments.length;openPDF.title=openPDF.disabled?'此条目没有本地全文附件':'';nav.append(back,U.quiet(doc,'打开条目',async()=>{await N.openItem(node);dialog.close();}),openPDF,graph);
-      head.append(nav,U.title(doc,node,'h3'),U.el(doc,'div',[node.year,node.journal].filter(Boolean).join(' · '),'cl-muted'));
-      if(node.creators.length){const authorLine=U.el(doc,'div',null,'pn-authors');for(const {author:a,gapAfter} of CiteLensAuthors.visible(node.creators)){const name=[a.firstName,a.lastName].filter(Boolean).join(' '),b=U.quiet(doc,name,()=>{mode.value='metadata';search.value=name;runSearch();});b.title='查找此署名的本地文献';authorLine.append(b);if(gapAfter)authorLine.append(U.el(doc,'span','…','cl-muted'));}if(node.creators.length>6){const all=U.disclosure(doc,'全部 '+node.creators.length+' 位作者');for(const a of node.creators){const name=[a.firstName,a.lastName].filter(Boolean).join(' ');all.append(U.quiet(doc,name,()=>{mode.value='metadata';search.value=name;runSearch();}));}head.append(authorLine,all);}else head.append(authorLine);}
-      const read=U.button(doc,'读取此文引文',async b=>{
+      const publication=U.el(doc,'div',null,'pn-publication'),journal=U.el(doc,'span',[node.year,node.journal].filter(Boolean).join(' · '),'cl-muted');journal.title=journal.textContent;publication.append(journal);head.append(nav,U.title(doc,node,'h3'),publication);
+      if(node.creators.length){
+        const authorLine=U.el(doc,'div',null,'pn-authors');let expanded=false;
+        const renderAuthors=()=>{
+          authorLine.replaceChildren();authorLine.dataset.expanded=String(expanded);
+          const authors=expanded?node.creators.map(author=>({author})):CiteLensAuthors.visible(node.creators);
+          for(const {author:a,gapAfter} of authors){const name=[a.firstName,a.lastName].filter(Boolean).join(' '),b=U.quiet(doc,expanded?name:(a.lastName||a.firstName),()=>{mode.value='metadata';search.value=name;runSearch();});b.classList.add('pn-author');b.title=name+' · 查找此署名的本地文献';authorLine.append(b);
+            if(gapAfter){const more=U.quiet(doc,'…',()=>{expanded=true;renderAuthors();authorLine.querySelector('.pn-author-toggle').focus();});more.classList.add('pn-author-toggle');more.setAttribute('aria-label','展开全部 '+node.creators.length+' 位作者');more.setAttribute('aria-expanded','false');authorLine.append(more);}
+          }
+          if(expanded){const less=U.quiet(doc,'收起',()=>{expanded=false;renderAuthors();authorLine.querySelector('.pn-author-toggle').focus();});less.classList.add('pn-author-toggle');less.setAttribute('aria-expanded','true');authorLine.append(less);}
+        };renderAuthors();head.append(authorLine);
+      }
+      const read=U.quiet(doc,'读取引文',async b=>{
         const attachment=node.attachments.find(a=>a.type==='application/pdf');if(!attachment)return;b.disabled=true;U.status(status,'正在读取此文的参考文献…');
         try{const r=await Zotero.Reader.open(attachment.id);await r._initPromise;CiteLens.attach(r);const refs=await CiteLens.references(r);await N.remember(r,refs);if(alive){await reload(true);U.status(status,'已读取 '+refs.length+' 条参考文献');}}catch(e){if(alive)U.status(status,e.message,true);}finally{if(b.isConnected)b.disabled=false;}
-      });read.disabled=!node.attachments.some(a=>a.type==='application/pdf');read.title=read.disabled?'需要本地 PDF 附件':'从 PDF 参考文献中匹配库内文献，不联网';head.append(read);detail.append(head);if(node.collections.length){const paths=node.collections.map(id=>{const names=[],seen=new Set();let c=data.collections.find(x=>x.id===id);while(c&&!seen.has(c.id)){seen.add(c.id);names.unshift(c.name);c=data.collections.find(x=>x.id===c.parentID);}return names.join(' › ');}).filter(Boolean);const loc=U.el(doc,'div',paths.join(' · '),'pn-location');loc.title=paths.join('\n');head.append(loc);}
+      });read.disabled=!node.attachments.some(a=>a.type==='application/pdf');read.title=read.disabled?'需要本地 PDF 附件':'从 PDF 参考文献中匹配库内文献，不联网';nav.append(read);detail.append(head);if(node.collections.length){const paths=node.collections.map(id=>{const names=[],seen=new Set();let c=data.collections.find(x=>x.id===id);while(c&&!seen.has(c.id)){seen.add(c.id);names.unshift(c.name);c=data.collections.find(x=>x.id===c.parentID);}return names.join(' › ');}).filter(Boolean);const loc=U.el(doc,'span',paths.join(' · '),'pn-location');loc.title=paths.join('\n');publication.append(loc);}
       const filters=U.el(doc,'div',null,'pn-filters'),kinds=['cites','related','author'],labels=['引用关系','已有相关条目','同名署名'];for(let i=0;i<kinds.length;i++){const label=U.el(doc,'label'),input=U.el(doc,'input');input.type='checkbox';input.checked=activeKinds.has(kinds[i]);input.value=kinds[i];label.append(input,doc.createTextNode(labels[i]));input.addEventListener('change',()=>{input.checked?activeKinds.add(input.value):activeKinds.delete(input.value);renderConnections();});filters.append(label);}detail.append(filters);
-      const content=U.el(doc,'div',null,'pn-connections');detail.append(content);
+      const count=U.el(doc,'span','','pn-connection-count');filters.append(count);const content=U.el(doc,'div',null,'pn-connections');detail.append(content);
       const renderConnections=()=>{
         content.replaceChildren();const active=[...filters.querySelectorAll('input:checked')].map(x=>x.value),relations=NC.neighbors(data,selected,{scope:nodes.map(n=>n.id),kinds:active});
         if(graphVisible&&relations.length){const area=U.el(doc,'div',null,'pn-graph');content.append(area);this.graph(doc,area,node,relations.slice(0,12),focusItem);if(relations.length>12)content.append(U.el(doc,'div','图中显示前 12 项，完整关联见下方列表。','pn-graph-note'));}
-        content.append(U.el(doc,'h4',relations.length+' 篇关联文献','pn-section-title'));
+        count.textContent=relations.length+' 篇关联文献';
         if(!relations.length)content.append(U.el(doc,'p','当前范围内尚无已知关联。可读取此文引文，或扩大文献夹范围。','pn-empty'));
-        for(const result of relations){const row=U.el(doc,'article',null,'pn-connection'),b=U.button(doc,'',()=>focusItem(result.node.id));b.className='pn-paper';b.append(U.title(doc,result.node,'span'));row.append(b,U.el(doc,'div',[result.node.creators[0]?.lastName,result.node.year].filter(Boolean).join(' · '),'cl-muted'));for(const r of result.relations.filter(r=>r.kind!=='related'||!result.relations.some(x=>x.kind==='cites')))evidence(r,result.node,row);content.append(row);}
+        for(const result of relations){const row=U.el(doc,'article',null,'pn-connection'),b=U.button(doc,'',()=>focusItem(result.node.id));b.className='pn-paper';b.append(U.title(doc,result.node,'span'));const meta=U.el(doc,'div',null,'pn-connection-meta');meta.append(U.el(doc,'span',[result.node.creators[0]?.lastName,result.node.year].filter(Boolean).join(' · '),'cl-muted'));row.append(b,meta);for(const r of result.relations.filter(r=>r.kind!=='author'&&(r.kind!=='related'||!result.relations.some(x=>x.kind==='cites'))))evidence(r,result.node,meta);const shared=result.relations.filter(r=>r.kind==='author');if(shared.length){const names=[...new Set(shared.map(r=>r.name))],label=U.el(doc,'span','同名署名 · '+(names.length===1?names[0]:names.length+' 位'),'pn-relation-label');label.title=names.join('；')+'\n完整署名相同，不代表已确认是同一位作者';meta.append(label);}content.append(row);}
       };renderConnections();
     };
     const applySearch=()=>{nodes=scoped();results=fulltext?nodes.filter(n=>fulltext.results.has(n.id)):NC.search(nodes,search.value);if(!results.some(n=>n.id===selected))selected=results[0]?.id||'';renderList();renderDetail();coverage.textContent=nodes.length+' 篇范围内文献 · 全库已读取 '+data.coverage.sources+' 份 PDF 引文';};

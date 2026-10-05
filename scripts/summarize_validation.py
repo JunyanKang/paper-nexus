@@ -6,7 +6,7 @@ h=hashlib.sha256()
 for p in sorted((root/'addon').rglob('*')):
  if p.is_file():h.update(p.relative_to(root/'addon').as_posix().encode());h.update(p.read_bytes())
 source=h.hexdigest()
-names=['native-integration','streamlined-ui','single-quartile','responsive-gecko','ui-behavior','selection-race','automatic-authors','hover-first-paint','local-network','network-interaction','network-layout','citation-verification','native-updater','lifecycle','production-package','continuous-cards','adaptive-layout','abstract-preview','pubmed-pmc']
+names=['native-integration','streamlined-ui','single-quartile','responsive-gecko','ui-behavior','selection-race','automatic-authors','hover-first-paint','local-network','network-interaction','network-layout','citation-verification','native-updater','update-feedback','hidden-scrollbars','compact-brand','network-density','lifecycle','production-package','continuous-cards','adaptive-layout','abstract-preview','pubmed-pmc']
 ledger=[json.loads(line) for line in (results/'native-ledger.jsonl').read_text().splitlines() if line.strip()]
 latest={r['run']:r for r in ledger if r['sourceSHA256']==source and r['release']==version and r['passed']}
 runs={}
@@ -34,13 +34,21 @@ text=f'''# Paper Nexus {version} 验证记录
 |---|---:|---|
 {rows}
 
-## 新交互与真实摘要
+## 本版修复
+
+在 360×320 阅读区、16 号字体并展开更多设置时，实际更新检查返回“已是最新版本”，但旧版提示位于滚动区域末端，用户看不到。本版将状态移到固定页脚；真实检查、滚动前后可见性、失败后重试、发布页入口、窗口缩放及订阅释放均在原生设置页验证。附加故障测试覆盖 AddonManager 查询挂起、发现更新超时、下载停滞、迟到回调和升级时停止旧插件。整个检查有 20 秒上限，安装等待有 120 秒上限。
+
+浮窗、摘要、文献清单、关系网络、菜单、设置与表单统一隐藏滚动条，保留原生滚动。原生测试逐页检查计算样式、长内容滚动至末端和焦点移入屏幕外控件；不修改 Zotero 其他页面的滚动条。结合更新成功／失败、小窗口和多页面截图作视觉检查。
+
+本版同时移除当前产品界面的“研联”字样；工具栏仅保留 24 px 连接节点图标及可访问名称。图标在 20／24／32／48／64 px、浅色／纸色／深色背景下截图核查。网络页作者只显示一组，展开名单替换紧凑列表；引用、年份和同名署名合并，引用依据按需打开并保持来源页定位。网络密度专用测试使用受控图和截图中的论文元数据，不计为新增科学关联发现。
+
+## 原有交互与真实摘要
 
 连续引用共用圆角外框，无卡间空隙或翻页。逐项验证菜单归属、键盘跨条目、长组滚动；1000×720 → 640×480 → 360×320 → 1000×720 的同一原生阅读区实时缩放验证面板宽度、字号、56% 高度上限和按钮可达。
 
 题名无重复 tooltip；摘要左右贴边且不盖住卡片，窄窗内联。真实原生引用浮窗验证指针进入摘要、卡片重绘保留摘要、Esc、PDF 子文档点击、移除清理和迟到响应隔离。截图联查还修正了章节粘连、段间空白和期刊实体转义。
 
-直接 PubMed 验证 PMID 26658507（Balaratnasingam 2015）和 23555005（Ou 2013）；直接 PMC 验证 PMC3598659。本轮现场获取使用用户提供的 NCBI key；密钥只临时进入隔离测试偏好设置，结束后恢复原值并删除临时文件。密钥的本机存储、POST 定向发送、移除和不进入公共状态另外使用合成 key 自动测试；用户密钥不进入测试源码或发布包。PubMed 结构化摘要、作者及标识符，PMC 文章头部摘要均有实际返回；嵌套参考文献 DOI 不得覆盖文章 DOI。
+直接 PubMed 验证 PMID 26658507（Balaratnasingam 2015）和 23555005（Ou 2013）；直接 PMC 验证 PMC3598659。本轮现场获取{'使用本机临时配置的 NCBI key' if doc['liveNCBIUsedAPIKey'] else '未填写 NCBI API key，验证默认无密钥路径'}；结束后恢复原偏好设置。密钥的本机存储、POST 定向发送、移除和不进入公共状态另外使用合成 key 自动测试；用户密钥不进入测试源码或发布包。PubMed 结构化摘要、作者及标识符，PMC 文章头部摘要均有实际返回；嵌套参考文献 DOI 不得覆盖文章 DOI。
 
 并行来源、独立于作者队列、12 秒总预算、缓存／请求去重、失败重试、身份冲突过滤有自动化验证。没有将数据库返回摘要称为人工全文阅读或生成式研究结论。
 
@@ -48,7 +56,7 @@ text=f'''# Paper Nexus {version} 验证记录
 
 重新运行三篇真实 PDF 的集成和引用回归：Bringmann 2018（36 页）、Ou 2013（12 页，10.1371/journal.pone.0059247）、Alexander 2023（20 页，10.1038/s41467-023-37408-w）。包含 24 组重点引文以及原生标记遍历；这不是人工全文金标准的准确率／召回率。
 
-清单、保存去重、作者顺序、指标紧凑显示、本地网络、全文索引片段、设置、主题、候选过滤、卸载和生产 XPI 安装本轮重新回归。历史五轮角色模拟见 [设计评审](QUALITY-REVIEW.md)；旧版结果独立保留于 [0.4.0 验证记录](VALIDATION-0.4.0.md)。
+清单、保存去重、作者顺序、指标紧凑显示、本地网络、全文索引片段、设置、主题、候选过滤、卸载和生产 XPI 安装本轮重新回归。历史五轮角色模拟见 [设计评审](QUALITY-REVIEW.md)；旧版结果独立保留于 [0.4.0 验证记录](VALIDATION-0.4.0.md) 和 [0.4.1 验证记录](VALIDATION-0.4.1.md)。
 
 ## 安装与更新
 

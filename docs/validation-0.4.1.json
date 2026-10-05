@@ -1,14 +1,14 @@
 {
   "date": "2026-10-05",
-  "release": "0.4.2",
-  "sourceSHA256": "8ae8ba45ecf490a9d32218a5fe5af9d468ecf8807c8518b95333f7cb7c8782fc",
+  "release": "0.4.1",
+  "sourceSHA256": "15fd42a801f582d158b08dcbd06d6fa24605c1cce5e4b546db50b1ed0819a99d",
   "platform": "macOS Apple Silicon",
   "zotero": "10.0.6-beta.1+77a1c03f7",
-  "unitTests": 106,
+  "unitTests": 101,
   "native": {
     "native-integration": {
       "passed": true,
-      "completedAt": "2026-10-05T02:52:33.138693+00:00",
+      "completedAt": "2026-10-05T02:19:04.454804+00:00",
       "checks": [
         {
           "name": "Reader toolbar is attached",
@@ -130,7 +130,7 @@
     },
     "streamlined-ui": {
       "passed": true,
-      "completedAt": "2026-10-05T02:53:54.815334+00:00",
+      "completedAt": "2026-10-05T02:19:52.433532+00:00",
       "checks": [
         {
           "name": "Background ambiguous lookup never opens candidates or any dialog",
@@ -260,7 +260,7 @@
     },
     "single-quartile": {
       "passed": true,
-      "completedAt": "2026-10-05T02:53:55.232954+00:00",
+      "completedAt": "2026-10-05T02:19:53.065998+00:00",
       "checks": [
         {
           "name": "Real screenshot paper remains in metadata cache",
@@ -286,7 +286,7 @@
     },
     "responsive-gecko": {
       "passed": true,
-      "completedAt": "2026-10-05T02:53:56.074470+00:00",
+      "completedAt": "2026-10-05T02:19:53.917094+00:00",
       "checks": [
         {
           "name": "360px settings dialog fits its viewport",
@@ -294,10 +294,6 @@
         },
         {
           "name": "Narrow settings stays one page with scrollable content",
-          "ok": true
-        },
-        {
-          "name": "Narrow control remains within dialog",
           "ok": true
         },
         {
@@ -372,7 +368,7 @@
     },
     "ui-behavior": {
       "passed": true,
-      "completedAt": "2026-10-05T02:53:58.983518+00:00",
+      "completedAt": "2026-10-05T02:19:56.828429+00:00",
       "checks": [
         {
           "name": "Listing a card does not trigger automatic network lookup",
@@ -406,7 +402,7 @@
     },
     "selection-race": {
       "passed": true,
-      "completedAt": "2026-10-05T02:53:59.410650+00:00",
+      "completedAt": "2026-10-05T02:19:57.251232+00:00",
       "checks": [
         {
           "name": "Late lookup updates only its own citation card",
@@ -420,7 +416,7 @@
     },
     "automatic-authors": {
       "passed": true,
-      "completedAt": "2026-10-05T02:54:02.956982+00:00",
+      "completedAt": "2026-10-05T02:20:00.602266+00:00",
       "checks": [
         {
           "name": "Six-slot author layout preserves order for 0",
@@ -574,7 +570,7 @@
     },
     "hover-first-paint": {
       "passed": true,
-      "completedAt": "2026-10-05T02:54:46.277451+00:00",
+      "completedAt": "2026-10-05T02:20:42.330318+00:00",
       "checks": [
         {
           "name": "Real source-verified single and grouped fixtures exist",
@@ -624,7 +620,7 @@
     },
     "local-network": {
       "passed": true,
-      "completedAt": "2026-10-05T02:54:46.905946+00:00",
+      "completedAt": "2026-10-05T02:20:42.962944+00:00",
       "checks": [
         {
           "name": "Local metadata aggregates real library items without feeds or trash",
@@ -674,7 +670,7 @@
     },
     "network-interaction": {
       "passed": true,
-      "completedAt": "2026-10-05T02:54:49.800845+00:00",
+      "completedAt": "2026-10-05T02:20:45.658027+00:00",
       "checks": [
         {
           "name": "Logo loads in the main document",
@@ -720,7 +716,7 @@
     },
     "network-layout": {
       "passed": true,
-      "completedAt": "2026-10-05T02:54:50.837587+00:00",
+      "completedAt": "2026-10-05T02:20:46.709512+00:00",
       "checks": [
         {
           "name": "Network fits 620px viewport",
@@ -750,7 +746,7 @@
     },
     "citation-verification": {
       "passed": true,
-      "completedAt": "2026-10-05T02:55:19.308781+00:00",
+      "completedAt": "2026-10-05T02:21:13.523940+00:00",
       "checks": [
         {
           "name": "Source text and bibliography 36: Zernike, 1955; Land, 1972; Tuchin, 2000",
@@ -920,7 +916,7 @@
     },
     "native-updater": {
       "passed": true,
-      "completedAt": "2026-10-05T02:55:21.585980+00:00",
+      "completedAt": "2026-10-05T02:17:56.539329+00:00",
       "checks": [
         {
           "name": "Native background policy false",
@@ -952,249 +948,9 @@
         }
       ]
     },
-    "update-feedback": {
-      "passed": true,
-      "completedAt": "2026-10-05T02:55:22.837667+00:00",
-      "checks": [
-        {
-          "name": "Actual click immediately shows checking state",
-          "ok": true
-        },
-        {
-          "name": "Actual update check returns an actionable result",
-          "ok": true
-        },
-        {
-          "name": "Update result is visible without scrolling settings",
-          "ok": true
-        },
-        {
-          "name": "Update result stays visible while settings body scrolls",
-          "ok": true
-        },
-        {
-          "name": "Update result is announced accessibly",
-          "ok": true
-        },
-        {
-          "name": "Failure has visible retry and release link",
-          "ok": true
-        },
-        {
-          "name": "Fallback opens the actual release page",
-          "ok": true
-        },
-        {
-          "name": "Retry completes and removes obsolete failure controls",
-          "ok": true
-        },
-        {
-          "name": "Footer follows a resized settings viewport",
-          "ok": true
-        },
-        {
-          "name": "Closing dialog releases subscriber",
-          "ok": true
-        }
-      ]
-    },
-    "hidden-scrollbars": {
-      "passed": true,
-      "completedAt": "2026-10-05T02:55:24.712476+00:00",
-      "checks": [
-        {
-          "name": "Host Zotero scrollbars are not restyled",
-          "ok": true
-        },
-        {
-          "name": "Settings hides every scroll track",
-          "ok": true
-        },
-        {
-          "name": "Settings retains scrollable content",
-          "ok": true
-        },
-        {
-          "name": "Settings scrolls without a scrollbar",
-          "ok": true
-        },
-        {
-          "name": "Settings reaches its final content",
-          "ok": true
-        },
-        {
-          "name": "Keyboard focus reveals controls below the fold",
-          "ok": true
-        },
-        {
-          "name": "Reference entry including textarea hides every scroll track",
-          "ok": true
-        },
-        {
-          "name": "Grouped references hides every scroll track",
-          "ok": true
-        },
-        {
-          "name": "Grouped references retains scrollable content",
-          "ok": true
-        },
-        {
-          "name": "Grouped references scrolls without a scrollbar",
-          "ok": true
-        },
-        {
-          "name": "Grouped references reaches its final content",
-          "ok": true
-        },
-        {
-          "name": "Action menu hides every scroll track",
-          "ok": true
-        },
-        {
-          "name": "Abstract hides every scroll track",
-          "ok": true
-        },
-        {
-          "name": "Abstract retains scrollable content",
-          "ok": true
-        },
-        {
-          "name": "Abstract scrolls without a scrollbar",
-          "ok": true
-        },
-        {
-          "name": "Abstract reaches its final content",
-          "ok": true
-        },
-        {
-          "name": "Native citation host hides every scroll track",
-          "ok": true
-        },
-        {
-          "name": "Native citation host retains scrollable content",
-          "ok": true
-        },
-        {
-          "name": "Native citation host scrolls without a scrollbar",
-          "ok": true
-        },
-        {
-          "name": "Native citation host reaches its final content",
-          "ok": true
-        },
-        {
-          "name": "Reference list hides every scroll track",
-          "ok": true
-        },
-        {
-          "name": "Reference list retains scrollable content",
-          "ok": true
-        },
-        {
-          "name": "Reference list scrolls without a scrollbar",
-          "ok": true
-        },
-        {
-          "name": "Reference list reaches its final content",
-          "ok": true
-        },
-        {
-          "name": "Local network loads actual QA items",
-          "ok": true
-        },
-        {
-          "name": "Local network list and detail hides every scroll track",
-          "ok": true
-        },
-        {
-          "name": "Local network list retains scrollable content",
-          "ok": true
-        },
-        {
-          "name": "Local network list scrolls without a scrollbar",
-          "ok": true
-        },
-        {
-          "name": "Local network list reaches its final content",
-          "ok": true
-        }
-      ]
-    },
-    "compact-brand": {
-      "passed": true,
-      "completedAt": "2026-10-05T02:55:25.757923+00:00",
-      "checks": [
-        {
-          "name": "Reader entry uses icon only and remains named for accessibility",
-          "ok": true
-        },
-        {
-          "name": "Reader icon occupies a compact button",
-          "ok": true
-        },
-        {
-          "name": "New packaged image loads",
-          "ok": true
-        },
-        {
-          "name": "Icon-only button opens the literature panel",
-          "ok": true
-        },
-        {
-          "name": "Current interface omits former Chinese name",
-          "ok": true
-        },
-        {
-          "name": "Icon size sheet loads every production asset",
-          "ok": true
-        }
-      ]
-    },
-    "network-density": {
-      "passed": true,
-      "completedAt": "2026-10-05T02:54:51.654444+00:00",
-      "checks": [
-        {
-          "name": "Authors appear once in one compact line",
-          "ok": true
-        },
-        {
-          "name": "Expanding replaces the six slots with all seven authors",
-          "ok": true
-        },
-        {
-          "name": "Collapsing returns to six slots without duplicate names",
-          "ok": true
-        },
-        {
-          "name": "Read citations shares the existing navigation line",
-          "ok": true
-        },
-        {
-          "name": "Year, citation and shared author use the same metadata row",
-          "ok": true
-        },
-        {
-          "name": "Relationship count shares filters instead of a separate heading",
-          "ok": true
-        },
-        {
-          "name": "Citation evidence opens only on request",
-          "ok": true
-        },
-        {
-          "name": "Compact network fits a narrow reader without horizontal scrolling",
-          "ok": true
-        },
-        {
-          "name": "Evidence action retains exact source and page",
-          "ok": true
-        }
-      ]
-    },
     "lifecycle": {
       "passed": true,
-      "completedAt": "2026-10-05T02:55:27.003010+00:00",
+      "completedAt": "2026-10-05T02:21:14.776486+00:00",
       "checks": [
         {
           "name": "Queue restored from previous load",
@@ -1236,7 +992,7 @@
     },
     "production-package": {
       "passed": true,
-      "completedAt": "2026-10-05T02:55:51.086819+00:00",
+      "completedAt": "2026-10-05T02:21:38.463881+00:00",
       "checks": [
         {
           "name": "Production XPI starts in Zotero",
@@ -1244,10 +1000,6 @@
         },
         {
           "name": "Production addon is active",
-          "ok": true
-        },
-        {
-          "name": "Production addon uses the new English brand",
           "ok": true
         },
         {
@@ -1291,10 +1043,6 @@
           "ok": true
         },
         {
-          "name": "Production Reader entry is icon-only with the new artwork",
-          "ok": true
-        },
-        {
           "name": "Production settings has no tabs or provider names",
           "ok": true
         },
@@ -1322,7 +1070,7 @@
     },
     "continuous-cards": {
       "passed": true,
-      "completedAt": "2026-10-05T02:53:24.458524+00:00",
+      "completedAt": "2026-10-05T02:18:38.847849+00:00",
       "checks": [
         {
           "name": "Real grouped citation displays two cards together",
@@ -1384,7 +1132,7 @@
     },
     "adaptive-layout": {
       "passed": true,
-      "completedAt": "2026-10-05T02:53:26.545088+00:00",
+      "completedAt": "2026-10-05T02:18:26.357153+00:00",
       "checks": [
         {
           "name": "Live resize keeps joined panel inside reader 1000x720",
@@ -1446,7 +1194,7 @@
     },
     "abstract-preview": {
       "passed": true,
-      "completedAt": "2026-10-05T02:53:42.119320+00:00",
+      "completedAt": "2026-10-05T02:18:24.280271+00:00",
       "checks": [
         {
           "name": "User screenshot reference exists in the real bibliography",
@@ -1528,7 +1276,7 @@
     },
     "pubmed-pmc": {
       "passed": true,
-      "completedAt": "2026-10-05T02:53:44.828589+00:00",
+      "completedAt": "2026-10-05T02:18:41.547752+00:00",
       "checks": [
         {
           "name": "Direct PubMed retrieves validated record Balaratnasingam",
@@ -1564,6 +1312,44 @@
         },
         {
           "name": "User can remove the saved API credential",
+          "ok": true
+        }
+      ]
+    },
+    "public-update": {
+      "passed": true,
+      "completedAt": "2026-10-05T02:25:13.800028+00:00",
+      "checks": [
+        {
+          "name": "Public manifest identifies release and SHA512",
+          "ok": true
+        },
+        {
+          "name": "Official 0.4.0 baseline installed",
+          "ok": true
+        },
+        {
+          "name": "Automatic update installed public release with identical bytes",
+          "ok": true
+        },
+        {
+          "name": "Official 0.4.0 baseline installed",
+          "ok": true
+        },
+        {
+          "name": "Settings button discovers exact public version",
+          "ok": true
+        },
+        {
+          "name": "Manual settings update installed identical public bytes",
+          "ok": true
+        },
+        {
+          "name": "Both update paths preserve queue and settings",
+          "ok": true
+        },
+        {
+          "name": "Production toolbar logo loads after update",
           "ok": true
         }
       ]
@@ -2103,14 +1889,14 @@
       "PMID": "26658507",
       "PMCID": "",
       "length": 1746,
-      "ms": 1136
+      "ms": 1110
     },
     {
       "source": "PubMed",
       "PMID": "23555005",
       "PMCID": "PMC3598659",
       "length": 1420,
-      "ms": 816
+      "ms": 863
     },
     {
       "source": "PMC",
@@ -2118,7 +1904,7 @@
       "PMCID": "PMC3598659"
     }
   ],
-  "liveNCBIUsedAPIKey": false,
+  "liveNCBIUsedAPIKey": true,
   "resizing": [
     {
       "width": 1000,
@@ -2149,7 +1935,7 @@
       "font": 16
     }
   ],
-  "xpiSHA256": "0620562c66b973e3002c1bf1033c7566a54d8c28d663b2b92b36b66681292208",
+  "xpiSHA256": "fe500a3d4a01cb1346b1c602a24432c7373fe0ec152310d20577d5b2a19422e5",
   "limits": [
     "No whole-corpus gold-standard precision or recall measurement",
     "No official JCR value-by-value validation",
@@ -2157,5 +1943,13 @@
     "Same-name signatures are not disambiguated people",
     "Existing fulltext indexes only; no automatic OCR or semantic search",
     "Public abstract availability is provider-dependent; credential routing tests use a synthetic key; live authentication mode is recorded separately"
-  ]
+  ],
+  "publicUpdate": {
+    "passed": true,
+    "from": "0.4.0 official public release",
+    "to": "0.4.1",
+    "automatic": true,
+    "manual": true,
+    "hashVerified": true
+  }
 }

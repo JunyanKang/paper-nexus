@@ -18,7 +18,7 @@ try{
  frame=P.showNetwork(r);for(let i=0;i<100&&!frame.querySelector('.pn-paper');i++)await Zotero.Promise.delay(100);
  check('Network opens from Zotero main document without a web page or server',!!frame&&frame.ownerDocument===Zotero.getMainWindow().document&&!!frame.querySelector('.pn-paper'));
  const selects=frame.querySelectorAll('.pn-scopes select');selects[1].value=String(col.id);selects[1].dispatchEvent(new frame.ownerDocument.defaultView.Event('change'));
- await Zotero.Promise.delay(120);[...frame.querySelectorAll('button')].find(x=>x.textContent==='关系图')?.click();check('Every visible connection is actionable and graph is interactive',frame.querySelectorAll('.pn-node[role=button]').length>=2&&!![...frame.querySelectorAll('button')].find(x=>x.textContent==='读取此文引文'));
+ await Zotero.Promise.delay(120);[...frame.querySelectorAll('button')].find(x=>x.textContent==='关系图')?.click();check('Every visible connection is actionable and graph is interactive',frame.querySelectorAll('.pn-node[role=button]').length>=2&&!![...frame.querySelectorAll('button')].find(x=>x.textContent==='读取引文'));
  check('No account, API-key or remote-query UI in local workspace',!/API key|密钥|登录/.test(frame.textContent));
  report.passed=true;
 }catch(e){report.passed=false;report.error=String(e);report.stack=e.stack;}
