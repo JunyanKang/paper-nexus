@@ -1,10 +1,11 @@
 /* A scoped reading workspace: connections always have an inspectable reason. */
 var CiteLensNetworkUI={
-  open(reader=null,{doc=Zotero.getMainWindow().document}={}){
+  open(reader=null,{doc=Zotero.getMainWindow().document,onClose=null}={}){
     const U=CiteLensUI,N=CiteLensNetwork,C=CiteLensCore,NC=CiteLensNetworkCore;
     const existing=doc.querySelector('.pn-network');if(existing){existing.focus();return existing;}
     let loaded=false,activeKinds=new Set(['cites','related','author']),alive=true,unsubscribe=()=>{},searchEpoch=0,data,nodes=[],results=[],selected='',graphVisible=false,fulltext=null,history=[],evidenceDialog=null;
-    const dialog=U.dialog(doc,'Paper Nexus · 文献网络',{className:'pn-network',onClose:()=>{alive=false;searchEpoch++;unsubscribe();evidenceDialog?.close();N.views.delete(dialog.close);}}),{root,frame,footer}=dialog;N.views.add(dialog.close);
+    const dialog=U.dialog(doc,'Paper Nexus · 文献网络',{className:'pn-network',onClose:()=>{alive=false;searchEpoch++;unsubscribe();evidenceDialog?.close();N.views.delete(dialog.close);onClose?.();}}),{root,frame,footer}=dialog;N.views.add(dialog.close);
+    const settings=U.quiet(doc,'设置',()=>U.settingsDialog(doc));frame.querySelector('.cl-dialog-header').insertBefore(settings,frame.querySelector('.cl-dismiss'));
     frame.dataset.paperNexus='network';root.classList.add('pn-body');
     const controls=U.el(doc,'div',null,'pn-controls'),library=U.el(doc,'select'),collection=U.el(doc,'select'),search=U.el(doc,'input'),mode=U.el(doc,'select'),status=U.el(doc,'div','','cl-status');
     library.setAttribute('aria-label','文献库');collection.setAttribute('aria-label','文献夹');search.type='search';search.placeholder='题名、作者或关键词';search.setAttribute('aria-label','搜索本地文献');mode.setAttribute('aria-label','搜索范围');

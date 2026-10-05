@@ -17,8 +17,8 @@ var CiteLens = {
     for(const win of Zotero.getMainWindows())this.addWindow(win);
     this.scan();this.timer=Zotero.getMainWindow().setInterval(()=>this.scan(),1200);Zotero.CiteLens=this;
   },
-  addWindow(win) {if(this.windows.has(win))return;const e=win.document.createXULElement('menuitem');e.id='cite-lens-tools';e.setAttribute('class','menuitem-iconic');e.setAttribute('image',this.assetURI+'nexus.png');e.setAttribute('label','Paper Nexus');e.addEventListener('command',()=>{const reader=Zotero.Reader.getByTabID(win.Zotero_Tabs.selectedID);CiteLensNetworkUI.open(reader);});win.document.getElementById('menu_ToolsPopup')?.append(e);this.windows.set(win,e);},
-  removeWindow(win) {this.windows.get(win)?.remove();this.windows.delete(win);},
+  addWindow(win) {if(this.windows.has(win))return;const e=win.document.createXULElement('menuitem');e.id='cite-lens-tools';e.setAttribute('class','menuitem-iconic');e.setAttribute('image',this.assetURI+'nexus.png');e.setAttribute('label','Paper Nexus');e.addEventListener('command',()=>{const reader=Zotero.Reader.getByTabID(win.Zotero_Tabs.selectedID);this.showNetwork(reader);});win.document.getElementById('menu_ToolsPopup')?.append(e);this.windows.set(win,e);},
+  removeWindow(win) {this.windows.get(win)?.remove();this.windows.delete(win);CiteLensThemes.release(win.document);},
   toolbar(doc,reader) {const b=CiteLensUI.button(doc,'',()=>this.showPanel(reader));b.prepend(CiteLensUI.logo(doc,24));b.dataset.citeLens='toolbar';b.title='Paper Nexus';b.setAttribute('aria-label',b.title);b.style.cssText='display:inline-flex;align-items:center;justify-content:center;padding:3px;width:32px;min-height:30px;font-size:12px';return b;},
   scan() {
     if(this.dead)return;const active=new Set(Zotero.Reader._readers);
@@ -123,7 +123,7 @@ var CiteLens = {
     })();if(state)state.refPromise=promise;
     try{const refs=await promise;if(state)state.referenceList=refs;CiteLensNetwork.remember(reader,refs).catch(e=>Zotero.logError(e));if(!refs.length&&state)state.refPromise=null;return refs;}catch(e){if(state)state.refPromise=null;throw e;}
   },
-  showNetwork(reader=null){return CiteLensNetworkUI.open(reader);},
+  showNetwork(reader=null){const panel=this.panels.get(reader),focused=panel?.ownerDocument.activeElement;if(panel){panel.hidden=true;panel.inert=true;}return CiteLensNetworkUI.open(reader,{onClose:()=>{if(panel?.isConnected){panel.hidden=false;panel.inert=false;focused?.focus();}}});},
   showPanel(reader,options={}) {this.panels.get(reader)?.remove();const doc=reader._iframeWindow.document,panel=CiteLensUI.panel(doc,reader,options);this.panels.set(reader,panel);return panel;},
   refreshMetrics() {for(const reader of this.readers.keys()){const doc=reader._iframeWindow.document;for(const card of doc.querySelectorAll('[data-cite-lens=card]'))card.dispatchEvent(new doc.defaultView.Event('cl-metrics-changed'));this.enhance(reader);doc.querySelector('.cl-root')?.dispatchEvent(new doc.defaultView.Event('cl-metrics-changed'));}},
   refreshAuthors() {for(const {doc} of this.readers.values())for(const card of doc.querySelectorAll('[data-cite-lens=card]'))card.dispatchEvent(new doc.defaultView.Event('cl-authors-changed'));},
@@ -148,7 +148,7 @@ var CiteLens = {
       for(const popup of s.doc.querySelectorAll('.citation-popup,.reference-popup'))delete popup._clFailedSignature;
       s.doc.documentElement.removeAttribute('data-cl-theme');for(const property of ['--cl-size','--cl-user-size','--cl-reading-font'])s.doc.documentElement.style.removeProperty(property);
     }}catch(_){}
-    this.readers.delete(reader);
+    if(s?.doc)CiteLensThemes.release(s.doc);this.readers.delete(reader);
   },
-  async stop() {this.dead=true;CiteLensTranslation.stop();CiteLensUpdater.stop();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);Zotero.Reader.unregisterEventListener('renderTextSelectionPopup',this.selectionHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();delete Zotero.CiteLens;}
+  async stop() {this.dead=true;CiteLensThemes.stop();CiteLensTranslation.stop();CiteLensUpdater.stop();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);Zotero.Reader.unregisterEventListener('renderTextSelectionPopup',this.selectionHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();delete Zotero.CiteLens;}
 };

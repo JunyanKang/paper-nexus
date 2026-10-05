@@ -37,3 +37,9 @@
 - PubMed 标题逐词查询中，单独的 `during[Title]` 会因未索引停用词而返回零结果。实测 PMID 33208928；采用完整标题后回退有效关键词，Europe PMC 也支持无 DOI 的标题查询，仍检验作者、年份与题名。不把空检索结果当作数据库肯定没有摘要。
 - [Paper Voice translation](https://github.com/JunyanKang/paper-voice/blob/main/addon/translation.js)、[LLM](https://github.com/JunyanKang/paper-voice/blob/main/addon/llm.js)（MIT）：适配其免费引擎、模型服务配置、加密凭据、流式解析与科学术语保护。实现为本插件自己的模块，不依赖 Paper Voice 安装；保留版权说明。只翻译当前摘要，过时结果隔离、失败保留原文、显式引擎选择。
 - [Translate for Zotero](https://github.com/windingwind/zotero-pdf-translate) 的公开 `api.translate` 接口仅作为已安装插件的可选通道，不复制其实现。免费网页接口不保证长期稳定；大模型协议采用 OpenAI Chat Completions／Anthropic Messages，密钥不经过 Zotero HTTP 调试日志。
+
+## 0.4.4：界面分类与全局主题
+
+参考同作者 Paper Voice 的统一面板、直接标签与语义主题机制。Paper Nexus 保留轻量阅读与大范围本地网络两种任务尺度，以暂存／恢复替代可见窗口层层叠加；四类设置不再嵌套“更多”。十套配色与纹理独立打包，映射旧版偏好，并对每个已打开文档注册系统主题变化与卸载清理。
+
+文献清单使用行内详情，保存流程去除冗余群组入口和二次原文折叠。主题覆盖清单、卡片、摘要、菜单、保存、设置、网络、图及等待／错误／选中状态；原生 Zotero 对话框保留系统样式。具体操作与覆盖范围见 [界面与主题](INTERFACE.md)。

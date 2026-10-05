@@ -4,7 +4,7 @@
 
 Zotero 的引文阅读与本地文献网络插件。悬停查看与翻译摘要、保存到指定文献夹、搜索本地全文，并沿有依据的关系继续阅读。
 
-**0.4.3** · [下载插件](https://github.com/JunyanKang/paper-nexus/releases/latest) · [使用指南](docs/GUIDE.md) · [验证记录](docs/VALIDATION.md)
+**0.4.4** · [下载插件](https://github.com/JunyanKang/paper-nexus/releases/latest) · [使用指南](docs/GUIDE.md) · [验证记录](docs/VALIDATION.md)
 
 ## 阅读时，只显示需要的信息
 
@@ -32,15 +32,23 @@ Zotero 的引文阅读与本地文献网络插件。悬停查看与翻译摘要�
 
 **边界：** 同名署名不等于已消歧作者；局部引用网络来自已读取的 PDF 参考文献，不代表全库已完整解析。全文检索为已有索引的字面检索，尚不包含 OCR 或语义检索。[功能与边界](docs/NETWORK.md)
 
+## 一套导航与主题
+
+设置直接分为外观、阅读、翻译、数据。十套主题与跟随系统统一覆盖引文、摘要、清单、保存、设置及文献网络；打开子界面后返回，保留原来的搜索与位置。清单文献在原位置展开，不再跳转一整页。
+
+![主题设置](docs/images/settings.png)
+
+[界面与主题](docs/INTERFACE.md)
+
 ## 安装与更新
 
-1. 在 [Releases](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载 `paper-nexus-0.4.3.xpi`。
+1. 在 [Releases](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载 `paper-nexus-0.4.4.xpi`。
 2. Zotero → 工具 → 插件 → 齿轮 → 从文件安装插件，选择该文件。
 3. 打开带文字层的 PDF，点击工具栏的连接节点图标，或从工具菜单进入 **Paper Nexus**。
 
 无需 Python、Node、API key 或额外模型。清单支持 Zotero **10.0.5–10.0.x**；实机验证为 macOS 上的 Zotero 10.0.6 beta，其他平台未实机认证。
 
-设置底部可以手动检查并安装更新，检查结果与按钮同排，固定在页脚，超时可重试或打开发布页；“更多设置”中可切换自动更新。自动更新同时受 Zotero 全局开关控制，下载与哈希校验由 Zotero 完成。
+设置底部可以手动检查并安装更新，检查结果与按钮同排，固定在页脚，超时可重试或打开发布页；“数据”中可切换自动更新。自动更新同时受 Zotero 全局开关控制，下载与哈希校验由 Zotero 完成。
 
 **从 CiteLens 0.3.3 升级：** 旧版没有有效的公开更新地址，需手动安装一次本版。沿用原插件 ID，保留设置、阅读清单和缓存，之后使用公开更新通道。
 
@@ -48,7 +56,7 @@ Zotero 的引文阅读与本地文献网络插件。悬停查看与翻译摘要�
 
 优先使用用户自备指标和已安装插件可读取的本地指标，缺失时使用可选离线表。主界面不堆砌来源品牌。期刊指标按年份匹配，多学科显示同年最佳分区，并在提示中列出全部学科。JCI 如可用仅放在提示中；不伪造缺失数据，不附带受限 JCR 数据表。
 
-本地网络不上传书目或全文。题名悬停按需向 PubMed／PMC、Europe PMC 或 Crossref 查询当前条目的标识符或书目信息，优先读取本地摘要；整体等待最多 12 秒，可重试。设置 → 更多设置可填写可选的 NCBI E-utilities API key，不填写也能查询。密钥只存 Zotero 本机偏好设置，只发送到 NCBI；不随阅读清单或导出文件保存。开启作者查询／文献信息更新时，也会向 Crossref／Europe PMC 查询当前条目；指标下载和插件更新分别请求其公开服务。[指标说明](docs/METRICS.md)
+本地网络不上传书目或全文。题名悬停按需向 PubMed／PMC、Europe PMC 或 Crossref 查询当前条目的标识符或书目信息，优先读取本地摘要；整体等待最多 12 秒，可重试。设置 → 阅读可填写可选的 NCBI E-utilities API key，不填写也能查询。密钥只存 Zotero 本机偏好设置，只发送到 NCBI；不随阅读清单或导出文件保存。开启作者查询／文献信息更新时，也会向 Crossref／Europe PMC 查询当前条目；指标下载和插件更新分别请求其公开服务。[指标说明](docs/METRICS.md)
 
 点击“翻译摘要”才向所选引擎发送当前摘要；不上传 PDF 或整库。译文是机器翻译，保留原文切换；免费通道可用性受网络与服务限制，大模型 API 使用用户自行配置的服务与额度，密钥保存在本机加密凭据库。
 
