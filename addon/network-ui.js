@@ -12,7 +12,7 @@ var CiteLensNetworkUI={
     const searchButton=U.button(doc,'搜索',()=>runSearch()),refresh=U.button(doc,'刷新',()=>reload(true));refresh.title='重新读取本地文献库';
     const scopes=U.el(doc,'div',null,'pn-scopes');scopes.append(library,collection,refresh);const query=U.el(doc,'div',null,'pn-query');query.append(search,mode,searchButton);controls.append(scopes,query);
     const split=U.el(doc,'div',null,'pn-split'),sidebar=U.el(doc,'section',null,'pn-sidebar'),count=U.el(doc,'div','','pn-list-count'),list=U.el(doc,'div',null,'pn-list'),detail=U.el(doc,'section',null,'pn-detail');list.setAttribute('aria-label','本地文献');sidebar.append(count,list);split.append(sidebar,detail);root.append(controls,status,split);
-    const coverage=U.el(doc,'span','','cl-muted');footer.append(coverage,U.button(doc,'导出列表',()=>CiteLens.exportRIS(results)),U.button(doc,'关闭',dialog.close));
+    const coverage=U.el(doc,'span','','cl-muted');footer.append(coverage,U.quiet(doc,'导出列表',()=>CiteLens.exportRIS(results)));
     const option=(parent,value,label)=>{const o=U.el(doc,'option',label);o.value=value;parent.append(o);};
     const focusItem=id=>{if(id!==selected&&selected)history.push(selected);selected=id;renderDetail();for(const b of list.querySelectorAll('.pn-paper'))b.setAttribute('aria-current',String(b.dataset.node===selected));};
     const updateCollections=()=>{collection.replaceChildren();option(collection,'','所有文献夹');for(const c of data.collections.filter(c=>!library.value||c.libraryID===Number(library.value)))option(collection,String(c.id),'　'.repeat(c.level)+c.name);};
@@ -31,7 +31,6 @@ var CiteLensNetworkUI={
         const button=U.quiet(doc,relation.direction==='out'?'引用':'被引用',()=>{
           evidenceDialog?.close();const proof=U.dialog(doc,'引用依据');evidenceDialog=proof;
           for(const e of relation.evidence){proof.root.append(U.el(doc,'p',e.raw,'pn-snippet'));proof.root.append(U.quiet(doc,Number.isInteger(e.pageIndex)?'打开来源 · 第 '+(e.pageIndex+1)+' 页':'打开来源 PDF',async()=>{await N.openPDF(source,e);proof.close();dialog.close();}));}
-          proof.footer.append(U.button(doc,'完成',proof.close));
         });button.classList.add('pn-citation-evidence');button.title=(relation.direction==='out'?'当前文献引用此文':'此文引用当前文献')+' · 查看引用依据';parent.append(button);
       }else{
         const reason=U.el(doc,'span',relation.kind==='author'?'同名署名 · '+relation.name:'相关条目','pn-relation-label');
@@ -69,7 +68,7 @@ var CiteLensNetworkUI={
         for(const result of relations){const row=U.el(doc,'article',null,'pn-connection'),b=U.button(doc,'',()=>focusItem(result.node.id));b.className='pn-paper';b.append(U.title(doc,result.node,'span'));const meta=U.el(doc,'div',null,'pn-connection-meta');meta.append(U.el(doc,'span',[result.node.creators[0]?.lastName,result.node.year].filter(Boolean).join(' · '),'cl-muted'));row.append(b,meta);for(const r of result.relations.filter(r=>r.kind!=='author'&&(r.kind!=='related'||!result.relations.some(x=>x.kind==='cites'))))evidence(r,result.node,meta);const shared=result.relations.filter(r=>r.kind==='author');if(shared.length){const names=[...new Set(shared.map(r=>r.name))],label=U.el(doc,'span','同名署名 · '+(names.length===1?names[0]:names.length+' 位'),'pn-relation-label');label.title=names.join('；')+'\n完整署名相同，不代表已确认是同一位作者';meta.append(label);}content.append(row);}
       };renderConnections();
     };
-    const applySearch=()=>{nodes=scoped();results=fulltext?nodes.filter(n=>fulltext.results.has(n.id)):NC.search(nodes,search.value);if(!results.some(n=>n.id===selected))selected=results[0]?.id||'';renderList();renderDetail();coverage.textContent=nodes.length+' 篇范围内文献 · 全库已读取 '+data.coverage.sources+' 份 PDF 引文';};
+    const applySearch=()=>{nodes=scoped();results=fulltext?nodes.filter(n=>fulltext.results.has(n.id)):NC.search(nodes,search.value);if(!results.some(n=>n.id===selected))selected=results[0]?.id||'';renderList();renderDetail();coverage.textContent='全库已读取 '+data.coverage.sources+' 份 PDF 引文';count.textContent=results.length===nodes.length?results.length+' 篇文献':results.length+' / '+nodes.length+' 篇文献';};
     const runSearch=async()=>{
       const ticket=++searchEpoch;fulltext=null;searchButton.disabled=false;if(!data)return;
       if(mode.value==='fulltext'&&search.value.trim()){

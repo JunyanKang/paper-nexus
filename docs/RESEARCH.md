@@ -30,3 +30,10 @@
 - [PubMed EFetch](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=26658507&retmode=xml) 和 [PMC EFetch](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=3598659&retmode=xml)：实测 XML 中的结构化摘要、作者、文章级 DOI／PMID／PMCID。解析只读文章头部，排除参考文献列表中的标识符。
 - Zotero Reader 的引用浮窗包含 `.inner`／`.reference-row`，PDF 在子 iframe；摘要保留在引用卡 DOM 下，用原生 Popover 进入顶层显示，避免被滚动容器裁切。外部点击需覆盖 PDF 子文档，卸载与卡片移除时清理。
 - CSS 容器查询处理窄卡头部，视口单位调整字号与宽高，ResizeObserver 在异步内容和缩放后校正位置。摘要只在左右可用宽度至少 220 px 时侧置，否则内联；不浮盖引用卡。
+
+## 0.4.3：上标、摘要检索与翻译
+
+- 对照真实 Nature Communications 14:1753（2023）PDF 的字形坐标与原生引用分词，修正 `RPB1²⁶ → 6` 截断；另核验 `PRDM9⁶⁰`、`Bowtie2⁷⁹` 和 `ggplot2⁹²` 的未识别链接。使用完整小号上标组作为编号，补偿同页已确认引用的字体缩放模式；不修改 Zotero 的 PDF 文本层。
+- PubMed 标题逐词查询中，单独的 `during[Title]` 会因未索引停用词而返回零结果。实测 PMID 33208928；采用完整标题后回退有效关键词，Europe PMC 也支持无 DOI 的标题查询，仍检验作者、年份与题名。不把空检索结果当作数据库肯定没有摘要。
+- [Paper Voice translation](https://github.com/JunyanKang/paper-voice/blob/main/addon/translation.js)、[LLM](https://github.com/JunyanKang/paper-voice/blob/main/addon/llm.js)（MIT）：适配其免费引擎、模型服务配置、加密凭据、流式解析与科学术语保护。实现为本插件自己的模块，不依赖 Paper Voice 安装；保留版权说明。只翻译当前摘要，过时结果隔离、失败保留原文、显式引擎选择。
+- [Translate for Zotero](https://github.com/windingwind/zotero-pdf-translate) 的公开 `api.translate` 接口仅作为已安装插件的可选通道，不复制其实现。免费网页接口不保证长期稳定；大模型协议采用 OpenAI Chat Completions／Anthropic Messages，密钥不经过 Zotero HTTP 调试日志。

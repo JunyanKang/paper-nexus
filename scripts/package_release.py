@@ -1,6 +1,7 @@
 """Package only the reviewed Git index; private QA data never enter release archives."""
 from pathlib import Path
-import json,zipfile,hashlib,subprocess
+import json,zipfile,hashlib,subprocess,re
+from audit_release import public_index
 root=Path(__file__).resolve().parents[1];version=json.loads((root/'package.json').read_text())['version'];dist=root/'dist';xpi=dist/f'paper-nexus-{version}.xpi'
 with zipfile.ZipFile(xpi) as z:
  assert not z.testzip()
@@ -10,8 +11,8 @@ with zipfile.ZipFile(xpi) as z:
  assert not any('harness' in n or 'test' in n for n in z.namelist())
  for name in z.namelist():
   if name.endswith(('.js','.json')):
-   data=z.read(name);assert b'/Users/' not in data and b'/Volumes/' not in data and b'command.js' not in data
-files=subprocess.check_output(['git','ls-files','-z'],cwd=root).decode().split('\0');assert any(f=='README.md' for f in files),'Stage reviewed public files first'
+   data=z.read(name);assert not re.search(rb'/(?:Users|Volumes)/',data) and b'command.js' not in data
+files=public_index();assert 'README.md' in files,'Stage reviewed public files first'
 source=dist/f'paper-nexus-{version}-source.zip'
 with zipfile.ZipFile(source,'w',zipfile.ZIP_DEFLATED) as z:
  for name in sorted(filter(None,files)):

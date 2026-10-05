@@ -1,30 +1,29 @@
-# 开发与测试
+# 构建与测试
 
-Node.js 22 和 Python 3 的标准库即可运行构建与纯逻辑测试。
+构建及自动化测试使用 Node.js 22、Python 3 标准库，无需安装 npm 依赖。
 
 ```sh
 npm test
 npm run build
 ```
 
-原生测试要求 macOS 的 Zotero 桌面版和三篇真实 PDF。PDF 不随源码分发：在自备目录提供 `bringmann-2018.pdf`、`ou-2013.pdf`、`alexander-2023.pdf`。论文身份见 [验证记录](VALIDATION.md)。
+`tests/*.test.cjs` 是可独立运行的公开测试，涵盖引文身份、书目清理、作者顺序、摘要解析、候选过滤、期刊指标、保存去重、网络关系和更新状态。CI 同时检查插件 JavaScript 语法并构建 XPI。
 
-```sh
-python3 scripts/qa.py --fixtures /absolute/path/to/test-pdfs
-python3 scripts/run_native.py native-integration.js native-corpus.js
-python3 scripts/run_native.py native-abstract.js native-pubmed.js native-continuous-cards.js native-adaptive-layout.js native-streamline.js native-metric-card.js native-responsive.js native-ui.js native-selection-race.js native-authors.js native-hover-paint.js native-network.js native-network-interaction.js native-network-layout.js native-citation-verification.js native-updater.js native-update-feedback.js native-scrollbars.js native-brand.js native-network-density.js native-lifecycle.js native-package.js
-```
+## 桌面验证
 
-QA 工具只使用仓库内的 `qa-profile`／`qa-library`，不指向日常资料库。测试桥接只存在于临时 QA XPI，不包含在生产 XPI。`run_native.py` 必须串行执行。结束时先将 `test-results/command.js` 写为 `return {passed:true,ready:true};`，再关闭使用该隔离 profile 的 Zotero；不要关闭其他 Zotero 进程。
+发布前另在隔离 Zotero profile 和文献库内测试真实 PDF、鼠标／键盘交互、缩放／主题、保存、生产包安装及公开自动／手动更新。测试不能写入日常文献库。使用的真实论文、平台、覆盖范围和结果见 [当前验证记录](VALIDATION.md)。
 
-原生脚本包含联网的 PubMed／PMC、Crossref／Europe PMC 查询、受控故障、保存和删除临时条目，以及生产 XPI 安装，均限于隔离库。Linux CI 运行纯逻辑与构建，不能代替桌面实机验证。
+依赖开发机隔离状态的桌面驱动、截图脚本、历史详细报告、PDF 和文献库留在本地，不属于源码发布内容。公开单元测试通过不代表完成桌面验证，也不表示所有 PDF 均能准确识别。
 
-`native-review-capture.js` 读取 `test-results/review-round.txt` 中的轮次标识，截取真实页面；`native-citation-verification.js` 含 24 组逐项核对数据。合成压力／故障案例与真实论文案例分别记录。
+## 发布文件边界
 
-发布使用 `scripts/build.py` 的可重复 XPI 和 SHA512 更新元数据；`scripts/package_release.py` 仅打包经审阅的 Git 索引，排除资料库、PDF、日志和私有调研缓存。
+| 内容 | GitHub 源码 | 安装包 |
+|---|---|---|
+| 插件代码、运行图标与清单 | 保留 | 保留 |
+| README、许可证、使用／功能边界文档、当前验证摘要 | 保留 | 不包含 |
+| 构建、发布校验、更新脚本、CI | 保留 | 不包含 |
+| 可独立运行的自动化测试 | 保留 | 不包含 |
+| 开发机桌面驱动、临时截图、设计草稿、历史详细测试报告 | 不发布 | 不包含 |
+| PDF、文献库、缓存、凭据、日志、构建中间文件 | 不发布 | 不包含 |
 
-`native-migration.js` 与 `build_update_seed.py` 保留为 0.4.0 以前的历史迁移工具，不用于本版验证。当前公开更新测试需要未改动的正式 `dist/paper-nexus-0.4.0.xpi`；发布后运行 `python3 scripts/run_native.py native-public-update.js`，检查自动和手动更新到当前正式 XPI、安装文件 SHA512 及状态保留。脚本仅允许隔离 profile。
-
-`run_native.py` 为每次成功执行记录插件源码摘要、版本、完成时间和检查条目。`summarize_validation.py` 只接受当前插件字节对应的完整套件，不复用上一版本结果。修改插件后需要重跑受影响检查，并在发布阶段完成全套回归。
-
-发布后的公开资产可用 `python3 scripts/verify_public_release.py` 独立下载：核对每个资产 SHA256、更新清单 SHA512、XPI 全部文件，以及源码 ZIP 与经审阅 Git 索引的一致性。该步骤需要 GitHub CLI。
+`scripts/public-files.json` 明确列出允许公开的文件。`python3 scripts/audit_release.py` 检查经审阅的 Git 索引与白名单、私有路径／凭据模式、文档链接；未批准的文件会阻止打包。安装包只由 `addon/` 生成。源码 ZIP 来自经审阅的 Git 索引，并再次检查白名单；公开资产下载后重新核对 SHA256、更新清单 SHA512 以及源码一致性。

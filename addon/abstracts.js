@@ -7,7 +7,7 @@ var CiteLensAbstracts = (() => {
   function placement(anchor,viewport,cardTop=anchor.top,height=360){
     const gap=0,edge=8,right=viewport.width-anchor.right-gap-edge,left=anchor.left-gap-edge;
     if(Math.max(left,right)<220)return {side:'inline'};
-    const side=right>=300||right>=left?'right':'left',width=Math.min(350,side==='right'?right:left),maxHeight=Math.max(90,Math.min(400,viewport.height*.6,viewport.height-58));
+    const side=right>=420||right>=left?'right':'left',width=Math.min(440,side==='right'?right:left),maxHeight=Math.max(90,Math.min(400,viewport.height*.6,viewport.height-58));
     return {side,width,maxHeight,left:side==='right'?anchor.right+gap:anchor.left-gap-width,top:Math.max(42,Math.min(cardTop,viewport.height-Math.min(height,maxHeight)-edge))};
   }
   function apiKey(value){
@@ -45,21 +45,28 @@ var CiteLensAbstracts = (() => {
     const ids=A.ids(input);let r;
     if(ids.PMCID){r=select(input,pmcRecords(await ncbi(ctx,'efetch',{db:'pmc',id:ids.PMCID.replace('PMC',''),retmode:'xml'})));if(r?.abstract)return found(r,'PMC','https://pmc.ncbi.nlm.nih.gov/articles/'+ids.PMCID+'/');}
     let pmid=ids.PMID;
-    if(!pmid){const title=C.plainTitle(input.title).replace(/["\[\]]/g,' '),term=ids.DOI?ids.DOI+'[AID]':title.length>=12?title.split(/\W+/).filter(w=>w.length>2&&!/^(the|and|for|with|from|are|was|were|has|have)$/i.test(w)).slice(0,12).map(w=>w+'[Title]').join(' AND '):'';if(!term)return null;
-      const search=JSON.parse(await ncbi(ctx,'esearch',{db:'pubmed',term,retmode:'json',retmax:5}));if(search.error)throw Error('NCBI unavailable');const list=search.esearchresult?.idlist||[];if(!list.length)return null;pmid=list.filter(x=>/^\d+$/.test(x)).join(',');}
+    if(!pmid){const title=C.plainTitle(input.title).replace(/["\[\]]/g,' '),term=ids.DOI?ids.DOI+'[AID]':title.length>=12?'"'+title+'"[Title]':'';if(!term)return null;
+      let search=JSON.parse(await ncbi(ctx,'esearch',{db:'pubmed',term,retmode:'json',retmax:5}));if(search.error)throw Error('NCBI unavailable');
+      // A separate [Title] clause for a stopword (e.g. "during") makes ESearch return zero.
+      // Long titles are not always in the phrase index. Retry informative words without stopwords.
+      const words=title.split(/\W+/).filter(w=>w.length>2&&!/^(the|and|for|with|from|are|was|were|has|have|had|not|but|during|into|that|this|these|those|their|through|between|among|both|can|may|than|then|which|while|using)$/i.test(w)).slice(0,12);
+      if(!search.esearchresult?.idlist?.length&&!ids.DOI&&words.length&&!ctx.stopped())search=JSON.parse(await ncbi(ctx,'esearch',{db:'pubmed',term:words.map(w=>w+'[Title]').join(' AND '),retmode:'json',retmax:5}));
+      if(search.error)throw Error('NCBI unavailable');const list=search.esearchresult?.idlist||[];if(!list.length)return null;pmid=list.filter(x=>/^\d+$/.test(x)).join(',');}
     r=select(input,pubmedRecords(await ncbi(ctx,'efetch',{db:'pubmed',id:pmid,retmode:'xml'})));
     if(r?.abstract)return found(r,'PubMed','https://pubmed.ncbi.nlm.nih.gov/'+r.PMID+'/');
     if(r?.PMCID){const p=select({...input,...A.ids(r)},pmcRecords(await ncbi(ctx,'efetch',{db:'pmc',id:r.PMCID.replace('PMC',''),retmode:'xml'})));if(p?.abstract)return found(p,'PMC','https://pmc.ncbi.nlm.nih.gov/articles/'+r.PMCID+'/');}return null;
   }
-  async function europe(ctx,input){const ids=A.ids(input);if(!Object.values(ids).some(Boolean))return null;const query=ids.DOI?'DOI:"'+ids.DOI+'"':ids.PMID?'EXT_ID:'+ids.PMID+' AND SRC:MED':'PMCID:'+ids.PMCID;
-    const r=A.selectPMC(input,JSON.parse(await request(ctx,'https://www.ebi.ac.uk/europepmc/webservices/rest/search?query='+encodeURIComponent(query)+'&format=json&resultType=core&pageSize=5')));
-    if(!r?.abstractText)return null;return found({title:r.title,year:r.pubYear,creators:A.fromPMC(r),abstract:r.abstractText,...A.ids({DOI:r.doi,PMID:r.pmid||(r.source==='MED'?r.id:''),PMCID:r.pmcid}),keywords:r.keywordList?.keyword||[],publicationTypes:r.pubTypeList?.pubType||[]},'Europe PMC',r.pmcid?'https://europepmc.org/articles/'+r.pmcid:ids.DOI?'https://doi.org/'+ids.DOI:'https://europepmc.org/article/MED/'+ids.PMID);
+  async function europe(ctx,input){const ids=A.ids(input),identified=Object.values(ids).some(Boolean),title=C.plainTitle(input.title).replace(/["\\]/g,' ');if(!identified&&title.length<12)return null;const query=ids.DOI?'DOI:"'+ids.DOI+'"':ids.PMID?'EXT_ID:'+ids.PMID+' AND SRC:MED':ids.PMCID?'PMCID:'+ids.PMCID:'TITLE:"'+title+'"';
+    const data=JSON.parse(await request(ctx,'https://www.ebi.ac.uk/europepmc/webservices/rest/search?query='+encodeURIComponent(query)+'&format=json&resultType=core&pageSize=5'));
+    const candidates=(data?.resultList?.result||[]).map(r=>({title:r.title,year:r.pubYear,creators:A.fromPMC(r),...A.ids({DOI:r.doi,PMID:r.pmid||(r.source==='MED'?r.id:''),PMCID:r.pmcid}),original:r}));
+    const r=identified?A.selectPMC(input,data):select(input,candidates)?.original;
+    if(!r?.abstractText)return null;return found({title:r.title,year:r.pubYear,creators:A.fromPMC(r),abstract:r.abstractText,...A.ids({DOI:r.doi,PMID:r.pmid||(r.source==='MED'?r.id:''),PMCID:r.pmcid}),keywords:r.keywordList?.keyword||[],publicationTypes:r.pubTypeList?.pubType||[]},'Europe PMC',r.pmcid?'https://europepmc.org/articles/'+r.pmcid:r.source==='MED'?'https://europepmc.org/article/MED/'+r.id:'https://doi.org/'+C.doi(r.doi));
   }
   async function crossref(ctx,input){const doi=C.doi(input.DOI);if(!doi&&C.plainTitle(input.title).length<12)return null;const url=doi?'https://api.crossref.org/works/'+encodeURIComponent(doi):'https://api.crossref.org/works?rows=3&query.bibliographic='+encodeURIComponent((input.raw||C.citation(input)).slice(0,1200));const data=JSON.parse(await request(ctx,url)).message,r=select(input,doi?[C.fromCrossref(data)]:(data?.items||[]).map(C.fromCrossref));if(r?.abstract)return found(r,'Crossref','https://doi.org/'+C.doi(r.DOI));if(r?.DOI&&!doi&&!ctx.stopped())return europe(ctx,r);return null;}
   async function lookup(S,input,{force=false,budget=12000}={}){
     if(S.dead)return {status:'offline'};
     if(text(input.abstract))return found(input,input.source||'文献记录',C.doi(input.DOI)?'https://doi.org/'+C.doi(input.DOI):'');
-    const key=A.key(input),cached=S.state.abstractCache?.[key];if(!force&&cached?.version===2&&cached.expires>Date.now()&&(cached.value.status!=='available'||C.compatibility(input,cached.value.record||{}).eligible&&(!Object.values(A.ids(input)).some(Boolean)||A.matches(input,cached.value.record||{}))))return cached.value;
+    const key=A.key(input),cached=S.state.abstractCache?.[key];if(!force&&cached?.version===3&&cached.expires>Date.now()&&(cached.value.status!=='available'||C.compatibility(input,cached.value.record||{}).eligible&&(!Object.values(A.ids(input)).some(Boolean)||A.matches(input,cached.value.record||{}))))return cached.value;
     if(pending.has(key))return pending.get(key);
     const ctx={until:Date.now()+budget,abort:new Set(),done:false,stopped(){return this.done||S.dead||Date.now()>=this.until;}};
     const work=(async()=>{let transient=false;
@@ -72,7 +79,7 @@ var CiteLensAbstracts = (() => {
       return {status:transient||ctx.stopped()?'offline':'missing'};
     })();
     const bounded=deadline(work,budget).catch(()=>({status:'offline'})).then(result=>{
-      if(!S.dead){S.state.abstractCache||={};S.state.abstractCache[key]={version:2,value:result,expires:Date.now()+(result.status==='available'?30*86400000:result.status==='offline'?15000:86400000)};for(const stale of Object.keys(S.state.abstractCache).sort((a,b)=>S.state.abstractCache[b].expires-S.state.abstractCache[a].expires).slice(500))delete S.state.abstractCache[stale];S.persist().catch(()=>{});}return result;
+      if(!S.dead){S.state.abstractCache||={};S.state.abstractCache[key]={version:3,value:result,expires:Date.now()+(result.status==='available'?30*86400000:result.status==='offline'?15000:3600000)};for(const stale of Object.keys(S.state.abstractCache).sort((a,b)=>S.state.abstractCache[b].expires-S.state.abstractCache[a].expires).slice(500))delete S.state.abstractCache[stale];S.persist().catch(()=>{});}return result;
     }).finally(()=>{ctx.done=true;for(const abort of ctx.abort)abort();pending.delete(key);});pending.set(key,bounded);return bounded;
   }
   const api={text,placement,apiKey,transport,pubmedRecords,pmcRecords,select,lookup};return api;

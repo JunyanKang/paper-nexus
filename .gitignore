@@ -7,3 +7,18 @@ test-results/
 dist/
 __pycache__/
 test-fixtures/
+
+# Local desktop QA, design working notes and historical reports
+tests/native-*.js
+scripts/qa.py
+scripts/run_native.py
+scripts/build_update_seed.py
+scripts/summarize_validation.py
+docs/VALIDATION-*.md
+docs/validation*.json
+docs/BRAND.md
+docs/LOCAL-METRICS.md
+docs/METRIC-SOURCES-*.md
+docs/QUALITY-REVIEW.md
+docs/UI-SYSTEM.md
+docs/images/brand-sizes.png

@@ -2,7 +2,7 @@ var CiteLensScope;
 async function startup({rootURI, version}) {
   await Zotero.initializationPromise;
   CiteLensScope = {Zotero, Services, ChromeUtils, Components, IOUtils, PathUtils};
-  for (const file of ['core.js','citation-links.js','authors.js','epmetrics.js','localmetrics.js','bibliography.js','style.js','services.js','abstracts.js','ui.js','updater.js','network-core.js','network.js','network-ui.js','main.js']) {
+  for (const file of ['core.js','citation-links.js','authors.js','epmetrics.js','localmetrics.js','bibliography.js','style.js','services.js','abstracts.js','translation.js','ui.js','updater.js','network-core.js','network.js','network-ui.js','main.js']) {
     Services.scriptloader.loadSubScript(rootURI + file, CiteLensScope);
   }
   CiteLensScope.CiteLens.version = version;
