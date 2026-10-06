@@ -12,7 +12,7 @@ assert app['update_url']=='https://github.com/JunyanKang/paper-nexus/releases/la
 suffix='-personal' if args.personal_adapter else ''
 out=root/'dist'/f'paper-nexus-{version}{suffix}.xpi';out.parent.mkdir(exist_ok=True)
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
- for p in sorted((root/'addon').rglob('*')):
+ for p in sorted((root/'addon').rglob('*'),key=lambda p:p.relative_to(root/'addon').as_posix()):
   if p.is_file() and 'models' not in p.relative_to(root/'addon').parts and p.suffix!='.wasm':
    info=zipfile.ZipInfo(p.relative_to(root/'addon').as_posix(),(2026,10,5,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16
    z.writestr(info,p.read_bytes())
