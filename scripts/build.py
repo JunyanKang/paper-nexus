@@ -1,6 +1,7 @@
 """Build a reproducible XPI and native Zotero update manifest."""
 from pathlib import Path
 import zipfile,json,hashlib,argparse
+from audit_release import addon_payload
 parser=argparse.ArgumentParser();parser.add_argument("--personal-adapter",type=Path);args=parser.parse_args()
 root=Path(__file__).resolve().parents[1]
 manifest=json.loads((root/'addon/manifest.json').read_text(encoding='utf-8'))
@@ -12,10 +13,9 @@ assert app['update_url']=='https://junyankang.github.io/paper-nexus/updates.json
 suffix='-personal' if args.personal_adapter else ''
 out=root/'dist'/f'paper-nexus-{version}{suffix}.xpi';out.parent.mkdir(exist_ok=True)
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
- for p in sorted((root/'addon').rglob('*'),key=lambda p:p.relative_to(root/'addon').as_posix()):
-  if p.is_file() and 'models' not in p.relative_to(root/'addon').parts and p.suffix!='.wasm':
-   info=zipfile.ZipInfo(p.relative_to(root/'addon').as_posix(),(2026,10,5,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16
-   z.writestr(info,p.read_bytes())
+ for name,p in sorted(addon_payload(root).items()):
+  info=zipfile.ZipInfo(name,(2026,10,5,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16
+  z.writestr(info,p.read_bytes())
  if args.personal_adapter:
   adapter=json.loads(args.personal_adapter.read_text(encoding='utf-8'));assert adapter['dimension']==384 and adapter['rank']>0 and adapter['model']=='Xenova/all-MiniLM-L6-v2'
   assert adapter['accepted'] is True, 'Only evaluated personal adapters may be included'

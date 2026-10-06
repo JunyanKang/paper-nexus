@@ -1,11 +1,11 @@
 """Validate the two installers and updater assets; keep model releases independent."""
 from pathlib import Path
 import json,zipfile,hashlib,re,subprocess,tempfile
-from audit_release import public_index
+from audit_release import public_index, addon_payload
 root=Path(__file__).resolve().parents[1];version=json.loads((root/'package.json').read_text(encoding='utf-8'))['version'];dist=root/'dist';xpi=dist/f'paper-nexus-{version}.xpi'
 with zipfile.ZipFile(xpi) as z:
  assert not z.testzip()
- expected={p.relative_to(root/'addon').as_posix():p for p in (root/'addon').rglob('*') if p.is_file() and 'models' not in p.relative_to(root/'addon').parts and p.suffix!='.wasm'}
+ expected=addon_payload(root)
  assert set(z.namelist())==set(expected)
  assert all(z.read(name)==p.read_bytes() for name,p in expected.items()), 'Rebuild XPI: addon changed'
  assert not any('harness' in n or 'test' in n for n in z.namelist())

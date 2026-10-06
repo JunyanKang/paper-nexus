@@ -27,10 +27,6 @@ Vectors are keyed by model identity and text content, stored as little-endian Fl
 
 A 255-byte SIMD kernel accelerates exact dot products for 384-dimensional networks. The scalar implementation remains available if SIMD is unavailable or the input shape is unsupported. Rebuild it with WABT 1.0.39 and `node scripts/build_kernel.cjs <path-to-wabt-module>`; the checked-in WAT is authoritative. No WABT dependency ships to users.
 
-## Measurements and support status
-
-See [Validation](VALIDATION.md) for measured speed, retrieval quality, memory, platform coverage and unresolved limitations. The default remains MiniLM because the first MedEmbed benchmark did not meet the predeclared quality and memory promotion gates. Windows CI validates source and packaging; it does not substitute for a real Windows Zotero installation test.
-
 ## Standalone installers
 
 Both platform assistants embed only the pinned download catalog and compact OFL-licensed

@@ -28,10 +28,36 @@ docs/images/abstract.png
 docs/images/graph.png
 docs/images/save.png
 docs/images/settings-data.png
-docs/images/translation-settings.png
 
 docs/images/panel.png
 
 # Downloaded runtime/model binaries; build fetches pinned public artifacts
 addon/vendor/onnx/*.wasm
 addon/models/
+
+# Internal planning and evaluation records stay on the development machine
+docs/DESIGN.md
+docs/INTERFACE.md
+docs/NETWORK-REDESIGN.md
+docs/RESEARCH.md
+docs/REVIEW.md
+docs/TESTING.md
+docs/VALIDATION.md
+
+# Local logs, credentials, editor and runtime state
+*.log
+*.log.*
+*.pid
+*.prof
+*.heapsnapshot
+.env
+.env.*
+*.pem
+*.key
+*.sqlite*
+*.db
+*.dmp
+coverage/
+playwright-report/
+.vscode/
+.idea/
