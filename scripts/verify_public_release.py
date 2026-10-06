@@ -37,7 +37,9 @@ def download(tag, expected):
 def verify_model(data, model):
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         assert archive.testzip() is None
-        assert json.loads(archive.read('manifest.json')) == model
+        actual = json.loads(archive.read('manifest.json'))
+        # Display labels can change without replacing immutable model weights.
+        assert {k: v for k, v in actual.items() if k != 'name'} == {k: v for k, v in model.items() if k != 'name'}
         assert set(archive.namelist()) == {'manifest.json', *[f['name'] for f in model['files']]}
         for file in model['files']:
             payload = archive.read(file['name'])
