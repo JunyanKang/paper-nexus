@@ -37,13 +37,14 @@
 
 ## 开始使用
 
-适用于 **Zotero 10.0.5–10.0.x**，提供 macOS / Windows 共用安装包，免费开源。
+适用于 **Zotero 10.0.5–10.0.x**，提供 macOS、Windows 安装器，免费开源。
 
-1. 在 [发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载 **Mac / Windows 完整安装包**，解压。
-2. Zotero → **工具 → 插件 → 齿轮 → 从文件安装插件**。
-3. 设置 → 常规 → 本地模型，导入包内模型。打开 PDF，开始探索。
+1. 在 [发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载对应系统的安装器。
+2. 选择一个或多个本地模型，安装器从 GitHub 下载；插件已内置。
+3. 按安装器提示将插件添加到 Zotero，打开 PDF 开始阅读。
 
-已有用户可在插件设置中检查更新。
+日后在插件内检查更新，模型和文献索引继续保留。
+
 
 [安装帮助](docs/INSTALL.md) · [使用指南](docs/GUIDE.md) · [文献网络](docs/NETWORK.md) · [常见问题](docs/FAQ.md) · [隐私说明](docs/PRIVACY.md) · [更新记录](CHANGELOG.md)
 

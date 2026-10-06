@@ -33,6 +33,8 @@ if sys.platform=='darwin':
   payload=(iconset/name).read_bytes();chunks+=kind.encode()+struct.pack('>I',len(payload)+8)+payload
  (resources/'PaperNexus.icns').write_bytes(b'icns'+struct.pack('>I',len(chunks)+8)+chunks)
  for source,name in [(out/'installer.json','installer.json'),(ROOT/'addon/assets/nexus.png','nexus.png'),(ROOT/'LICENSE','LICENSE'),(ROOT/'dist'/config['plugin']['name'],'plugin.xpi')]:shutil.copyfile(source,resources/name)
+ for source in (ROOT/'installers/assets').glob('*'):
+  if source.suffix in ['.ttf','.txt']:shutil.copyfile(source,resources/source.name)
  info={'CFBundleIdentifier':'io.github.junyankang.paper-nexus.installer','CFBundleName':'Paper Nexus Installer','CFBundleDisplayName':'Paper Nexus 安装助手','CFBundleExecutable':binary.name,'CFBundleVersion':version,'CFBundleShortVersionString':version,'CFBundlePackageType':'APPL','CFBundleIconFile':'PaperNexus','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True}
  (app/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
  subprocess.run(['codesign','--force','--sign','-',str(app)],check=True)
@@ -45,7 +47,7 @@ elif sys.platform=='win32':
  subprocess.run(['powershell','-NoProfile','-ExecutionPolicy','Bypass','-File',str(ROOT/'installers/windows/build.ps1'),'-Root',str(ROOT)],check=True)
  csc=Path(os.environ['WINDIR'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
  exe=out/'Paper Nexus Setup.exe'
- subprocess.run([str(csc),'/nologo','/target:winexe','/platform:x64','/optimize+','/codepage:65001',*[f'/reference:{lib}.dll' for lib in ['System.Windows.Forms','System.Drawing','System.Core','System.Net.Http','System.Web.Extensions','System.IO.Compression','System.IO.Compression.FileSystem']],f'/win32icon:{out / "PaperNexus.ico"}',f'/win32manifest:{ROOT / "installers/windows/app.manifest"}',f'/resource:{ROOT / "addon/assets/nexus.png"},nexus.png',f'/resource:{out / "installer.json"},installer.json',f'/resource:{ROOT / "dist" / config["plugin"]["name"]},plugin.xpi',f'/out:{exe}',str(ROOT/'installers/windows/Installer.cs')],check=True)
+ subprocess.run([str(csc),'/nologo','/target:winexe','/platform:x64','/optimize+','/codepage:65001',*[f'/reference:{lib}.dll' for lib in ['System.Windows.Forms','System.Drawing','System.Core','System.Net.Http','System.Web.Extensions','System.IO.Compression','System.IO.Compression.FileSystem']],f'/win32icon:{out / "PaperNexus.ico"}',f'/win32manifest:{ROOT / "installers/windows/app.manifest"}',f'/resource:{ROOT / "addon/assets/nexus.png"},nexus.png',f'/resource:{out / "installer.json"},installer.json',f'/resource:{ROOT / "dist" / config["plugin"]["name"]},plugin.xpi',*[f'/resource:{source},{source.name}' for source in sorted((ROOT/'installers/assets').glob('*')) if source.suffix in ['.ttf','.txt']],f'/out:{exe}',str(ROOT/'installers/windows/Installer.cs')],check=True)
  target=ROOT/'dist'/f'Paper-Nexus-{version}-Windows.zip'
  with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:z.write(exe,exe.name)
  print(target)

@@ -16,7 +16,7 @@ def public_index():
         p = PurePosixPath(name)
         assert '..' not in p.parts and not p.is_absolute(), name
         assert not any(part in {'qa-profile','qa-library','test-results','test-fixtures','.build','dist','node_modules'} for part in p.parts), name
-        if p.suffix not in {'.png','.jpg'}:
+        if p.suffix not in {'.png','.jpg','.ttf'}:
             content = index_bytes(name).decode('utf-8')
             assert not re.search(r'/(?:Users|Volumes)/', content), 'Private path in ' + name
             assert not re.search(r'(?:ghp_|github_pat_)[A-Za-z0-9_]{20,}', content), 'Credential-shaped value in ' + name

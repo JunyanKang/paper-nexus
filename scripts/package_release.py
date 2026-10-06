@@ -1,6 +1,6 @@
-"""Package only the reviewed Git index; private QA data never enter release archives."""
+"""Validate the two installers and updater assets; keep model releases independent."""
 from pathlib import Path
-import json,zipfile,hashlib,subprocess,re
+import json,zipfile,hashlib,re
 from audit_release import public_index
 root=Path(__file__).resolve().parents[1];version=json.loads((root/'package.json').read_text(encoding='utf-8'))['version'];dist=root/'dist';xpi=dist/f'paper-nexus-{version}.xpi'
 with zipfile.ZipFile(xpi) as z:
@@ -13,12 +13,6 @@ with zipfile.ZipFile(xpi) as z:
   if name.endswith(('.js','.json')):
    data=z.read(name);assert not re.search(rb'/(?:Users|Volumes)/',data) and b'command.js' not in data
 files=public_index();assert 'README.md' in files,'Stage reviewed public files first'
-source=dist/f'paper-nexus-{version}-source.zip'
-with zipfile.ZipFile(source,'w',zipfile.ZIP_DEFLATED) as z:
- for name in sorted(filter(None,files)):
-  assert not name.startswith(('.build/','test-results/','qa-','dist/','test-fixtures/'))
-  info=zipfile.ZipInfo((Path('paper-nexus')/name).as_posix(),(2026,10,5,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16
-  z.writestr(info,subprocess.check_output(['git','show',':'+name],cwd=root))
 catalog=json.loads((root/'model-catalog.json').read_text(encoding='utf-8'))
 assert catalog==json.loads((root/'addon/model-catalog.json').read_text(encoding='utf-8'))
 packs=[]
@@ -31,12 +25,23 @@ for model in catalog['models']:
   for f in model['files']:
    b=z.read(f['name']);assert len(b)==f['bytes'] and hashlib.sha256(b).hexdigest()==f['sha256']
  packs.append(pack)
-(dist/'model-catalog.json').write_bytes((root/'model-catalog.json').read_bytes())
-bundle=dist/f'paper-nexus-{version}-mac-windows.zip'
-with zipfile.ZipFile(bundle,'w',zipfile.ZIP_DEFLATED) as z:
- for p in [xpi,packs[0]]:
-  info=zipfile.ZipInfo(p.name,(2026,10,6,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16;z.writestr(info,p.read_bytes())
- info=zipfile.ZipInfo('INSTALL.txt',(2026,10,6,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16
- z.writestr(info,f"Paper Nexus {version} — macOS / Windows\n\n1. Zotero: Tools > Plugins > gear > Install Plugin From File. Select the .xpi.\n2. Paper Nexus: Settings > General > Local model > Import. Select the .pnmodel.\n3. Open Literature Network. Your private index is built on this computer.\n\nInstall the model once; later XPI updates retain it and your index.\nNo Python, Node.js or separate server is needed.\n\n中文指南：https://github.com/JunyanKang/paper-nexus/blob/main/docs/INSTALL.md\n")
-assets=[xpi,dist/'updates.json',source,dist/'model-catalog.json',bundle,*packs];(dist/'SHA256SUMS.txt').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n' for p in assets),encoding='utf-8')
-for p in assets:print(p.name,p.stat().st_size)
+installers=[dist/f'Paper-Nexus-{version}-{platform}.zip' for platform in ['macOS','Windows']]
+for installer in installers:
+ assert installer.stat().st_size<10*1024*1024, 'Installer should not contain weights'
+ with zipfile.ZipFile(installer) as z:
+  assert not z.testzip()
+  if 'macOS' in installer.name:
+   assert z.read('Paper Nexus Installer.app/Contents/Resources/plugin.xpi')==xpi.read_bytes()
+  else:
+   assert set(z.namelist())=={'Paper Nexus Setup.exe'}
+   assert xpi.read_bytes() in z.read('Paper Nexus Setup.exe'), 'Windows executable must embed the exact XPI'
+assets=[*installers,xpi,dist/'updates.json']
+model_version=max((m['version'] for m in catalog['models']),key=lambda value:tuple(map(int,value.split('.'))))
+def describe(paths):
+ return [{'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in paths]
+# Internal publishing plan only. Never upload dist/* or this bookkeeping file.
+plan={'plugin':{'tag':'v'+version,'assets':describe(assets)},'models':{'tag':'models-v'+model_version,'latest':False,'assets':describe(packs)}}
+(dist/'release-assets.json').write_text(json.dumps(plan,indent=2)+'\n',encoding='utf-8')
+for group in ['plugin','models']:
+ print(plan[group]['tag'])
+ for asset in plan[group]['assets']:print(' ',asset['name'],asset['bytes'])

@@ -4,9 +4,9 @@ Paper Nexus 1.0 separates the XPI, public data-only model packs, and the user's 
 
 ## Portable runtime
 
-The same XPI and `.pnmodel` archives are used on macOS and Windows. Inference runs in Zotero's privileged worker using ONNX Runtime Web 1.30.0, single-threaded WebAssembly. No native helper, Python interpreter, shell script or server runs on a user's machine. The XPI ships the JavaScript loader; each model pack includes its matching WASM runtime, tokenizer, weights and licenses.
+The same XPI and `.pnmodel` archives are used on macOS and Windows. Inference runs in Zotero's privileged worker using ONNX Runtime Web 1.30.0, single-threaded WebAssembly. The plugin requires no native helper, Python interpreter, shell script or background server. The optional standalone Cocoa / Windows Forms installer downloads models and prepares the bundled XPI; it does not remain running after setup. The XPI ships the JavaScript loader; each model pack includes its matching WASM runtime, tokenizer, weights and licenses.
 
-Models live under the Zotero data directory in `paper-nexus-models/<id>/<version>`. An atomic active pointer selects a verified version. Installation checks exact archive entries, sizes and SHA256 digests; downloads use pinned HTTPS sources. Download cancellation and rejected archives retain the existing active model. Plugin updates preserve this directory. The initial upgrade from an older bundled-model XPI requires installing a separate model pack once.
+Models live under the Zotero data directory in `paper-nexus-models/<id>/<version>`. An atomic active pointer selects a verified version. Installation checks exact archive entries, sizes and SHA256 digests; installer downloads use SHA256-pinned GitHub release packages. The in-plugin downloader uses those same packages for bundled profiles; file-level pinned upstream URLs remain in the provenance catalog for reproducible pack builds. Download cancellation and rejected archives retain the existing active model. Plugin updates preserve this directory. The initial upgrade from an older bundled-model XPI requires installing a separate model pack once.
 
 ## Included profiles
 
@@ -30,3 +30,19 @@ A 255-byte SIMD kernel accelerates exact dot products for 384-dimensional networ
 ## Measurements and support status
 
 See [Validation](VALIDATION.md) for measured speed, retrieval quality, memory, platform coverage and unresolved limitations. The default remains MiniLM because the first MedEmbed benchmark did not meet the predeclared quality and memory promotion gates. Windows CI validates source and packaging; it does not substitute for a real Windows Zotero installation test.
+
+## Standalone installers
+
+Both platform assistants embed the same XPI, model catalog and compact OFL-licensed
+UI font subset. Weights are not embedded. At least one model must be selected; a
+user may select multiple. Each model has separate waiting, download, verification,
+installation and completed states. The installer verifies the archive before
+extraction and every file before committing the active pointer. A portable CLI is
+used by platform CI only against temporary data directories. Windows CI executes
+the native EXE; this is separate from Windows Zotero runtime verification.
+
+The plugin discovers complete active models when settings open; installed choices
+and downloadable choices are separate. A sole biomedical installation is selected
+automatically when the preferred model is unavailable. Neither installer writes
+Zotero's database or modifies plugin security preferences. The final XPI handoff
+uses Zotero's official Install Plugin From File interface.

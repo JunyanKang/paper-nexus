@@ -32,3 +32,9 @@ test('topic contrast prefers a distinguishing biological phrase over generic rec
 test('topic labels do not concatenate fragments across title punctuation',()=>{
  const nodes=[paper('a','Primate fovea. Structure, function and development',[])],g=M.topics(M.build({nodes,edges:[],references:[],mode:'topics'}),{vectors:[[1,0]]});assert.equal(g.nodes[0].title,'Primate fovea');
 });
+
+test('shared disease or compound names outrank isolated generic phrases',()=>{
+ const titles=['Calcified neurocysticercosis among patients with primary headache','Neurocysticercosis and oncogenesis','Neurocysticercosis: an enigmatic disease','Cognitive changes in neurocysticercosis'],nodes=titles.map((title,i)=>paper('n'+i,title,[])),graph=M.topics(M.build({nodes,edges:[],references:[],mode:'topics'}),{vectors:nodes.map(()=>[1,0])});assert.match(graph.nodes[0].title,/neurocysticercosis/i);assert.doesNotMatch(graph.nodes[0].title,/enigmatic/i);
+ const more=['Curcumin for osteoarthritis management','Curcumin and obesity','Curcumin effects on cognitive disorders'].map((title,i)=>paper('c'+i,title,[])),g=M.topics(M.build({nodes:more,edges:[],references:[],mode:'topics'}),{vectors:more.map(()=>[1,0])});assert.match(g.nodes[0].title,/curcumin/i);
+});
+test('scientific possessives stay readable in extracted topic phrases',()=>{const nodes=[paper('p1',"Cow's milk protein allergy",[]),paper('p2',"Cow's milk protein intolerance",[])],g=M.topics(M.build({nodes,edges:[],references:[],mode:'topics'}),{vectors:nodes.map(()=>[1,0])});assert.match(g.nodes[0].title,/Cow's milk protein/i);assert.doesNotMatch(g.nodes[0].title,/Cow s/i);});

@@ -37,13 +37,13 @@ As your collection grows, the network updates in the background, connecting fami
 
 ## Get started
 
-For **Zotero 10.0.5–10.0.x**, with a shared macOS / Windows download. Free and open source.
+For **Zotero 10.0.5–10.0.x**, with native macOS and Windows installers. Free and open source.
 
-1. Download and extract the **Mac / Windows complete package** from the [release page](https://github.com/JunyanKang/paper-nexus/releases/latest).
-2. In Zotero, choose **Tools → Plugins → gear menu → Install Plugin From File**.
-3. Under **Settings → General → Local model**, import the included model pack. Open a PDF and start exploring.
+1. Download the installer for your platform from the [release page](https://github.com/JunyanKang/paper-nexus/releases/latest).
+2. Choose one or more local models to download from GitHub. The plugin is already included.
+3. Follow the installer to add the plugin to Zotero, then open a PDF.
 
-Already installed? Check for updates in the plugin settings.
+Later, check for updates in the plugin. Your models and literature index stay in place.
 
 [Installation](docs/INSTALL.md) · [User guide](docs/GUIDE.md) · [Research network](docs/NETWORK.md) · [FAQ](docs/FAQ.md) · [Privacy](docs/PRIVACY.md) · [What's new](CHANGELOG.md)
 
