@@ -29,7 +29,9 @@ if sys.platform=='darwin':
  finally:subprocess.run(['hdiutil','detach',str(mount)],check=True,stdout=subprocess.DEVNULL)
 with tempfile.TemporaryDirectory(prefix='nexus-selection-') as scratch:
  result=Path(scratch)/'selection.json'
- subprocess.run([str(exe),'--selection-check',str(result)],check=True,timeout=30)
+ selection_run=subprocess.run([str(exe),'--selection-check',str(result)],timeout=30)
+ if selection_run.returncode and result.exists():print(result.read_text(),flush=True)
+ selection_run.check_returncode()
  selection=json.loads(result.read_text());assert selection and all(selection.values()), selection
  checks.append('real checkbox clicks and text refresh preserve zero, single and multiple selections')
  for model in config['models']:
