@@ -55,27 +55,33 @@ with tempfile.TemporaryDirectory(prefix='nexus-profiles-') as scratch:
  before=probe();assert len(before['profiles'])==2 and before['profiles'][0]['preferred']
  assert {Path(p['path']).resolve() for p in before['profiles']}=={relative.resolve(),absolute.resolve()}
  checks.append('profiles.ini resolves relative and absolute paths; missing and duplicate profiles excluded')
- if before['running']:raise AssertionError('Close test Zotero before running installer staging tests')
- plugin=ROOT/'dist'/config['plugin']['name'];target=relative/'extensions/cite-lens@local.research.xpi';target.parent.mkdir();target.write_bytes(b'previous plugin')
- other=target.parent/'other-addon.xpi';other.write_bytes(b'other plugin retained');prefs=(relative/'prefs.js').read_bytes()
- args=['--stage-profile',str(relative),'--plugin-file',str(plugin)];staged=probe(args)
- assert target.read_bytes()==plugin.read_bytes() and (target.parent/'.nexus-previous').read_bytes()==b'previous plugin'
- assert not staged['profiles'][0]['installed'] and not (relative/'extensions.json').exists()
- assert other.read_bytes()==b'other plugin retained' and (relative/'prefs.js').read_bytes()==prefs and not list(absolute.glob('extensions/*'))
- checks.append('verified XPI staged only in selected profile; settings and other plugins preserved; pending until enabled')
- registry=relative/'extensions.json'
- def state(**changes):
-  row={'id':'cite-lens@local.research','version':config['version'],'active':True,'userDisabled':False,'appDisabled':False};row.update(changes)
-  registry.write_text(json.dumps({'addons':[row]}),encoding='utf-8');stamp=max(registry.stat().st_mtime,target.stat().st_mtime)+1;os.utime(registry,(stamp,stamp));return probe()['profiles'][0]['installed']
- assert not state(active=False,userDisabled=True)
- assert not state(version='0.0.0')
- assert not state(appDisabled=True)
- assert state()
- stamp=target.stat().st_mtime_ns;probe(args);assert target.stat().st_mtime_ns==stamp
- checks.append('installed requires matching version, verified XPI and active non-disabled Zotero registry; reuse does not replace file')
- corrupt=root/'bad.xpi';corrupt.write_bytes(b'corrupt');probe(['--stage-profile',str(relative),'--plugin-file',str(corrupt)],success=False)
- assert target.read_bytes()==plugin.read_bytes() and (relative/'prefs.js').read_bytes()==prefs
- checks.append('corrupt XPI rejected before changing an existing profile')
+ if before['running']:
+  assert not os.environ.get('CI'), 'CI must run every profile staging check'
+  plugin=ROOT/'dist'/config['plugin']['name']
+  probe(['--stage-profile',str(relative),'--plugin-file',str(plugin)],success=False)
+  assert not (relative/'extensions').exists()
+  checks.append('Zotero running: live profile staging deferred to clean CI; no user process closed')
+ else:
+  plugin=ROOT/'dist'/config['plugin']['name'];target=relative/'extensions/cite-lens@local.research.xpi';target.parent.mkdir();target.write_bytes(b'previous plugin')
+  other=target.parent/'other-addon.xpi';other.write_bytes(b'other plugin retained');prefs=(relative/'prefs.js').read_bytes()
+  stage_args=['--stage-profile',str(relative),'--plugin-file',str(plugin)];staged=probe(stage_args)
+  assert target.read_bytes()==plugin.read_bytes() and (target.parent/'.nexus-previous').read_bytes()==b'previous plugin'
+  assert not staged['profiles'][0]['installed'] and not (relative/'extensions.json').exists()
+  assert other.read_bytes()==b'other plugin retained' and (relative/'prefs.js').read_bytes()==prefs and not list(absolute.glob('extensions/*'))
+  checks.append('verified XPI staged only in selected profile; settings and other plugins preserved; pending until enabled')
+  registry=relative/'extensions.json'
+  def state(**changes):
+   row={'id':'cite-lens@local.research','version':config['version'],'active':True,'userDisabled':False,'appDisabled':False};row.update(changes)
+   registry.write_text(json.dumps({'addons':[row]}),encoding='utf-8');stamp=max(registry.stat().st_mtime,target.stat().st_mtime)+1;os.utime(registry,(stamp,stamp));return probe()['profiles'][0]['installed']
+  assert not state(active=False,userDisabled=True)
+  assert not state(version='0.0.0')
+  assert not state(appDisabled=True)
+  assert state()
+  stamp=target.stat().st_mtime_ns;probe(stage_args);assert target.stat().st_mtime_ns==stamp
+  checks.append('installed requires matching version, verified XPI and active non-disabled Zotero registry; reuse does not replace file')
+  corrupt=root/'bad.xpi';corrupt.write_bytes(b'corrupt');probe(['--stage-profile',str(relative),'--plugin-file',str(corrupt)],success=False)
+  assert target.read_bytes()==plugin.read_bytes() and (relative/'prefs.js').read_bytes()==prefs
+  checks.append('corrupt XPI rejected before changing an existing profile')
 
 with tempfile.TemporaryDirectory(prefix='nexus-installer-') as scratch:
  root=Path(scratch);data=root/'data';data.mkdir();(data/'zotero.sqlite').write_text('installer test marker, not a real library');downloads=root/'plugins'
