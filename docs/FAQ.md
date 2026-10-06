@@ -52,4 +52,4 @@
 
 ## 如何更新？
 
-打开“设置 → 阅读 → 检查更新”。1.0.1 及更早版本请先通过新版安装器升级一次。也可从 [最新发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载安装器更新，设置和稍后阅读清单继续保留。
+打开“设置 → 网络 → 检查更新”。1.0.1 及更早版本请先通过新版安装器升级一次。也可从 [最新发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载安装器更新，设置和稍后阅读清单继续保留。

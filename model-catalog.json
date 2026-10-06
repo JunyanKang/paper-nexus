@@ -3,7 +3,7 @@
   "models": [
     {
       "id": "minilm",
-      "name": "轻量通用",
+      "name": "通用语义",
       "schema": 1,
       "abi": 1,
       "version": "1.0.0",
@@ -60,7 +60,7 @@
     },
     {
       "id": "medembed",
-      "name": "生命医学",
+      "name": "医学语义",
       "schema": 1,
       "abi": 1,
       "version": "1.0.0",

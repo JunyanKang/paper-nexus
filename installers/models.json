@@ -3,10 +3,10 @@
   "models": [
     {
       "id": "minilm",
-      "titleZh": "轻量通用 · 推荐",
-      "titleEn": "Lightweight · Recommended",
-      "detailZh": "20 MB · 更快／占用较低 · 通用文献",
-      "detailEn": "20 MB · Faster, lower memory · General research",
+      "titleZh": "通用语义",
+      "titleEn": "General semantics",
+      "detailZh": "20 MB · MiniLM · 英文通用与跨学科文献",
+      "detailEn": "20 MB · MiniLM · General and interdisciplinary English research",
       "package": {
         "name": "paper-nexus-minilm-1.0.0.pnmodel",
         "url": "https://junyankang.github.io/paper-nexus/models/v1.0.0/paper-nexus-minilm-1.0.0.pnmodel",
@@ -16,10 +16,10 @@
     },
     {
       "id": "medembed",
-      "titleZh": "生命医学",
-      "titleEn": "Biomedical",
-      "detailZh": "29 MB · 英文生命医学 · 首次分析较慢",
-      "detailEn": "29 MB · English biomedicine · Slower first analysis",
+      "titleZh": "医学语义",
+      "titleEn": "Biomedical semantics",
+      "detailZh": "29 MB · MedEmbed · 英文生命科学与医学文献",
+      "detailEn": "29 MB · MedEmbed · English life sciences and medicine",
       "package": {
         "name": "paper-nexus-medembed-1.0.0.pnmodel",
         "url": "https://junyankang.github.io/paper-nexus/models/v1.0.0/paper-nexus-medembed-1.0.0.pnmodel",

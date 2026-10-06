@@ -289,8 +289,6 @@ var CiteLensI18n = {
     "尝试作者姓氏、年份或更短的题名。": "Try an author surname, year or shorter title.",
     "把想读的文献留在这里": "Keep references to read here",
     "悬浮卡片中点击「稍后读」，稍后集中核对、保存和导出。": "Use Later on a citation card to review, save and export later.",
-    "选中 PDF 中的整条参考文献，点击「识别引文」；也可以粘贴文本。": "Select a full PDF reference and identify it, or paste its text.",
-    "识别引文": "Identify citation",
     "粘贴作者、年份、题名和期刊等信息": "Paste authors, year, title and journal",
     "请粘贴完整的参考文献。": "Paste a complete reference.",
     "导入期刊指标": "Import journal metrics",
@@ -663,8 +661,6 @@ var CiteLensI18n = {
     "尝试作者姓氏、年份或更短的题名。": "著者の姓・年・短い題名を試してください。",
     "把想读的文献留在这里": "読みたい文献を保存",
     "悬浮卡片中点击「稍后读」，稍后集中核对、保存和导出。": "引用カードの「後で読む」で後から確認・保存・出力できます。",
-    "选中 PDF 中的整条参考文献，点击「识别引文」；也可以粘贴文本。": "PDF の参考文献全体を選択して識別するか、テキストを貼り付けてください。",
-    "识别引文": "引用を識別",
     "粘贴作者、年份、题名和期刊等信息": "著者・年・題名・雑誌を貼り付け",
     "请粘贴完整的参考文献。": "参考文献全体を貼り付けてください。",
     "导入期刊指标": "雑誌指標を読み込む",
@@ -1037,8 +1033,6 @@ var CiteLensI18n = {
     "尝试作者姓氏、年份或更短的题名。": "Essayez un nom, une année ou un titre plus court.",
     "把想读的文献留在这里": "Gardez ici les références à lire",
     "悬浮卡片中点击「稍后读」，稍后集中核对、保存和导出。": "Utilisez À lire pour vérifier, enregistrer et exporter plus tard.",
-    "选中 PDF 中的整条参考文献，点击「识别引文」；也可以粘贴文本。": "Sélectionnez une référence PDF complète ou collez son texte.",
-    "识别引文": "Identifier la citation",
     "粘贴作者、年份、题名和期刊等信息": "Collez auteurs, année, titre et revue",
     "请粘贴完整的参考文献。": "Collez une référence complète.",
     "导入期刊指标": "Importer les indicateurs",
@@ -1411,8 +1405,6 @@ var CiteLensI18n = {
     "尝试作者姓氏、年份或更短的题名。": "Nachname, Jahr oder kürzeren Titel versuchen.",
     "把想读的文献留在这里": "Hier Literatur zum Lesen sammeln",
     "悬浮卡片中点击「稍后读」，稍后集中核对、保存和导出。": "Mit Später Literatur vormerken, prüfen, speichern und exportieren.",
-    "选中 PDF 中的整条参考文献，点击「识别引文」；也可以粘贴文本。": "Vollständige PDF-Referenz auswählen und erkennen oder Text einfügen.",
-    "识别引文": "Zitat erkennen",
     "粘贴作者、年份、题名和期刊等信息": "Autoren, Jahr, Titel und Zeitschrift einfügen",
     "请粘贴完整的参考文献。": "Vollständige Referenz einfügen.",
     "导入期刊指标": "Zeitschriftenkennzahlen importieren",
@@ -1568,8 +1560,6 @@ for(const [source,values] of Object.entries({
 
 for(const [source,values] of Object.entries({
  "准备模型":["Prepare model","モデルの準備","Préparer le modèle","Modell vorbereiten"],
- "生命医学":["Biomedical","生命・医学","Biomédical","Biomedizin"],
- "轻量通用":["Lightweight","軽量・汎用","Léger","Kompakt"],
  "安装模型":["Install model","モデルをインストール","Installer un modèle","Modell installieren"],
  "导入模型包":["Import model pack","モデルパックを読み込み","Importer un modèle","Modellpaket importieren"],
  "检查模型更新":["Check model updates","モデル更新を確認","Vérifier les modèles","Modellupdates prüfen"],
@@ -1591,3 +1581,31 @@ for(const [source,values] of Object.entries({
  "网络模型":["Network model","ネットワークモデル","Modèle du réseau","Netzwerkmodell"],
  "划分合作群体":["Group collaborators","共同研究者を分類","Regrouper les collaborateurs","Kooperationsgruppen bilden"]
 })){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
+
+for(const [source,values] of Object.entries({
+ "更新信息异常":["Invalid update data","更新情報が無効です","Données de mise à jour invalides","Ungültige Update-Daten"],
+ "安全校验失败":["Security check failed","安全性の確認に失敗","Échec de vérification de sécurité","Sicherheitsprüfung fehlgeschlagen"],
+ "检查已取消":["Check cancelled","確認をキャンセル","Vérification annulée","Prüfung abgebrochen"],
+ "更新失败":["Update failed","更新に失敗","Échec de mise à jour","Update fehlgeschlagen"],
+ "更新暂不可用":["Update unavailable","更新を確認できません","Mise à jour indisponible","Update nicht verfügbar"],
+ "网络暂不可用，请重试":["Graph unavailable. Try again.","ネットワークを再試行してください","Réseau indisponible. Réessayez.","Netzwerk nicht verfügbar. Erneut versuchen."],
+ "重试定位引用":["Retry citation locations","引用位置を再取得","Réessayer les emplacements de citation","Zitationsstellen erneut laden"]
+})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
+
+for(const [source,values] of Object.entries({
+ "模型暂不可用，请重试":["Models unavailable. Try again.","モデルを再試行してください","Modèles indisponibles. Réessayez.","Modelle nicht verfügbar. Erneut versuchen."],
+ "文献仍在读取，请稍后重试":["References are still loading. Try again shortly.","文献を読み込み中です。後でもう一度お試しください","Les références se chargent. Réessayez bientôt.","Referenzen werden noch geladen. Bitte später erneut versuchen."],
+ "文献库仍在读取，请稍后重试":["Library still loading. Try again shortly.","ライブラリを読み込み中です。後でもう一度お試しください","La bibliothèque se charge. Réessayez bientôt.","Bibliothek wird noch geladen. Bitte später erneut versuchen."]
+})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
+
+for(const [source,values] of Object.entries({
+ "主题分析":["Topic analysis","トピック分析","Analyse thématique","Themenanalyse"],
+ "通用语义":["General semantics","汎用意味解析","Sémantique générale","Allgemeine Semantik"],
+ "医学语义":["Biomedical semantics","医学意味解析","Sémantique biomédicale","Biomedizinische Semantik"],
+ "添加方案":["Add analysis","分析を追加","Ajouter une analyse","Analyse hinzufügen"],
+ "更新方案":["Update analysis","分析を更新","Mettre à jour","Analyse aktualisieren"],
+ "检查分析资源更新":["Check analysis updates","分析リソースの更新を確認","Vérifier les ressources","Analyseressourcen prüfen"],
+ "切换中…":["Switching…","切り替え中…","Changement…","Wechseln…"]
+})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
+
+for(const [language,text] of Object.entries({en:'References are unavailable for this PDF',ja:'この PDF の参考文献を読み取れません',fr:'Références indisponibles pour ce PDF',de:'Referenzen für diese PDF nicht verfügbar'}))CiteLensI18n.catalogs[language]['此 PDF 暂无法读取参考文献']=text;

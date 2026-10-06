@@ -6,6 +6,7 @@ var CiteLensNetwork = {
     try{if(await IOUtils.exists(this.path)){if((await IOUtils.stat(this.path)).size>30*1024*1024)throw Error('Cache too large');const data=JSON.parse(await IOUtils.readUTF8(this.path));if(data.schema!==1||!data.sources||typeof data.sources!=='object'||Array.isArray(data.sources))throw Error('Invalid cache');this.state=data;}}
     catch(e){Zotero.logError(e);this.state={schema:1,sources:{}};this.warning='关联缓存无法读取，可重新读取论文中的引文。';}
     this.indexPath=PathUtils.join(PathUtils.parent(this.path),'network-semantic-index.json');try{if(await IOUtils.exists(this.indexPath)&&(await IOUtils.stat(this.indexPath)).size<16*1024*1024){const saved=JSON.parse(await IOUtils.readUTF8(this.indexPath));if(saved.schema===1)this.semanticIndexes=new Map(saved.entries||[]);}}catch(_){}
+    if(this.dead)return;
     this.observer=Zotero.Notifier.registerObserver({notify:(event,type,ids)=>this.invalidate(event,type,ids)},['item','collection','collection-item'],'paper-nexus-network');
   },
   invalidate(event,type,ids=[]){
@@ -31,11 +32,11 @@ var CiteLensNetwork = {
     const win=Zotero.getMainWindow();return new Promise((resolve,reject)=>{
       if(this.dead||signal?.aborted){reject(Error('已取消'));return;}let worker,timer;const cancel=()=>finish(Error('已取消'));
       const finish=(error,value)=>{win.clearTimeout(timer);signal?.removeEventListener('abort',cancel);if(worker){worker.terminate();this.workers.delete(worker);}error?reject(error):resolve(value);};
-      try{worker=new win.ChromeWorker('resource://'+CiteLens.assetResource+'/network-worker.js');this.workers.add(worker);worker.cancel=()=>finish(Error('已关闭'));worker.onmessage=e=>{if(e.data.error)finish(Error(e.data.error));else if(e.data.result)finish(null,e.data.result);else if(e.data.progress)progress(e.data.progress);};worker.onerror=e=>finish(Error(e.message||'网络计算失败'));signal?.addEventListener('abort',cancel,{once:true});timer=win.setTimeout(()=>finish(Error('网络计算超时，请缩小文献夹范围')),45000);worker.postMessage({action,payload});}catch(e){finish(e);}
+      try{CiteLens.ensureAssets();worker=new win.ChromeWorker('resource://'+CiteLens.assetResource+'/network-worker.js');this.workers.add(worker);worker.cancel=()=>finish(Error('已关闭'));worker.onmessage=e=>{if(e.data.error)finish(Error(e.data.error));else if(e.data.result)finish(null,e.data.result);else if(e.data.progress)progress(e.data.progress);};worker.onerror=e=>{Zotero.logError(Error('[Paper Nexus network] '+action+': '+(e.message||'worker resource failed')));finish(Error('网络暂不可用，请重试'));};signal?.addEventListener('abort',cancel,{once:true});timer=win.setTimeout(()=>finish(Error('网络计算超时，请缩小文献夹范围')),45000);worker.postMessage({action,payload});}catch(e){finish(e);}
     });
   },
   searchSession(model){
-    const win=Zotero.getMainWindow(),worker=new win.ChromeWorker('resource://'+CiteLens.assetResource+'/network-worker.js'),pending=new Map();let serial=0,closed=false,readyResolve,readyReject;
+    CiteLens.ensureAssets();const win=Zotero.getMainWindow(),worker=new win.ChromeWorker('resource://'+CiteLens.assetResource+'/network-worker.js'),pending=new Map();let serial=0,closed=false,readyResolve,readyReject;
     const ready=new Promise((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});ready.catch(()=>{});
     const timer=win.setTimeout(()=>close(Error('搜索索引加载超时')),45000);
     const close=(error=Error('已取消'))=>{if(closed)return;closed=true;win.clearTimeout(timer);worker.terminate();this.workers.delete(worker);readyReject(error);for(const task of pending.values())task.reject(error);pending.clear();};
@@ -54,7 +55,7 @@ var CiteLensNetwork = {
     if(!this.cacheRoot||!key||this.dead)return;const {text}=await this.compute('cache-encode',{value:{schema:2,data}});if(text.length>6*1024*1024)return;
     const root=this.cacheRoot,path=PathUtils.join(root,kind+'-'+key+'.json');
     const task=(this.cacheWrite||Promise.resolve()).catch(()=>{}).then(async()=>{if(this.dead)return;await IOUtils.makeDirectory(root,{ignoreExisting:true});await IOUtils.writeUTF8(path,text,{tmpPath:path+'.tmp'});
-      const files=[];for(const file of await IOUtils.getChildren(root)){if(!/\/(?:graph|snapshot|refs|author)-[a-f0-9]{64}\.json$/.test(file.replace(/\\/g,'/')))continue;const stat=await IOUtils.stat(file);files.push({path:file,size:stat.size,time:stat.lastModified});}files.sort((a,b)=>b.time-a.time);let bytes=0;for(let i=0;i<files.length;i++){bytes+=files[i].size;if(i>=64||bytes>64*1024*1024)await IOUtils.remove(files[i].path,{ignoreAbsent:true});}
+      const files=[];for(const file of await IOUtils.getChildren(root)){if(!/\/(?:graph|snapshot|refs|locations|author)-[a-f0-9]{64}\.json$/.test(file.replace(/\\/g,'/')))continue;const stat=await IOUtils.stat(file);files.push({path:file,size:stat.size,time:stat.lastModified});}files.sort((a,b)=>b.time-a.time);let bytes=0;for(let i=0;i<files.length;i++){bytes+=files[i].size;if(i>=64||bytes>64*1024*1024)await IOUtils.remove(files[i].path,{ignoreAbsent:true});}
     });this.cacheWrite=task;try{await task;}catch(e){Zotero.logError(e);}
   },
   async referenceKey(reader,pdf){
@@ -90,6 +91,7 @@ var CiteLensNetwork = {
     this.dirty=true;this.generation++;const data=JSON.stringify(this.state);this.write=(this.write||Promise.resolve()).catch(()=>{}).then(()=>IOUtils.writeUTF8(this.path,data,{tmpPath:this.path+'.tmp'}));await this.write;for(const f of this.listeners)f();
   },
   async snapshot({force=false,progress=()=>{}}={}){
+    if(typeof CiteLens!=='undefined'&&CiteLens.prepareNetwork)await CiteLens.prepareNetwork();
     if(this.snapshotFlight){await this.snapshotFlight;return this.snapshot({force,progress});}
     if(this.data&&!this.dirty&&!force)return this.data;
     const full=force||this.fullDirty||!this.data,pending=new Set(this.dirtyItems);this.dirtyItems.clear();this.fullDirty=false;const ticket=this.generation;

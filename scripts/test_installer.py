@@ -27,6 +27,18 @@ if sys.platform=='darwin':
    assert hashlib.sha256((Path(scratch)/config['plugin']['name']).read_bytes()).hexdigest()==config['plugin']['sha256']
   checks.append('installer runs directly from read-only DMG and prepares the exact XPI')
  finally:subprocess.run(['hdiutil','detach',str(mount)],check=True,stdout=subprocess.DEVNULL)
+with tempfile.TemporaryDirectory(prefix='nexus-selection-') as scratch:
+ result=Path(scratch)/'selection.json'
+ subprocess.run([str(exe),'--selection-check',str(result)],check=True,timeout=30)
+ selection=json.loads(result.read_text());assert selection and all(selection.values()), selection
+ checks.append('real checkbox clicks and text refresh preserve zero, single and multiple selections')
+ for model in config['models']:
+  root=Path(scratch)/model['id'];data=root/'data';data.mkdir(parents=True);(data/'zotero.sqlite').write_text('fixture');downloads=root/'downloads'
+  subprocess.run([str(exe),'--quiet','--data-dir',str(data),'--download-dir',str(downloads),'--model',model['id'],'--package-dir',str(ROOT/'dist')],check=True,capture_output=True,timeout=120)
+  active=list((data/'paper-nexus-models').glob('*/active.json'))
+  assert len(active)==1 and active[0].parent.name==model['id']
+  assert {p.name for p in downloads.glob('*.pnmodel')}=={model['package']['name']}
+ checks.append('each single-model selection installs and downloads only that model')
 with tempfile.TemporaryDirectory(prefix='nexus-installer-') as scratch:
  root=Path(scratch);data=root/'data';data.mkdir();(data/'zotero.sqlite').write_text('installer test marker, not a real library');downloads=root/'plugins'
  def run(ids='minilm',success=True,extra=None,directory=data,online=False):

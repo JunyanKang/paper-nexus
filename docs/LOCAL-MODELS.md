@@ -4,7 +4,7 @@ Paper Nexus 1.0 separates the XPI, public data-only model packs, and the user's 
 
 ## Portable runtime
 
-The same XPI and `.pnmodel` archives are used on macOS and Windows. Inference runs in Zotero's privileged worker using ONNX Runtime Web 1.30.0, single-threaded WebAssembly. The plugin requires no native helper, Python interpreter, shell script or background server. The optional standalone Cocoa / Windows Forms installer downloads both models and the XPI; it does not remain running after setup. The XPI ships the JavaScript loader; each model pack includes its matching WASM runtime, tokenizer, weights and licenses.
+The same XPI and `.pnmodel` archives are used on macOS and Windows. Inference runs in Zotero's privileged worker using ONNX Runtime Web 1.30.0, single-threaded WebAssembly. The plugin requires no native helper, Python interpreter, shell script or background server. The optional standalone Cocoa / Windows Forms installer downloads the selected models and the XPI; it does not remain running after setup. The XPI ships the JavaScript loader; each model pack includes its matching WASM runtime, tokenizer, weights and licenses.
 
 By default, models live under the Zotero data directory in `paper-nexus-models/<id>/<version>`. An atomic active pointer selects a verified version. Installation checks exact archive entries, sizes and SHA256 digests; installer downloads use SHA256-pinned GitHub Pages downloads. The in-plugin downloader uses those same packages for bundled profiles; file-level pinned upstream URLs remain in the provenance catalog for reproducible pack builds. Download cancellation and rejected archives retain the existing active model. Plugin updates preserve this directory. The initial upgrade from an older bundled-model XPI requires installing a separate model pack once.
 
@@ -12,10 +12,10 @@ By default, models live under the Zotero data directory in `paper-nexus-models/<
 
 | Profile | Upstream | Encoding | Pack bytes |
 |---|---|---|---:|
-| Lightweight, default | [all-MiniLM-L6-v2](https://huggingface.co/Xenova/all-MiniLM-L6-v2/tree/751bff37182d3f1213fa05d7196b954e230abad9) | INT8, 384 dimensions, masked mean pooling; title and abstract chunks, 256 tokens | 20,133,091 |
-| Biomedical, optional | [MedEmbed-small-v0.1](https://huggingface.co/abhinand/MedEmbed-small-v0.1/tree/40a5850d046cfdb56154e332b4d7099b63e8d50e) | INT8, 384 dimensions; exported sentence embedding; joint title and abstract, 384 tokens | 28,996,591 |
+| General semantics | [all-MiniLM-L6-v2](https://huggingface.co/Xenova/all-MiniLM-L6-v2/tree/751bff37182d3f1213fa05d7196b954e230abad9) | INT8, 384 dimensions, masked mean pooling; title and abstract chunks, 256 tokens | 20,133,091 |
+| Biomedical semantics | [MedEmbed-small-v0.1](https://huggingface.co/abhinand/MedEmbed-small-v0.1/tree/40a5850d046cfdb56154e332b4d7099b63e8d50e) | INT8, 384 dimensions; exported sentence embedding; joint title and abstract, 384 tokens | 28,996,591 |
 
-The biomedical pack uses the pinned [medbrevia ONNX export](https://huggingface.co/medbrevia/medembed-small-v0.1-onnx-int8/tree/6cbe4664f1e0067da935f5abc24e4f8b5406b13f), with its provenance and Apache-2.0 / upstream BGE MIT notices. This is an integration of an existing trained model, not a newly trained Nexus foundation model. The biomedical input is truncated at the token limit; the lightweight path splits longer abstracts. Retrieval improvement does not establish superior scientific clustering for every library.
+The biomedical pack uses the pinned [medbrevia ONNX export](https://huggingface.co/medbrevia/medembed-small-v0.1-onnx-int8/tree/6cbe4664f1e0067da935f5abc24e4f8b5406b13f), with its provenance and Apache-2.0 / upstream BGE MIT notices. This is an integration of an existing trained model, not a newly trained Nexus foundation model. The biomedical input is truncated at the token limit; the MiniLM path splits longer abstracts. Retrieval improvement does not establish superior scientific clustering for every library.
 
 The public [catalog](../model-catalog.json) is the source of exact file sizes, revisions and hashes. Run `python scripts/build_models.py` to reproduce the packs from these pinned files. Model binaries and personal indexes are excluded from Git. Building the XPI does not download model weights.
 
@@ -43,7 +43,7 @@ automatically when the preferred model is unavailable. Neither installer writes
 Zotero's database or modifies plugin security preferences. The final XPI handoff
 uses Zotero's official Install Plugin From File interface.
 
-A folder picker can select another existing model root. After a verified install, the installer atomically writes `paper-nexus-model-location.json` in the Zotero data directory. The plugin reads this on startup and when opening settings, and offers its own folder picker. Changing roots cancels stale inference and refreshes installed model choices; it does not move existing files. An unavailable external drive is reported without silently falling back to a different directory.
+A folder picker can select another existing model root. After a verified install, the installer atomically writes `paper-nexus-model-location.json` in the Zotero data directory. The plugin reads this on startup and when opening settings, using the location recorded by the installer. Changing roots cancels stale inference and refreshes installed model choices; it does not move existing files. An unavailable external drive is reported without silently falling back to a different directory.
 
 
 ## Local network analysis
