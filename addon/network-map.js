@@ -26,29 +26,33 @@ var CiteLensNetworkMap=(()=>{
   if(members.every(n=>/^(?:biography|obituary|in memoriam)\b/i.test(C.researchTitle(n))))return 'Scientific biographies';
   if(members.every(n=>/^(?:series page|contents|editorial board|front matter|copyright|index)\b/i.test(C.researchTitle(n))))return 'Publication information';
   // Extract supported noun phrases, never turn a title's result clause into a topic.
-  const phrases=new Map(),stop=new Set(('the a an and or of in on for to by with from as at is are was were this that these those its their our using use study studies analysis review role effect effects new novel evidence reveals reveal based during within between through into under after before via how whether can could may might has have had shows show showed demonstrates demonstrate suggests suggest initiates initiate inactivates inactivate visualizing regulating inhibit inhibits inhibited enhance enhances enhanced suppress suppresses suppressed activate activates activated disrupt disrupts disrupted promote promotes regulate regulates restore restores restored increase increases increased decrease decreases decreased measured measure measuring induces induce induced mediates mediated controls control determine determines requires required identifies identified identification characterization characterisation contribution contributions compared comparison associated associates predicts predict underlying').split(' '));
+  const phrases=new Map(),stop=new Set(('the a an and or of in on for to by with from as at is are was were this that these those its their our using use study studies analysis review role effect effects new novel evidence reveals reveal based during within between through into under after before via how whether can could may might has have had shows show showed demonstrates demonstrate suggests suggest initiates initiate inactivates inactivate visualizing linking tracking mapping regulating inhibit inhibits inhibited enhance enhances enhanced suppress suppresses suppressed activate activates activated disrupt disrupts disrupted promote promotes regulate regulates restore restores restored increase increases increased decrease decreases decreased measured measure measuring induces induce induced mediates mediated controls control determine determines requires required identifies identified identification characterization characterisation contribution contributions compared comparison associated associates predicts predict underlying').split(' '));
   const heads=new Set(('cell cells retina retinas fovea foveas foveae photoreceptor photoreceptors neuron neurons progenitor progenitors receptor receptors protein proteins gene genes genome genomes transcript transcripts rna dna chromatin epigenome epigenomes mutation mutations disease diseases disorder disorders syndrome syndromes cancer cancers tumor tumors tumour tumours tissue tissues organ organs organoid organoids embryo embryos synapse synapses junction junctions channel channels pigment pigments rhodopsin opsin opsins biofilm biofilms bacterium bacteria virus viruses microbiome microbiomes immunity inflammation metabolism apoptosis autophagy angiogenesis neurogenesis development maturation differentiation proliferation survival death repair regeneration signaling signalling expression regulation transcription translation splicing resistance response responses therapy therapies treatment treatments imaging microscopy tomography thickness sequencing structure structures function functions physiology anatomy detachment hole holes albinism hypoplasia degeneration dystrophy infection infections').split(' '));
-  for(const n of members){const title=C.researchTitle(n),words=title.match(/(?:[0-9]+-?)?[\p{L}][\p{L}\p{M}0-9-]*/gu)||[],seen=new Set();for(let size=1;size<=6;size++)for(let i=0;i<=words.length-size;i++){
-   const part=words.slice(i,i+size),lower=part.map(x=>x.toLowerCase());if(lower.some(w=>stop.has(w))||part.join(' ').length>64)continue;
+  for(const n of members){const title=C.researchTitle(n),tokens=[...title.matchAll(/(?:[0-9]+-?)?[\p{L}][\p{L}\p{M}0-9-]*/gu)],words=tokens.map(m=>m[0]),seen=new Set();for(let size=1;size<=6;size++)for(let i=0;i<=words.length-size;i++){
+   const part=words.slice(i,i+size),lower=part.map(x=>x.toLowerCase()),span=title.slice(tokens[i].index,tokens[i+size-1].index+tokens[i+size-1][0].length);if(/[.!?:;,\n]/.test(span))continue;if(lower.some(w=>stop.has(w))||part.join(' ').length>64)continue;
    const head=heads.has(lower.at(-1));if(size===1&&!head)continue;
    const key=lower.map(w=>w.length>4&&w.endsWith('s')&&!w.endsWith('ss')?w.slice(0,-1):w).join(' ');if(seen.has(key))continue;seen.add(key);
    if(!phrases.has(key))phrases.set(key,{text:part.join(' '),key,count:0,size,head});phrases.get(key).count++;
   }}
   const options=[...phrases.values()],headed=options.some(p=>p.head)?options.filter(p=>p.head):options,supported=headed.some(p=>p.size>1)?headed.filter(p=>p.size>1):headed;
   const complete=supported.filter(p=>!supported.some(q=>q.size===p.size+1&&q.key.startsWith(p.key+' ')&&q.count>=p.count*.6));
-  const score=p=>p.count*Math.sqrt(Math.min(4,p.size))/(1+Math.max(0,p.size-4)*.15);
+  // Corpus contrast downweights ubiquitous phrases without another embedding pass.
+  // Phrase support is document-level, so a repeated title cannot inflate its score.
+  const score=p=>{const words=NC.terms(p.text),contrast=words.length?words.reduce((sum,w)=>sum+Math.log1p(all.length/Math.max(1,stats?.global.get(w)||1)),0)/words.length:1;
+   return Math.sqrt(p.count)*Math.sqrt(Math.min(4,p.size))*contrast/(1+Math.max(0,p.size-4)*.15);};
   const best=complete.sort((a,b)=>score(b)-score(a)||a.text.localeCompare(b.text))[0];
   if(best)return best.text.charAt(0).toUpperCase()+best.text.slice(1);
   const terms=members.flatMap(n=>NC.terms(C.researchTitle(n)));return terms[0]?terms[0].charAt(0).toUpperCase()+terms[0].slice(1):'待归类研究';
  }
 
  function authors(graph){
-  const authors=new Map(),pairs=new Map(),teams=new Map();let unattributed=0;
-  for(const paper of graph.nodes){const ids=[];for(const creator of paper.creators||[]){
-   const key=NC.authorKey(creator);if(!key)continue;const id='author:'+key;if(!authors.has(id))authors.set(id,{id,title:C.clean([creator.firstName,creator.lastName].filter(Boolean).join(' ')),kind:'author',members:[],local:false,color:6,identity:'name'});
-   const node=authors.get(id);if(!node.members.includes(paper.id))node.members.push(paper.id);node.local ||= paper.local;ids.push(id);
-  }const unique=[...new Set(ids)].sort();if(!unique.length)unattributed++;teams.set(paper.id,unique);
+  const authors=new Map(),pairs=new Map(),teams=new Map(),resolved=NC.authorIdentities(graph.nodes);let unattributed=0;
+  for(const paper of graph.nodes){const ids=[];(paper.creators||[]).forEach((creator,position)=>{
+   const identity=resolved.assignments.get(JSON.stringify([paper.id,position]));if(!identity)return;const {id}=identity;if(!authors.has(id))authors.set(id,{...identity,kind:'author',members:[],local:false,color:6});
+   const node=authors.get(id);if(identity.title.length>node.title.length)node.title=identity.title;if(!node.members.includes(paper.id))node.members.push(paper.id);node.local ||= paper.local;ids.push(id);
+  });const unique=[...new Set(ids)].sort();if(!unique.length)unattributed++;teams.set(paper.id,unique);
   }
+  graph.identityMetrics=resolved.metrics;
   // A consortium with 2,000 authors must not allocate two million pair objects.
   // Rank true collaborators by fractional shared-paper support, keeping the
   // strongest 12 per person. Ties disperse deterministically, not into one hub.
@@ -75,8 +79,9 @@ var CiteLensNetworkMap=(()=>{
   // Content-keyed centroids reuse unchanged neighbours when the library grows.
   const vectorByID=new Map(papers.map((n,i)=>[n.id,semantic.vectors[i]])),signatureByID=new Map(papers.map((n,i)=>[n.id,semantic.signatures?.[i]||semantic.vectors[i]]));
   const centroids=graph.groups.map(g=>{const vectors=g.members.map(id=>vectorByID.get(id)).filter(v=>Array.isArray(v)&&v.length&&v.every(Number.isFinite));return vectors.length?CiteLensSemanticCore.normalize(vectors[0].map((_,i)=>vectors.reduce((sum,v)=>sum+v[i],0)/vectors.length)):[];});
+  for(const g of graph.groups)g.representatives=CiteLensSemanticCore.representatives(g.members.map(id=>byID.get(id)),g.members.map(id=>vectorByID.get(id)),8);
   const representatives=graph.groups.map((g,i)=>g.members.filter(id=>vectorByID.get(id)?.length===centroids[i].length).sort((a,b)=>CiteLensSemanticCore.dot(vectorByID.get(b),centroids[i])-CiteLensSemanticCore.dot(vectorByID.get(a),centroids[i])||a.localeCompare(b))[0]);
-  const hierarchy=CiteLensSemanticCore.graph(graph.groups,centroids,NC.communities,null,{previous:previous?.hierarchy,signatures:graph.groups.map(g=>JSON.stringify(g.members.map(id=>[id,signatureByID.get(id)]))),threshold:.52,titleThreshold:.52,maxNeighbors:4,progress});
+  const hierarchy=CiteLensSemanticCore.graph(graph.groups,centroids,NC.communities,null,{previous:previous?.hierarchy,signatures:graph.groups.map(g=>JSON.stringify(g.members.map(id=>[id,signatureByID.get(id)]))),threshold:.52,titleThreshold:.52,maxNeighbors:4,progress:p=>progress({...p,phase:'hierarchy'})});
   const groupIndex=new Map(graph.groups.map((g,i)=>[g.id,i]));
   for(const e of hierarchy.links){const pair=[e.source,e.target].sort(),key=JSON.stringify(pair);if(!links.has(key))links.set(key,{source:pair[0],target:pair[1],kind:'topic-relation',evidence:[]});links.get(key).evidence.push({kind:'semantic-centroid',score:e.score,sourcePaper:representatives[groupIndex.get(e.source)],targetPaper:representatives[groupIndex.get(e.target)]});}
   graph.hierarchyIncremental=hierarchy.incremental;

@@ -3,7 +3,7 @@ from pathlib import Path
 import hashlib,json,urllib.request,time
 ROOT=Path(__file__).resolve().parents[1]
 def ensure_assets():
- for entry in json.loads((ROOT/'scripts/model-assets.json').read_text())['files']:
+ for entry in json.loads((ROOT/'scripts/model-assets.json').read_text(encoding='utf-8'))['files']:
   path=ROOT/entry['path'];expected=entry['sha256']
   if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()==expected:continue
   path.parent.mkdir(parents=True,exist_ok=True)

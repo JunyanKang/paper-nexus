@@ -31,17 +31,17 @@
 
 ## 为日常科研而设计
 
-- **安装即可开始**：本地语义模型随插件提供，用自己的文献库生成网络。
+- **轻装更新，本地分析**：模型只安装一次，插件独立更新；新文献增量加入自己的网络。
 - **线索随手留下**：稍后读、文献夹保存与多种期刊引文格式，衔接阅读和写作。
 - **界面保持一致**：主题、字体与语言贯穿卡片、摘要和网络；与 [Paper Voice](https://github.com/JunyanKang/paper-voice) 相伴使用。
 
 ## 开始使用
 
-适用于 **Zotero 10.0.5–10.0.x**，免费开源。
+适用于 **Zotero 10.0.5–10.0.x**，提供 macOS / Windows 共用安装包，免费开源。
 
-1. 在 [发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载 **XPI 安装包**。
+1. 在 [发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载 **Mac / Windows 完整安装包**，解压。
 2. Zotero → **工具 → 插件 → 齿轮 → 从文件安装插件**。
-3. 打开 PDF，悬停正文引文，开始探索。
+3. 设置 → 常规 → 本地模型，导入包内模型。打开 PDF，开始探索。
 
 已有用户可在插件设置中检查更新。
 

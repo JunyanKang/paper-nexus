@@ -31,17 +31,17 @@ As your collection grows, the network updates in the background, connecting fami
 
 ## Made for everyday research
 
-- **Ready after installation**: the local semantic model is included; the network comes from your own library.
+- **Lightweight updates, local analysis**: install the model once, update the plugin separately, and add new papers incrementally.
 - **Keep useful leads**: read later, save to collections and copy references in journal styles as you move from reading to writing.
 - **A consistent workspace**: themes, fonts and language carry across cards, abstracts and networks. Pair it with [Paper Voice](https://github.com/JunyanKang/paper-voice) for listening.
 
 ## Get started
 
-For **Zotero 10.0.5–10.0.x**. Free and open source.
+For **Zotero 10.0.5–10.0.x**, with a shared macOS / Windows download. Free and open source.
 
-1. Download the **XPI installer** from the [release page](https://github.com/JunyanKang/paper-nexus/releases/latest).
+1. Download and extract the **Mac / Windows complete package** from the [release page](https://github.com/JunyanKang/paper-nexus/releases/latest).
 2. In Zotero, choose **Tools → Plugins → gear menu → Install Plugin From File**.
-3. Open a PDF and hover over a citation.
+3. Under **Settings → General → Local model**, import the included model pack. Open a PDF and start exploring.
 
 Already installed? Check for updates in the plugin settings.
 

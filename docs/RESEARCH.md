@@ -98,3 +98,28 @@ Paper Voice 的 MIT 主题、翻译交互与可逆面板动画作为同作者产
 条目通知按 ID 读取变化记录，附件变化追溯父条目。题名与摘要按内容哈希复用向量；变化的论文只与现有向量比较。若删除或修改进入了某个旧节点的前七近邻，则重算该行补齐候选，保证结果与同样阈值的冷计算一致。稀疏图上的社区划分仍在后台重新协调，以反映新边引起的主题合并或分裂；这不重复全库编码或全对比较。
 
 近邻状态按范围缓存并持久化；主题 ID 通过成员重合延续，已有节点作为布局锚点。云端名称按组内研究内容、模型、接口和提示版本缓存。仅变化群组重新命名；改变服务或模型会使相应名称缓存失效。布局和相似度比较使用 ChromeWorker，数据读取分时间片，密集变更合并处理。
+
+## 0.4.11：轻量主题命名与作者消歧
+
+| 阅读材料 | 本次采用 | 未采用的部分 |
+|---|---|---|
+| [S2AND](https://github.com/allenai/S2AND)、[subblocking](https://github.com/allenai/S2AND/blob/main/docs/subblocking.md) | 按规范完整姓名分块；优先使用作者级、校验通过的 ORCID；以共同作者和研究内容作为辅助证据；限制每条署名的候选数量 | 未引入 S2AND 训练分类器、全量学术数据库或后台远程作者查询 |
+| [BERTopic c-TF-IDF](https://maartengr.github.io/BERTopic/getting_started/ctfidf/ctfidf.html)、[representation](https://maartengr.github.io/BERTopic/getting_started/representation/representation.html) | 利用全库词项文档频率降低通用术语权重；为各主题选择代表性论文 | 当前是受文档频率和语料对比启发的短语评分，不是完整 c-TF-IDF 算法，也没有引入 Python 管线 |
+| [KeyBERT MMR](https://maartengr.github.io/KeyBERT/api/mmr.html) | 用已有向量兼顾代表性和多样性，最多从 48 个候选中选 8 篇用于 API 命名 | 未复制实现或增加模型推理；不是按字母顺序截取前 8 篇 |
+
+上述策略由本插件独立实现，不新增运行依赖。作者候选每条最多 64 个；超过 64 位作者的团队不参与共同作者消歧证据，避免大型联盟论文造成误合并。不同有效 ORCID 不可经未知署名桥接合并；有充分分离证据的同名团队分别成点。没有身份线索时，完整同名仍为暂定汇总；不能据此宣称已解决所有同名问题，同人跨团队也可能被分开。Zotero 的普通 creator 通常不含 ORCID，本实现不会把论文级标识误分配给全部作者。
+
+模型推理保持单线程和串行队列；连续批次复用同一个 worker，空闲 8 秒释放，取消时立即释放。每 4 段推理间短暂让出执行时间。已有向量与主题命名缓存继续复用；不会为短语打分额外运行一个大模型。
+
+## 模型独立安装的后续架构
+
+目前发行包仍内含 MiniLM 量化权重和 WASM；独立模型安装尚未交付。参考 Paper Voice 的模型资源独立存放、临时目录验证后切换和失败保留旧版的机制，Nexus 可以拆为轻量 XPI、版本化模型包和本机文献索引三层。
+
+模型包应包含权重、分词器、推理运行组件、许可证及固定哈希清单；XPI 校验接口版本和向量维度后才激活。插件更新不重下模型；模型更新不覆盖本地书目。切换模型后以模型版本隔离向量缓存，在后台建立新索引，完成前保留旧图，禁止混合不同嵌入空间。支持离线导入和下载中断后重试，已安装用户迁移已有资源即可继续使用。
+
+生命医学增强版宜先比较成熟小型嵌入模型，再评估领域适配、蒸馏与量化；不能以模型变大或在用户训练集上变好，代替独立验证。评估应分别覆盖只有题名、题名加摘要、混合信息缺失和新增文献，按论文及近重复分组隔离训练与评估数据，同时记录语义检索、主题一致性、命名准确性、冷启动、峰值内存和增量延迟。用户个人适配参数及其文献不会随公共模型发布。
+
+
+## Independent local models in 1.0
+
+The portable model format, pinned upstream provenance, cache architecture and reproducible SIMD source are documented in [Local models](LOCAL-MODELS.md). Candidate biomedical retrieval gains are reported separately from graph-computation speed and interactive latency in [Validation](VALIDATION.md). A larger model is not automatically selected as the default.

@@ -35,7 +35,7 @@ var CiteLensNetwork = {
     const close=(error=Error('已取消'))=>{if(closed)return;closed=true;win.clearTimeout(timer);worker.terminate();this.workers.delete(worker);readyReject(error);for(const task of pending.values())task.reject(error);pending.clear();};
     worker.cancel=()=>close();this.workers.add(worker);worker.onerror=e=>close(Error(e.message||'搜索暂不可用'));
     worker.onmessage=e=>{const data=e.data;if(data.error){close(Error(data.error));return;}if(data.ready){win.clearTimeout(timer);readyResolve();return;}const task=pending.get(data.request);if(task){pending.delete(data.request);task.resolve(data.result);}};
-    worker.postMessage({action:'search-init',payload:{mode:model.mode,nodes:model.nodes.map(n=>({id:n.id,title:n.title,kind:n.kind,members:n.members})),papers:(model.paperNodes||[]).map(n=>({id:n.id,title:n.title,abstract:n.abstract,journal:n.journal,DOI:n.DOI,year:n.year,creators:n.creators}))}});
+    worker.postMessage({action:'search-init',payload:{mode:model.mode,nodes:model.nodes.map(n=>({id:n.id,title:n.title,kind:n.kind,members:n.members,local:n.local,identity:n.identity,orcid:n.orcid})),papers:(model.paperNodes||[]).map(n=>({id:n.id,title:n.title,abstract:n.abstract,journal:n.journal,DOI:n.DOI,year:n.year,creators:n.creators}))}});
     const request=async(action,payload)=>{await ready;if(closed)throw Error('已取消');const id=++serial;return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});worker.postMessage({action,payload:{...payload,request:id}});});};
     return {close,query:query=>request('search-query',{query}),relations:id=>request('author-links',{id}),neighborhood:(id,depth,limit)=>request('author-neighborhood',{id,depth,limit})};
   },

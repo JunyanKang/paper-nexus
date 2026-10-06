@@ -1548,3 +1548,30 @@ for(const [source,values] of Object.entries({
 })){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
 
 for(const [source,values] of Object.entries({"正在进行中，请稍后":["In progress. Please wait.","処理中です。お待ちください。","Traitement en cours. Veuillez patienter.","In Bearbeitung. Bitte warten."],"主题分析进度":["Topic analysis progress","トピック分析の進行状況","Progression de l’analyse thématique","Fortschritt der Themenanalyse"]})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
+
+for(const [source,values] of Object.entries({
+ "读取文献":["Read library","文献の読み込み","Lire la bibliothèque","Bibliothek einlesen"],
+ "计算语义":["Encode content","内容の解析","Encoder le contenu","Inhalte analysieren"],
+ "关联论文":["Link papers","論文の関連付け","Relier les articles","Publikationen verknüpfen"],
+ "聚合主题":["Group topics","トピックの分類","Regrouper les thèmes","Themen gruppieren"],
+ "关联作者":["Link authors","著者の関連付け","Relier les auteurs","Autoren verknüpfen"],
+ "排列网络":["Arrange network","ネットワークの配置","Disposer le réseau","Netzwerk anordnen"],
+ "提炼主题":["Name topics","トピックの命名","Nommer les thèmes","Themen benennen"],
+ "读取合作关系":["Read collaborations","共著関係の読み込み","Lire les collaborations","Kooperationen einlesen"],
+ "读取参考文献":["Read references","参考文献の読み込み","Lire les références","Referenzen einlesen"],
+ "清除搜索":["Clear search","検索をクリア","Effacer la recherche","Suche löschen"],
+ "网络视图":["Network views","ネットワーク表示","Vues du réseau","Netzwerkansichten"]
+})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
+
+for(const [source,values] of Object.entries({
+ "准备模型":["Prepare model","モデルの準備","Préparer le modèle","Modell vorbereiten"],
+ "生命医学":["Biomedical","生命・医学","Biomédical","Biomedizin"],
+ "轻量通用":["Lightweight","軽量・汎用","Léger","Kompakt"],
+ "安装模型":["Install model","モデルをインストール","Installer un modèle","Modell installieren"],
+ "导入模型包":["Import model pack","モデルパックを読み込み","Importer un modèle","Modellpaket importieren"],
+ "检查模型更新":["Check model updates","モデル更新を確認","Vérifier les modèles","Modellupdates prüfen"],
+ "已启用":["Active","使用中","Actif","Aktiv"],
+ "启用":["Activate","使用する","Activer","Aktivieren"],
+ "安装":["Install","インストール","Installer","Installieren"],
+ "模型已是最新":["Models are up to date","モデルは最新です","Modèles à jour","Modelle sind aktuell"]
+})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}

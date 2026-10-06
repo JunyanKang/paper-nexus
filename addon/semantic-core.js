@@ -1,5 +1,6 @@
 /* Local semantic math/tokenization. Bibliographic fields are data, never prompts. */
 var CiteLensSemanticCore=(()=>{
+ let kernelFactory=null;const setKernel=factory=>{kernelFactory=factory;};
  const normalize=v=>{let length=Math.sqrt(v.reduce((s,x)=>s+x*x,0))||1;return Array.from(v,x=>x/length);};
  function tokenize(text,tokenizer,max=256){
   const vocab=tokenizer.model.vocab,unknown=vocab['[UNK]']??100;
@@ -28,14 +29,14 @@ var CiteLensSemanticCore=(()=>{
    const row=old.get(nodes[i].id);if(!Array.isArray(row?.near)||row.near.some(x=>changed.has(x.id)||removed.has(x.id))){repair.add(nodes[i].id);continue;}
    near[i]=row.near.filter(x=>byID.has(x.id)).map(x=>({j:byID.get(x.id),score:x.score}));
   }
-  const offer=(i,j,score)=>{const list=near[i];list.push({j,score});list.sort((a,b)=>b.score-a.score||nodes[a.j].id.localeCompare(nodes[b.j].id));if(list.length>maxNeighbors)list.pop();};
-  const usable=vectors.map(valid);let comparisons=0;const targets=[...repair].map(id=>byID.get(id)).sort((a,b)=>a-b),done=new Set();
-  for(let at=0;at<targets.length;at++){const i=targets[at];if(usable[i])for(let j=0;j<nodes.length;j++){
+  const offer=(i,j,score)=>{const list=near[i],last=list[list.length-1];if(list.length>=maxNeighbors&&(score<last.score||score===last.score&&nodes[j].id.localeCompare(nodes[last.j].id)>=0))return;let at=list.length;while(at>0&&(score>list[at-1].score||score===list[at-1].score&&nodes[j].id.localeCompare(nodes[list[at-1].j].id)<0))at--;list.splice(at,0,{j,score});if(list.length>maxNeighbors)list.pop();};
+  const fast=kernelFactory?.(vectors),usable=vectors.map(valid);let comparisons=0;const targets=[...repair].map(id=>byID.get(id)).sort((a,b)=>a-b),done=new Set();
+  for(let at=0;at<targets.length;at++){const i=targets[at],scores=fast?.(i,targets.length===nodes.length?i+1:0);if(usable[i])for(let j=0;j<nodes.length;j++){
    if(i===j||done.has(j)||!usable[j]||vectors[i].length!==vectors[j].length||topics.size&&topics.get(nodes[i].id)!==topics.get(nodes[j].id))continue;
    // Unchanged repaired rows need a refill; ordinary unchanged rows only need
    // candidates from changed/new papers, never duplicate their retained list.
    const sendI=true,sendJ=repair.has(nodes[j].id)||changed.has(nodes[i].id);
-   let score=0;for(let k=0;k<vectors[i].length;k++)score+=vectors[i][k]*vectors[j][k];comparisons++;
+   let score=0;if(scores)score=scores[j];else for(let k=0;k<vectors[i].length;k++)score+=vectors[i][k]*vectors[j][k];comparisons++;
    const minimum=(nodes[i].abstract?.length>=80&&nodes[j].abstract?.length>=80)?threshold:titleThreshold;
    if(score>=minimum){if(sendI)offer(i,j,score);if(sendJ)offer(j,i,score);}
   }done.add(i);if(at%16===0)progress({phase:'neighbors',completed:at+1,total:targets.length});}
@@ -43,7 +44,17 @@ var CiteLensSemanticCore=(()=>{
   const links=[...edges.values()].sort((a,b)=>a.source.localeCompare(b.source)||a.target.localeCompare(b.target)),groups=partition(nodes.map(n=>n.id),links,1.05);
   return {groups:groups.filter(g=>g.length>1),links,state:{version:1,rows:nodes.map((n,i)=>[n.id,{key:keys[i],near:near[i].map(x=>({id:nodes[x.j].id,score:x.score}))}])},incremental:{changed:changed.size,removed:removed.size,repaired:repair.size,comparisons,reused:nodes.length-changed.size}};
  }
+ // Select central, nonredundant evidence using vectors already in memory.
+ // At most 48 candidates x 8 selections, independent of cluster size.
+ function representatives(nodes,vectors,max=8){
+  const valid=[];for(let i=0;i<nodes.length;i++)if(Array.isArray(vectors[i])&&vectors[i].length&&vectors[i].every(Number.isFinite)&&vectors[i].some(x=>x!==0))valid.push({node:nodes[i],vector:vectors[i]});
+  if(!valid.length)return [...nodes].sort((a,b)=>String(a.id).localeCompare(String(b.id))).slice(0,max).map(n=>n.id);
+  const d=valid[0].vector.length,centroid=new Array(d).fill(0);for(const row of valid)for(let i=0;i<d;i++)centroid[i]+=row.vector[i]/valid.length;const mean=normalize(centroid);
+  const candidates=valid.map(row=>({...row,score:dot(row.vector,mean),redundancy:0})).sort((a,b)=>b.score-a.score||String(a.node.id).localeCompare(String(b.node.id))).slice(0,48),chosen=[];
+  while(candidates.length&&chosen.length<max){candidates.sort((a,b)=>(.75*b.score-.25*b.redundancy)-(.75*a.score-.25*a.redundancy)||String(a.node.id).localeCompare(String(b.node.id)));const best=candidates.shift();chosen.push(best.node.id);for(const row of candidates)row.redundancy=Math.max(row.redundancy,dot(row.vector,best.vector));}
+  return chosen;
+ }
  function validateTopics(result,nodes){if(!Array.isArray(result?.papers))throw Error('模型未返回有效的主题结果');const allowed=new Set(nodes.map(n=>n.id)),seen=new Set();const rows=[];for(const row of result.papers){if(!allowed.has(row.id)||seen.has(row.id)||typeof row.topic!=='string'||!row.topic.trim()||row.topic.length>120)throw Error('模型返回了不匹配的文献或主题');seen.add(row.id);rows.push({id:row.id,topic:row.topic.trim(),keywords:Array.isArray(row.keywords)?row.keywords.filter(x=>typeof x==='string').map(x=>x.slice(0,50)).slice(0,5):[]});}if(seen.size!==allowed.size)throw Error('模型未完成全部文献的主题分析');return rows;}
- return{normalize,tokenize,pool,dot,project,combine,graph,validateTopics,validAdapter,abstractChunks};
+ return{setKernel,normalize,representatives,tokenize,pool,dot,project,combine,graph,validateTopics,validAdapter,abstractChunks};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensSemanticCore;

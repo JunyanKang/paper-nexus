@@ -1,7 +1,7 @@
 /* Expensive graph calculations are isolated from the Zotero UI thread. */
-importScripts('core.js','citation-links.js','network-core.js','semantic-core.js','network-map.js');
+importScripts('core.js','citation-links.js','network-core.js','semantic-core.js','semantic-kernel.js','network-map.js');
 let searchIndex=null;
-onmessage=event=>{
+onmessage=async event=>{
  const {action,payload}=event.data;
  try{
   if(action==='search-init'){searchIndex=CiteLensNetworkCore.searchIndex(payload);postMessage({ready:true});}
@@ -12,8 +12,8 @@ onmessage=event=>{
   else if(action==='snapshot'){const merged=CiteLensNetworkCore.consolidate(payload.nodes,payload.sources);postMessage({result:{...CiteLensNetworkCore.build(merged.nodes,merged.sources),aliases:merged.aliases}});}
   else if(action==='prepare'){postMessage({result:CiteLensNetworkMap.build(payload)});}
   else if(action==='layout'){postMessage({result:CiteLensNetworkMap.layout(payload)});}
-  else if(action==='semantic-map'){const graph=CiteLensNetworkMap.topics(payload.graph,payload.semantic,payload.previous,p=>postMessage({progress:p}));postMessage({result:CiteLensNetworkMap.layout(graph,p=>postMessage({progress:p}))});}
-  else if(action==='map'){postMessage({progress:15});const graph=CiteLensNetworkMap.build(payload);postMessage({progress:35});postMessage({result:CiteLensNetworkMap.layout(graph,p=>postMessage({progress:p}))});}
+  else if(action==='semantic-map'){CiteLensSemanticCore.setKernel(await CiteLensSimilarityKernel.create());const graph=CiteLensNetworkMap.topics(payload.graph,payload.semantic,payload.previous,p=>postMessage({progress:p}));postMessage({result:CiteLensNetworkMap.layout(graph,p=>postMessage({progress:p}))});}
+  else if(action==='map'){postMessage({progress:{phase:'authors',completed:0,total:1}});const graph=CiteLensNetworkMap.build(payload);postMessage({progress:{phase:'authors',completed:1,total:1}});postMessage({result:CiteLensNetworkMap.layout(graph,p=>postMessage({progress:p}))});}
   else throw Error('Unknown graph operation');
  }catch(error){postMessage({error:error.message||String(error)});}
 };

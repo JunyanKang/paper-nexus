@@ -6,7 +6,11 @@ permissions:
   contents: read
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,11 +22,11 @@ jobs:
       - run: python scripts/audit_release.py
       - run: npm test
       - name: JavaScript syntax
-        run: for file in addon/*.js; do node --check "$file"; done
+        run: python scripts/check_syntax.py
       - run: python scripts/build.py
       - uses: actions/upload-artifact@v4
         with:
-          name: paper-nexus
+          name: paper-nexus-${{ matrix.os }}
           path: |
             dist/*.xpi
             dist/updates.json

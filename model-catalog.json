@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "models": [
+    {
+      "id": "minilm",
+      "name": "轻量通用",
+      "schema": 1,
+      "abi": 1,
+      "version": "1.0.0",
+      "cacheKey": "minilm-751bff3-v2",
+      "dimension": 384,
+      "runtime": "onnxruntime-web@1.30.0",
+      "pooling": "mean",
+      "input": "multi",
+      "maxTokens": 256,
+      "files": [
+        {
+          "name": "model.onnx",
+          "bytes": 22972370,
+          "sha256": "afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1",
+          "url": "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/751bff37182d3f1213fa05d7196b954e230abad9/onnx/model_quantized.onnx"
+        },
+        {
+          "name": "tokenizer.json",
+          "bytes": 711661,
+          "sha256": "da0e79933b9ed51798a3ae27893d3c5fa4a201126cef75586296df9b4d2c62a0",
+          "url": "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/751bff37182d3f1213fa05d7196b954e230abad9/tokenizer.json"
+        },
+        {
+          "name": "runtime.wasm",
+          "bytes": 14239897,
+          "sha256": "3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2",
+          "url": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort-wasm-simd-threaded.wasm"
+        },
+        {
+          "name": "ORT-LICENSE",
+          "bytes": 1073,
+          "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+          "url": "https://raw.githubusercontent.com/JunyanKang/paper-nexus/023840f32cba7253dbce4630e038557a04a2551b/addon/vendor/onnx/LICENSE"
+        },
+        {
+          "name": "ORT-NOTICES.txt",
+          "bytes": 338088,
+          "sha256": "143764b952fdb1a7c69ce653bfba74a7744d6a8a573bfb73e235fba356c83de3",
+          "url": "https://raw.githubusercontent.com/JunyanKang/paper-nexus/023840f32cba7253dbce4630e038557a04a2551b/addon/vendor/onnx/ThirdPartyNotices.txt"
+        },
+        {
+          "name": "LICENSE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "url": "https://raw.githubusercontent.com/JunyanKang/paper-nexus/023840f32cba7253dbce4630e038557a04a2551b/addon/vendor/MiniLM-LICENSE"
+        },
+        {
+          "name": "NOTICE.txt",
+          "bytes": 414,
+          "sha256": "e17720e9210c32d20b6367d5b7e74902aaacf4a4153af3689463b946c2421ce1",
+          "url": "https://raw.githubusercontent.com/JunyanKang/paper-nexus/023840f32cba7253dbce4630e038557a04a2551b/addon/vendor/MiniLM-NOTICE"
+        }
+      ]
+    },
+    {
+      "id": "medembed",
+      "name": "生命医学",
+      "schema": 1,
+      "abi": 1,
+      "version": "1.0.0",
+      "cacheKey": "medembed-40a5850-int8-v1",
+      "dimension": 384,
+      "runtime": "onnxruntime-web@1.30.0",
+      "pooling": "sentence",
+      "input": "joint",
+      "maxTokens": 384,
+      "files": [
+        {
+          "name": "model.onnx",
+          "bytes": 34057273,
+          "sha256": "accb5b9e914356d01190c9f208ac822b345b24daeee4aa0fb345dfcc89a871d5",
+          "url": "https://huggingface.co/medbrevia/medembed-small-v0.1-onnx-int8/resolve/6cbe4664f1e0067da935f5abc24e4f8b5406b13f/onnx/model_int8.onnx"
+        },
+        {
+          "name": "tokenizer.json",
+          "bytes": 711396,
+          "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+          "url": "https://huggingface.co/medbrevia/medembed-small-v0.1-onnx-int8/resolve/6cbe4664f1e0067da935f5abc24e4f8b5406b13f/tokenizer.json"
+        },
+        {
+          "name": "runtime.wasm",
+          "bytes": 14239897,
+          "sha256": "3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2",
+          "url": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort-wasm-simd-threaded.wasm"
+        },
+        {
+          "name": "ORT-LICENSE",
+          "bytes": 1073,
+          "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+          "url": "https://raw.githubusercontent.com/JunyanKang/paper-nexus/023840f32cba7253dbce4630e038557a04a2551b/addon/vendor/onnx/LICENSE"
+        },
+        {
+          "name": "ORT-NOTICES.txt",
+          "bytes": 338088,
+          "sha256": "143764b952fdb1a7c69ce653bfba74a7744d6a8a573bfb73e235fba356c83de3",
+          "url": "https://raw.githubusercontent.com/JunyanKang/paper-nexus/023840f32cba7253dbce4630e038557a04a2551b/addon/vendor/onnx/ThirdPartyNotices.txt"
+        },
+        {
+          "name": "LICENSE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "url": "https://huggingface.co/medbrevia/medembed-small-v0.1-onnx-int8/resolve/6cbe4664f1e0067da935f5abc24e4f8b5406b13f/LICENSE"
+        },
+        {
+          "name": "LICENSE-BGE-MIT.txt",
+          "bytes": 1256,
+          "sha256": "717538de4d6bd844f8e3e0b17acc07d7a56840270857b57421818c2120c07c9f",
+          "url": "https://huggingface.co/medbrevia/medembed-small-v0.1-onnx-int8/resolve/6cbe4664f1e0067da935f5abc24e4f8b5406b13f/LICENSE-BGE-MIT.txt"
+        },
+        {
+          "name": "NOTICE.md",
+          "bytes": 1306,
+          "sha256": "df1a6fedd1ff4d1e9042151d971beaa2eaf58a49e9f75849b97aa315516c330c",
+          "url": "https://huggingface.co/medbrevia/medembed-small-v0.1-onnx-int8/resolve/6cbe4664f1e0067da935f5abc24e4f8b5406b13f/NOTICE.md"
+        },
+        {
+          "name": "PROVENANCE.json",
+          "bytes": 6166,
+          "sha256": "a57ad15afcb7aff61c24c68ec48e0af18b00b0bd7113a0ee4641e9acaf63e953",
+          "url": "https://huggingface.co/medbrevia/medembed-small-v0.1-onnx-int8/resolve/6cbe4664f1e0067da935f5abc24e4f8b5406b13f/PROVENANCE.json"
+        }
+      ]
+    }
+  ]
+}
