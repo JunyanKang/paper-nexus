@@ -51,7 +51,7 @@ var CiteLensSemantic={
   return {vectors,signatures,assignments,engine:assignments?'llm':'local',personalized:!!adapter,cached:byText.size-missing.length,encoded:missing.length,combined,classified};
  },
  async nameGroups(groups,nodes,{signal,progress=()=>{}}={}){
-  await this.load();const epoch=this.encodeEpoch,config=CiteLensTranslation.llmTaskConfig('clustering'),scope=JSON.stringify(['group-names-v2',config.id,config.endpoint,config.model]),byID=new Map(nodes.map(n=>[n.id,n])),pending=[],labels=new Map();
+  await this.load();const epoch=this.encodeEpoch,config=CiteLensTranslation.llmTaskConfig('clustering'),scope=JSON.stringify(['group-names-v3',config.id,config.endpoint,config.model]),byID=new Map(nodes.map(n=>[n.id,n])),pending=[],labels=new Map();
   for(const group of groups){if(this.dead||signal?.aborted||epoch!==this.encodeEpoch)throw Error('已取消');const papers=group.members.map(id=>byID.get(id)).filter(Boolean).map(n=>({title:CiteLensCore.researchTitle(n),abstract:CiteLensCore.plainTitle(n.abstract||'')})).sort((a,b)=>a.title.localeCompare(b.title));
    const key=await this.key(scope+'\0'+JSON.stringify(papers)),cached=this.cloud.get(key);if(cached)labels.set(group.id,cached.topic);else {const selected=(group.representatives||[]).map(id=>byID.get(id)).filter(Boolean).slice(0,8).map(n=>({title:CiteLensCore.researchTitle(n),abstract:CiteLensCore.plainTitle(n.abstract||'')}));pending.push({id:group.id,key,papers:selected.length?selected:papers.slice(0,8)});}
   }
