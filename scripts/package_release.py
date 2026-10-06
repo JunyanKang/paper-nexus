@@ -20,7 +20,9 @@ for model in catalog['models']:
  pack=dist/f"paper-nexus-{model['id']}-{model['version']}.pnmodel"
  with zipfile.ZipFile(pack) as z:
   assert z.testzip() is None
-  assert json.loads(z.read('manifest.json'))==model
+  # Display names can be revised without republishing immutable model weights.
+  actual=json.loads(z.read('manifest.json'))
+  assert {k:v for k,v in actual.items() if k!='name'}=={k:v for k,v in model.items() if k!='name'}
   assert set(z.namelist())=={'manifest.json',*[f['name'] for f in model['files']]}
   for f in model['files']:
    b=z.read(f['name']);assert len(b)==f['bytes'] and hashlib.sha256(b).hexdigest()==f['sha256']
