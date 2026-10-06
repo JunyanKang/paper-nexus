@@ -136,7 +136,7 @@ var CiteLensNetworkUI={
   async function build(fitAfter=false,background=false,prefix=[]){
    if(!data||!alive)return;win.clearTimeout(warmTimer);rememberView();const ticket=++epoch,requestMode=mode;let job,report,failed=false;
    building=true;retry.hidden=true;installModel.hidden=true;progressTitle.textContent=mode==='topics'?'主题分组':'朋友圈';stage.setAttribute('aria-busy','true');
-   if(model&&model.mode!==mode){model=null;index=null;scene=null;morph=null;egoModel=null;egoIndex=null;egoTicket++;depthTools.hidden=true;viewCommunity='';viewAnchor='';backCommunity.hidden=true;searchEpoch++;searchSession=null;frame._pnModel=null;showInspector();draw();}
+   if(model&&model.mode!==mode){count.textContent='';model=null;index=null;scene=null;morph=null;egoModel=null;egoIndex=null;egoTicket++;depthTools.hidden=true;viewCommunity='';viewAnchor='';backCommunity.hidden=true;searchEpoch++;searchSession=null;frame._pnModel=null;showInspector();draw();}
    // Yield before collecting payloads so the selected mode and progress can paint.
    loader.hidden=false;setSteps([...prefix,...networkSteps()]);stepProgress(mode==='topics'?'model':'authors');
    const snapshot=data,scoped=N.scope(data,library.value,collection.value),scopedIDs=new Set(scoped.map(n=>n.id));

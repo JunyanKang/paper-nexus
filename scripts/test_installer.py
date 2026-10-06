@@ -126,4 +126,6 @@ with tempfile.TemporaryDirectory(prefix='nexus-installer-') as scratch:
  for lang in ['zh','en']:
   subprocess.run([str(exe),'--screenshot',str(base/('installer-'+sys.platform+'-'+lang+'.png')),'--lang',lang],check=True,timeout=30)
  subprocess.run([str(exe),'--screenshot',str(base/('installer-'+sys.platform+'-progress.png')),'--lang','zh','--progress-preview'],check=True,timeout=30)
+ for lang in ['zh','en']:
+  subprocess.run([str(exe),'--screenshot',str(base/('installer-'+sys.platform+'-pending-'+lang+'.png')),'--lang',lang,'--install-preview','pending'],check=True,timeout=30)
  report={'passed':True,'platform':sys.platform,'version':config['version'],'online':args.online,'checks':checks};(base/'test-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
