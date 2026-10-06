@@ -2,7 +2,7 @@
 
 [返回首页](../README.md) · [开始使用](GUIDE.md) · [常见问题](FAQ.md)
 
-当前版本 **0.4.8**。请从 [发布页](https://github.com/JunyanKang/paper-nexus/releases/tag/v0.4.8) 下载完整 XPI；已有用户也可通过自动更新或插件内“检查更新”升级。
+当前版本 **0.4.9**。请从 [发布页](https://github.com/JunyanKang/paper-nexus/releases/tag/v0.4.9) 下载完整 XPI；已有用户也可通过自动更新或插件内“检查更新”升级。
 
 ## 安装 Paper Nexus
 

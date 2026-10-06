@@ -330,7 +330,7 @@ var CiteLensTranslationLLM = {
   return new Promise((resolve,reject)=>{
    const xhr=new this.host.XMLHttpRequest();this.llmRequests ||= new Set();this.llmRequests.add(xhr);
    let buffer='',read=0,translated='',finished=false,truncated=false,ended=false,streamError=false;
-   const clean=s=>s.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi,'').replace(/^```(?:\w+)?\s*\n?|\n?```$/g,'').trim();
+   const clean=s=>s.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi,'').trim().replace(/^```(?:\w+)?\s*\n?|\n?```$/g,'').trim();
    const consume=line=>{
     if(!line.startsWith('data:'))return;
     const data=line.slice(5).trim();if(!data)return;if(data==='[DONE]'){ended=true;return;}
