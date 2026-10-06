@@ -4,7 +4,9 @@ let searchIndex=null;
 onmessage=async event=>{
  const {action,payload}=event.data;
  try{
-  if(action==='search-init'){searchIndex=CiteLensNetworkCore.searchIndex(payload);postMessage({ready:true});}
+  if(action==='cache-encode'){postMessage({result:{text:JSON.stringify(payload.value,(_,v)=>v instanceof Map?{__pnMap:[...v]}:v instanceof Set?{__pnSet:[...v]}:v)}});}
+  else if(action==='cache-decode'){postMessage({result:{value:JSON.parse(payload.text,(_,v)=>v&&typeof v==='object'&&Object.keys(v).length===1&&Array.isArray(v.__pnMap)?new Map(v.__pnMap):v&&typeof v==='object'&&Object.keys(v).length===1&&Array.isArray(v.__pnSet)?new Set(v.__pnSet):v)}});}
+  else if(action==='search-init'){searchIndex=CiteLensNetworkCore.searchIndex(payload);postMessage({ready:true});}
   else if(action==='author-neighborhood'){const graph=CiteLensNetworkCore.authorNeighborhood(searchIndex,payload.id,payload.depth,payload.limit);for(const n of graph.nodes){const angle=CiteLensNetworkMap.hash(n.id)%6283/1000;n.x=n.depth?Math.cos(angle)*(n.depth===1?150:300):0;n.y=n.depth?Math.sin(angle)*(n.depth===1?150:300):0;n.pinned=n.depth===0;}CiteLensNetworkMap.layout(graph);graph.communities=[];postMessage({request:payload.request,result:graph});}
   else if(action==='author-links'){postMessage({request:payload.request,result:CiteLensNetworkCore.authorConnections(searchIndex,payload.id)});}
   else if(action==='search-query'){postMessage({request:payload.request,result:CiteLensNetworkCore.queryIndex(searchIndex,payload.query)});}

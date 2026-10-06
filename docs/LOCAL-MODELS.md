@@ -6,7 +6,7 @@ Paper Nexus 1.0 separates the XPI, public data-only model packs, and the user's 
 
 The same XPI and `.pnmodel` archives are used on macOS and Windows. Inference runs in Zotero's privileged worker using ONNX Runtime Web 1.30.0, single-threaded WebAssembly. The plugin requires no native helper, Python interpreter, shell script or background server. The optional standalone Cocoa / Windows Forms installer downloads both models and the XPI; it does not remain running after setup. The XPI ships the JavaScript loader; each model pack includes its matching WASM runtime, tokenizer, weights and licenses.
 
-By default, models live under the Zotero data directory in `paper-nexus-models/<id>/<version>`. An atomic active pointer selects a verified version. Installation checks exact archive entries, sizes and SHA256 digests; installer downloads use SHA256-pinned GitHub release packages. The in-plugin downloader uses those same packages for bundled profiles; file-level pinned upstream URLs remain in the provenance catalog for reproducible pack builds. Download cancellation and rejected archives retain the existing active model. Plugin updates preserve this directory. The initial upgrade from an older bundled-model XPI requires installing a separate model pack once.
+By default, models live under the Zotero data directory in `paper-nexus-models/<id>/<version>`. An atomic active pointer selects a verified version. Installation checks exact archive entries, sizes and SHA256 digests; installer downloads use SHA256-pinned GitHub Pages downloads. The in-plugin downloader uses those same packages for bundled profiles; file-level pinned upstream URLs remain in the provenance catalog for reproducible pack builds. Download cancellation and rejected archives retain the existing active model. Plugin updates preserve this directory. The initial upgrade from an older bundled-model XPI requires installing a separate model pack once.
 
 ## Included profiles
 
@@ -48,3 +48,16 @@ Zotero's database or modifies plugin security preferences. The final XPI handoff
 uses Zotero's official Install Plugin From File interface.
 
 A folder picker can select another existing model root. After a verified install, the installer atomically writes `paper-nexus-model-location.json` in the Zotero data directory. The plugin reads this on startup and when opening settings, and offers its own folder picker. Changing roots cancels stale inference and refreshes installed model choices; it does not move existing files. An unavailable external drive is reported without silently falling back to a different directory.
+
+
+## Complete local and API network modes
+
+Local mode performs both semantic grouping and extractive topic naming without an API key. API mode supplies batches of at most 24 new or edited titles/abstracts and up to 64 candidate existing topics; the model decides memberships and scientific names. Existing memberships are reused, not globally reclassified on each addition. Embeddings still provide local similarity links and layout. API failures retain local results and are identified in the UI.
+
+Author nodes always represent locally resolved bibliographic identities. Local mode partitions the evidence-backed coauthor graph. API mode may partition connected coauthor components of at most 80 authors and choose an existing representative; disconnected groups, unknown identities, duplicated memberships, and missing members are rejected. Larger consortium components use the local worker. Results are cached by provider, endpoint, model, identities, context and evidence; changes affect the corresponding component. The model cannot create coauthor evidence.
+
+Completed scoped graphs and parsed PDF references use a separate atomic disk cache, bounded to 64 files / 64 MiB, with a 12 MiB file-read limit. Serialization and parsing run in a worker. Scope, mode, model identity, content form the cache key. PDF identity includes attachment identity, file size, modification time and PDF fingerprint. Reference caches retain only citation-relevant coordinates rather than every page glyph. On restart, metadata is reconciled with Zotero before the matching graph is reused; this is not a zero-I/O startup guarantee.
+
+The network contains only papers in the selected local library or collection. Existing parsed bibliographies may establish citation edges between those papers; they never create external nodes. Author resolution, graph computation and layout run in workers. Metadata changes can still require worker-side recomputation of affected groups.
+
+The product release exposes only a macOS DMG and Windows EXE. The DMG contains the standalone app, which runs directly from the mounted image. XPI, model packs and update metadata are served from a separate Pages distribution branch. Versioned artifacts are immutable; the root update manifest advances with each release. Versions through 1.0.1 require one installer-mediated migration because their update URL points to a release asset.

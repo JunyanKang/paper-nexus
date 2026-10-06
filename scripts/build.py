@@ -8,7 +8,7 @@ package=json.loads((root/'package.json').read_text(encoding='utf-8'));version=ma
 assert version==package['version']
 app=manifest['applications']['zotero']
 assert app['id']=='cite-lens@local.research', 'Keep existing install identity'
-assert app['update_url']=='https://github.com/JunyanKang/paper-nexus/releases/latest/download/updates.json'
+assert app['update_url']=='https://junyankang.github.io/paper-nexus/updates.json'
 suffix='-personal' if args.personal_adapter else ''
 out=root/'dist'/f'paper-nexus-{version}{suffix}.xpi';out.parent.mkdir(exist_ok=True)
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
@@ -23,7 +23,7 @@ with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
 if args.personal_adapter:
  (out.parent/(out.name+'.sha256')).write_text(hashlib.sha256(out.read_bytes()).hexdigest()+'  '+out.name+'\n',encoding='utf-8')
  print(out.name);raise SystemExit(0)
-update={'addons':{app['id']:{'updates':[{'version':version,'update_link':f'https://github.com/JunyanKang/paper-nexus/releases/download/v{version}/{out.name}','update_hash':'sha512:'+hashlib.sha512(out.read_bytes()).hexdigest(),'applications':{'zotero':{'strict_min_version':app['strict_min_version'],'strict_max_version':app['strict_max_version']}}}]}}}
+update={'addons':{app['id']:{'updates':[{'version':version,'update_link':f'https://junyankang.github.io/paper-nexus/v{version}/{out.name}','update_hash':'sha512:'+hashlib.sha512(out.read_bytes()).hexdigest(),'applications':{'zotero':{'strict_min_version':app['strict_min_version'],'strict_max_version':app['strict_max_version']}}}]}}}
 (root/'dist/updates.json').write_text(json.dumps(update,indent=2)+'\n',encoding='utf-8')
 (root/'dist/SHA256SUMS.txt').write_text(hashlib.sha256(out.read_bytes()).hexdigest()+'  '+out.name+'\n',encoding='utf-8')
 print(out.name)

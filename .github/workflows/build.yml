@@ -42,7 +42,8 @@ jobs:
         with:
           name: paper-nexus-${{ matrix.os }}
           path: |
-            dist/Paper-Nexus-*.zip
+            dist/Paper-Nexus-*.dmg
+            dist/Paper-Nexus-*.exe
             .build/installers/test-report.json
             .build/installers/*.png
             dist/*.xpi

@@ -1,6 +1,6 @@
 """Verify the simplified public download page and optional independent model release."""
 from pathlib import Path
-import argparse, hashlib, io, json, subprocess, zipfile
+import argparse, hashlib, io, json, subprocess, zipfile, urllib.request, tempfile, sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = 'JunyanKang/paper-nexus'
@@ -46,38 +46,33 @@ def verify_model(data, model):
 
 
 xpi_name = f'paper-nexus-{version}.xpi'
-installer_names=[f'Paper-Nexus-{version}-{platform}.zip' for platform in ['macOS','Windows']]
-checks = download('v'+version, [*installer_names, xpi_name, 'updates.json'])
-xpi = (out/xpi_name).read_bytes()
-entry = json.loads((out/'updates.json').read_text(encoding='utf-8'))['addons']['cite-lens@local.research']['updates'][0]
-assert entry['version'] == version
-assert entry['update_link'] == f'https://github.com/{REPO}/releases/download/v{version}/{xpi_name}'
-assert entry['update_hash'] == 'sha512:'+hashlib.sha512(xpi).hexdigest()
+base='https://junyankang.github.io/paper-nexus/'
+installer_names=[f'Paper-Nexus-{version}-macOS.dmg',f'Paper-Nexus-{version}-Windows.exe']
+checks=download('v'+version,installer_names)
+xpi=urllib.request.urlopen(base+'v'+version+'/'+xpi_name,timeout=60).read()
+entry=json.load(urllib.request.urlopen(base+'updates.json',timeout=30))['addons']['cite-lens@local.research']['updates'][0]
+assert entry['version']==version and entry['update_link']==base+'v'+version+'/'+xpi_name
+assert entry['update_hash']=='sha512:'+hashlib.sha512(xpi).hexdigest()
 with zipfile.ZipFile(io.BytesIO(xpi)) as archive:
     files = {p.relative_to(ROOT/'addon').as_posix(): p for p in (ROOT/'addon').rglob('*')
              if p.is_file() and 'models' not in p.relative_to(ROOT/'addon').parts and p.suffix != '.wasm'}
     assert set(archive.namelist()) == set(files) and archive.testzip() is None
     assert all(archive.read(name) == path.read_bytes() for name, path in files.items())
-for name in installer_names:
-    assert (out/name).stat().st_size<10*1024*1024
-    with zipfile.ZipFile(out/name) as archive:
-        assert archive.testzip() is None
-        if 'macOS' in name:
-            prefix='Paper Nexus Installer.app/Contents/Resources/'
-            assert not any(n.endswith('.xpi') for n in archive.namelist())
-            config=json.loads(archive.read(prefix+'installer.json'))
-            assert config['version']==version and config['plugin']['sha256']==hashlib.sha256(xpi).hexdigest()
-        else:
-            assert set(archive.namelist())=={'Paper Nexus Setup.exe'}
-            assert xpi not in archive.read('Paper Nexus Setup.exe')
-            assert hashlib.sha256(xpi).hexdigest().encode() in archive.read('Paper Nexus Setup.exe')
-model_checks = {}
+for name in installer_names:assert (out/name).stat().st_size<10*1024*1024
+exe=(out/installer_names[1]).read_bytes();assert exe[:2]==b'MZ' and xpi not in exe
+assert hashlib.sha256(xpi).hexdigest().encode() in exe
+if sys.platform=='darwin':
+ subprocess.run(['hdiutil','verify',str(out/installer_names[0])],check=True,stdout=subprocess.DEVNULL)
+ with tempfile.TemporaryDirectory(prefix='nexus-public-') as mount:
+  subprocess.run(['hdiutil','attach',str(out/installer_names[0]),'-readonly','-nobrowse','-mountpoint',mount],check=True,stdout=subprocess.DEVNULL)
+  try:
+   app=Path(mount)/'Paper Nexus Installer.app';assert not list(app.rglob('*.xpi'))
+   config=json.loads((app/'Contents/Resources/installer.json').read_text());assert config['version']==version and config['plugin']['sha256']==hashlib.sha256(xpi).hexdigest()
+  finally:subprocess.run(['hdiutil','detach',mount],check=True,stdout=subprocess.DEVNULL)
+model_checks={}
 if args.models:
-    model_version = max((m['version'] for m in catalog['models']), key=lambda v: tuple(map(int,v.split('.'))))
-    names = [f"paper-nexus-{m['id']}-{m['version']}.pnmodel" for m in catalog['models']]
-    model_checks = download('models-v'+model_version, names)
-    for name, model in zip(names, catalog['models']):
-        verify_model((out/name).read_bytes(), model)
+ for row,model in zip(json.loads((ROOT/'addon/model-packages.json').read_text())['models'],catalog['models']):
+  data=urllib.request.urlopen(row['url'],timeout=120).read();assert len(data)==row['bytes'] and hashlib.sha256(data).hexdigest()==row['sha256'];verify_model(data,model);model_checks[row['name']]=row['sha256']
 latest = json.loads(subprocess.check_output(['gh','release','view','--repo',REPO,'--json','tagName']))
 assert latest['tagName'] == 'v'+version, 'Model release must not replace the plugin latest release'
 report = {'release': version, 'passed': True, 'publicSHA256': checks, 'modelSHA256': model_checks,

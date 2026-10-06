@@ -4,7 +4,7 @@ import hashlib,json,os,plistlib,shutil,struct,subprocess,sys,zipfile
 ROOT=Path(__file__).resolve().parents[1]
 version=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
 out=ROOT/'.build/installers';out.mkdir(parents=True,exist_ok=True)
-repo='https://github.com/JunyanKang/paper-nexus/releases/download/'
+repo='https://junyankang.github.io/paper-nexus/'
 def asset(path,tag):
  return {'name':path.name,'url':repo+tag+'/'+path.name,'bytes':path.stat().st_size,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
 catalog=json.loads((ROOT/'model-catalog.json').read_text(encoding='utf-8'))
@@ -39,17 +39,20 @@ if sys.platform=='darwin':
  info={'CFBundleIdentifier':'io.github.junyankang.paper-nexus.installer','CFBundleName':'Paper Nexus Installer','CFBundleDisplayName':'Paper Nexus 安装助手','CFBundleExecutable':binary.name,'CFBundleVersion':version,'CFBundleShortVersionString':version,'CFBundlePackageType':'APPL','CFBundleIconFile':'PaperNexus','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True}
  (app/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
  subprocess.run(['codesign','--force','--sign','-',str(app)],check=True)
- target=ROOT/'dist'/f'Paper-Nexus-{version}-macOS.zip'
- with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:
-  for p in sorted(app.rglob('*')):
-   if p.is_file():z.write(p,app.name+'/'+p.relative_to(app).as_posix())
+ image_root=out/'dmg-root';image_root.mkdir(exist_ok=True)
+ image_app=image_root/app.name
+ if image_app.exists():shutil.rmtree(image_app)
+ shutil.copytree(app,image_app)
+ target=ROOT/'dist'/f'Paper-Nexus-{version}-macOS.dmg'
+ subprocess.run(['hdiutil','create','-ov','-format','UDZO','-volname','Paper Nexus','-srcfolder',str(image_root),str(target)],check=True)
+ subprocess.run(['hdiutil','verify',str(target)],check=True)
  print(target)
 elif sys.platform=='win32':
  subprocess.run(['powershell','-NoProfile','-ExecutionPolicy','Bypass','-File',str(ROOT/'installers/windows/build.ps1'),'-Root',str(ROOT)],check=True)
  csc=Path(os.environ['WINDIR'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
  exe=out/'Paper Nexus Setup.exe'
  subprocess.run([str(csc),'/nologo','/target:winexe','/platform:x64','/optimize+','/codepage:65001',*[f'/reference:{lib}.dll' for lib in ['System.Windows.Forms','System.Drawing','System.Core','System.Net.Http','System.Web.Extensions','System.IO.Compression','System.IO.Compression.FileSystem']],f'/win32icon:{out / "PaperNexus.ico"}',f'/win32manifest:{ROOT / "installers/windows/app.manifest"}',f'/resource:{ROOT / "addon/assets/nexus.png"},nexus.png',f'/resource:{out / "installer.json"},installer.json',*[f'/resource:{source},{source.name}' for source in sorted((ROOT/'installers/assets').glob('*')) if source.suffix in ['.ttf','.txt']],f'/out:{exe}',str(ROOT/'installers/windows/Installer.cs')],check=True)
- target=ROOT/'dist'/f'Paper-Nexus-{version}-Windows.zip'
- with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:z.write(exe,exe.name)
+ target=ROOT/'dist'/f'Paper-Nexus-{version}-Windows.exe'
+ shutil.copyfile(exe,target)
  print(target)
 else:raise SystemExit('Build native assistants on macOS or Windows.')

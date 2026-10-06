@@ -135,6 +135,7 @@ var CiteLens = {
     const promise=(async()=>{
       const pdf=reader._internalReader?._primaryView?._iframeWindow?.PDFViewerApplication?.pdfDocument;
       if(!pdf?.getProcessedData)throw Error('此阅读器尚未提供原生参考文献数据；请选中参考文献后使用「识别引文」。');
+      let cacheKey=null;try{cacheKey=await CiteLensNetwork.referenceKey(reader,pdf);const cached=await CiteLensNetwork.readCache('refs',cacheKey);if(cached?.refs?.length){if(state){state.runningHeaders=cached.runningHeaders;state.citationPages=cached.citationPages;}return cached.refs;}}catch(e){Zotero.logError(e);}
       const data=await pdf.getProcessedData(),refs=new Map(),runningHeaders=CiteLensBibliography.runningHeaders(data.pages);if(state)state.runningHeaders=runningHeaders;if(state){state.citationPages=new Map();let slice=Date.now();for(const [i,page] of Object.entries(data.pages||{})){state.citationPages.set(Number(i),CiteLensCitationLinks.page(page.chars,page.overlays));if(Date.now()-slice>=8){await Zotero.Promise.delay(0);slice=Date.now();if(this.dead)throw Error('已关闭');}}}
       for(const [pageIndex,page] of Object.entries(data.pages||{}))for(const overlay of page.overlays||[]) {
         const list=overlay.references||(overlay.type==='reference'?[overlay]:[]);
@@ -143,17 +144,19 @@ var CiteLens = {
       // Parse only the bibliography tail around the first native reference, or scan headings if none exist.
       const native=[...refs.values()],first=native.length?Math.min(...native.map(x=>x.position?.pageIndex??pdf.numPages-1)):0,pages=[];
       for(let n=Math.max(0,first-1);n<pdf.numPages;n++) {if(this.dead)break;const page=Components.utils.waiveXrays(await pdf.getPage(n+1));pages.push({pageIndex:n,items:(await page.getTextContent()).items,width:Math.abs(page.view[2]-page.view[0]),height:Math.abs(page.view[3]-page.view[1])});await Zotero.Promise.delay(0);}
-      return CiteLensBibliography.merge(native,CiteLensBibliography.parse(pages,runningHeaders)).sort((a,b)=>(a.position?.pageIndex||0)-(b.position?.pageIndex||0)||Math.floor((a.position?.rects?.[0]?.[0]||0)/80)-Math.floor((b.position?.rects?.[0]?.[0]||0)/80)||(b.position?.rects?.[0]?.[3]||0)-(a.position?.rects?.[0]?.[3]||0));
+      const result=CiteLensBibliography.merge(native,CiteLensBibliography.parse(pages,runningHeaders)).sort((a,b)=>(a.position?.pageIndex||0)-(b.position?.pageIndex||0)||Math.floor((a.position?.rects?.[0]?.[0]||0)/80)-Math.floor((b.position?.rects?.[0]?.[0]||0)/80)||(b.position?.rects?.[0]?.[3]||0)-(a.position?.rects?.[0]?.[3]||0));
+      if(result.length)await CiteLensNetwork.writeCache('refs',cacheKey,{refs:result,runningHeaders,citationPages:state?.citationPages?await this.compactCitationPages(state.citationPages):null});return result;
     })();if(state)state.refPromise=promise;
     try{const refs=await promise;if(state)state.referenceList=refs;CiteLensNetwork.remember(reader,refs).catch(e=>Zotero.logError(e));if(!refs.length&&state)state.refPromise=null;return refs;}catch(e){if(state)state.refPromise=null;throw e;}
   },
+  async compactCitationPages(citationPages){const pages=[];for(const [id,page] of citationPages){if(this.dead)throw Error('已关闭');const numeric=new Set((page.pointRuns||[]).flatMap(r=>r.offsets)),ranges=(page.mentions||[]).map(m=>[m.start,m.end]).sort((a,b)=>a[0]-b[0]),chars=[],offsets=new Map();let range=0;for(const c of page.chars||[]){const at=page.offsets.get(c.offset);while(range<ranges.length&&ranges[range][1]<=at)range++;if(numeric.has(c.offset)||range<ranges.length&&at>=ranges[range][0]&&at<ranges[range][1]){chars.push({offset:c.offset,ignorable:c.ignorable,rect:c.rect?Array.from(c.rect):null});offsets.set(c.offset,at);}}pages.push([id,{text:page.text,offsets,mentions:page.mentions,pointRuns:page.pointRuns,chars}]);await Zotero.Promise.delay(0);}return new Map(pages);},
   async citationLocations(reader,record){
     const refs=await this.references(reader),state=this.readers.get(reader);if(!state?.citationPages)return [];
     if(!state.locationIndex){
       if(!state.locationPromise){
         const report=(value,error='')=>{state.locationProgress=value;const doc=reader._iframeWindow?.document;if(doc)doc.dispatchEvent(new doc.defaultView.CustomEvent('cl-location-progress',{detail:{value,error}}));};
         report(0);
-        const job=(async()=>{const pages=[];for(const [id,page] of state.citationPages){if(this.dead||!this.readers.has(reader))throw Error('已关闭');const numeric=new Set((page.pointRuns||[]).flatMap(r=>r.offsets)),ranges=(page.mentions||[]).map(m=>[m.start,m.end]).sort((a,b)=>a[0]-b[0]),chars=[],offsets=new Map();let range=0;for(const c of page.chars||[]){const at=page.offsets.get(c.offset);while(range<ranges.length&&ranges[range][1]<=at)range++;if(numeric.has(c.offset)||range<ranges.length&&at>=ranges[range][0]&&at<ranges[range][1]){chars.push({offset:c.offset,ignorable:c.ignorable,rect:c.rect?Array.from(c.rect):null});offsets.set(c.offset,at);}}pages.push([id,{text:page.text,offsets,mentions:page.mentions,pointRuns:page.pointRuns,chars}]);await Zotero.Promise.delay(0);}
+        const job=(async()=>{const pages=[...await this.compactCitationPages(state.citationPages)];
           const lookup=new Map();for(const ref of refs){lookup.set(CiteLensCore.identity(ref),CiteLensCore.identity(ref));if(ref.raw)lookup.set(ref.raw,CiteLensCore.identity(ref));}state.locationLookup=lookup;const result=await CiteLensNetwork.compute('citations',{pages,refs},{progress:value=>report(value)});if(this.dead||!this.readers.has(reader))throw Error('已关闭');state.locationIndex=result;report(100);return result;})();
         state.locationPromise=job;job.catch(()=>report(null,'引用位置暂不可用')).finally(()=>{if(state.locationPromise===job)state.locationPromise=null;});
       }

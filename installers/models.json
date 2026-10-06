@@ -9,7 +9,7 @@
       "detailEn": "20 MB · Faster, lower memory · General research",
       "package": {
         "name": "paper-nexus-minilm-1.0.0.pnmodel",
-        "url": "https://github.com/JunyanKang/paper-nexus/releases/download/models-v1.0.0/paper-nexus-minilm-1.0.0.pnmodel",
+        "url": "https://junyankang.github.io/paper-nexus/models/v1.0.0/paper-nexus-minilm-1.0.0.pnmodel",
         "bytes": 20133091,
         "sha256": "64c8676919f24330b5c4121700983bbafce265a80182426fdba6cba2cf991c01"
       }
@@ -22,7 +22,7 @@
       "detailEn": "29 MB · English biomedicine · Slower first analysis",
       "package": {
         "name": "paper-nexus-medembed-1.0.0.pnmodel",
-        "url": "https://github.com/JunyanKang/paper-nexus/releases/download/models-v1.0.0/paper-nexus-medembed-1.0.0.pnmodel",
+        "url": "https://junyankang.github.io/paper-nexus/models/v1.0.0/paper-nexus-medembed-1.0.0.pnmodel",
         "bytes": 28996591,
         "sha256": "4a6577e56bf0caa81245c193dd732446994cf051ca677f372cc9b4288e638f84"
       }

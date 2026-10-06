@@ -22,7 +22,9 @@ Hover over a title to open its abstract alongside the card. Switch between **ori
 
 ## Turn your reading list into a research map
 
-**Explore research by topic and collaboration by author.** Open a topic to reveal its papers, follow shared work between authors, search for a paper or focus on its immediate connections. Expand references to reach beyond your library.
+Group and name topics locally without an API key, or choose an external model. Saved networks reopen without repeating analysis.
+
+**Explore research by topic and collaboration by author.** Open a topic to reveal its papers, follow shared work between authors, search for a paper or focus on its immediate connections.
 
 As your collection grows, the network updates in the background, connecting familiar work with papers still to discover.
 
@@ -39,7 +41,7 @@ As your collection grows, the network updates in the background, connecting fami
 
 For **Zotero 10.0.5–10.0.x**, with native macOS and Windows installers. Free and open source.
 
-1. Download the installer for your platform from the [release page](https://github.com/JunyanKang/paper-nexus/releases/latest).
+1. Download the macOS `.dmg` or Windows `.exe` from the [release page](https://github.com/JunyanKang/paper-nexus/releases/latest).
 2. Choose one or more local models. The installer downloads the plugin and models from GitHub.
 3. Follow the installer to add the plugin to Zotero, then open a PDF.
 

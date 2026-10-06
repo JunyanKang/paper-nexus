@@ -22,9 +22,9 @@
 
 ## 从论文列表，走向研究地图
 
-**按主题看研究，按作者看合作。** 点击主题展开论文，沿着作者找到共同工作；搜索快速定位，聚焦查看直接联系，再用“扩展引文”发现库外线索。
+**按主题看研究，按作者看合作。** 点击主题展开论文，沿着作者找到共同工作；搜索快速定位，聚焦查看直接联系。
 
-网络随着你的文献库在后台更新，让已读与未读、熟悉与陌生的工作连起来。
+本地即可完成分组和主题命名，也可选择大模型分析。网络在后台随文献库更新，重复打开复用已有结果，让已读与未读、熟悉与陌生的工作连起来。
 
 <p align="center"><img src="docs/images/topics.png" width="960" alt="主题网络：从研究主题展开和探索论文"></p>
 <p align="center"><img src="docs/images/network.png" width="960" alt="作者合作网络：共同论文连接作者"></p>
@@ -39,7 +39,7 @@
 
 适用于 **Zotero 10.0.5–10.0.x**，提供 macOS、Windows 安装器，免费开源。
 
-1. 在 [发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载对应系统的安装器。
+1. 在 [发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载对应系统的安装器：macOS `.dmg`／Windows `.exe`。
 2. 选择一个或多个本地模型，安装器从 GitHub 获取插件和模型。
 3. 按安装器提示将插件添加到 Zotero，打开 PDF 开始阅读。
 

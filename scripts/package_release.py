@@ -1,6 +1,6 @@
 """Validate the two installers and updater assets; keep model releases independent."""
 from pathlib import Path
-import json,zipfile,hashlib,re
+import json,zipfile,hashlib,re,subprocess,tempfile
 from audit_release import public_index
 root=Path(__file__).resolve().parents[1];version=json.loads((root/'package.json').read_text(encoding='utf-8'))['version'];dist=root/'dist';xpi=dist/f'paper-nexus-{version}.xpi'
 with zipfile.ZipFile(xpi) as z:
@@ -25,25 +25,24 @@ for model in catalog['models']:
   for f in model['files']:
    b=z.read(f['name']);assert len(b)==f['bytes'] and hashlib.sha256(b).hexdigest()==f['sha256']
  packs.append(pack)
-installers=[dist/f'Paper-Nexus-{version}-{platform}.zip' for platform in ['macOS','Windows']]
-for installer in installers:
- assert installer.stat().st_size<10*1024*1024, 'Installer should not contain weights'
- with zipfile.ZipFile(installer) as z:
-  assert not z.testzip()
-  if 'macOS' in installer.name:
-   assert not any(n.endswith('.xpi') for n in z.namelist())
-   config=json.loads(z.read('Paper Nexus Installer.app/Contents/Resources/installer.json'));assert config['plugin']['sha256']==hashlib.sha256(xpi.read_bytes()).hexdigest()
-  else:
-   assert set(z.namelist())=={'Paper Nexus Setup.exe'}
-   assert xpi.read_bytes() not in z.read('Paper Nexus Setup.exe')
-   assert hashlib.sha256(xpi.read_bytes()).hexdigest().encode() in z.read('Paper Nexus Setup.exe'), 'Windows download catalog must match XPI'
-assets=[*installers,xpi,dist/'updates.json']
+installers=[dist/f'Paper-Nexus-{version}-macOS.dmg',dist/f'Paper-Nexus-{version}-Windows.exe']
+for installer in installers:assert installer.stat().st_size<10*1024*1024, 'Installer should not contain weights'
+subprocess.run(['hdiutil','verify',str(installers[0])],check=True,stdout=subprocess.DEVNULL)
+with tempfile.TemporaryDirectory(prefix='nexus-image-') as mount:
+ subprocess.run(['hdiutil','attach',str(installers[0]),'-readonly','-nobrowse','-mountpoint',mount],check=True,stdout=subprocess.DEVNULL)
+ try:
+  app=Path(mount)/'Paper Nexus Installer.app'
+  assert not list(app.rglob('*.xpi'))
+  config=json.loads((app/'Contents/Resources/installer.json').read_text());assert config['plugin']['sha256']==hashlib.sha256(xpi.read_bytes()).hexdigest()
+ finally:subprocess.run(['hdiutil','detach',mount],check=True,stdout=subprocess.DEVNULL)
+exe=installers[1].read_bytes();assert exe[:2]==b'MZ' and xpi.read_bytes() not in exe
+assert hashlib.sha256(xpi.read_bytes()).hexdigest().encode() in exe, 'Windows download catalog must match XPI'
+assets=installers
 model_version=max((m['version'] for m in catalog['models']),key=lambda value:tuple(map(int,value.split('.'))))
 def describe(paths):
  return [{'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in paths]
 # Internal publishing plan only. Never upload dist/* or this bookkeeping file.
-plan={'plugin':{'tag':'v'+version,'assets':describe(assets)},'models':{'tag':'models-v'+model_version,'latest':False,'assets':describe(packs)}}
+plan={'plugin':{'tag':'v'+version,'assets':describe(assets)},'distribution':{'files':describe([xpi,dist/'updates.json',*packs])}}
 (dist/'release-assets.json').write_text(json.dumps(plan,indent=2)+'\n',encoding='utf-8')
-for group in ['plugin','models']:
- print(plan[group]['tag'])
- for asset in plan[group]['assets']:print(' ',asset['name'],asset['bytes'])
+print(plan['plugin']['tag'])
+for asset in plan['plugin']['assets']:print(' ',asset['name'],asset['bytes'])
