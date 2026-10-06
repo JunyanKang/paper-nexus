@@ -41,6 +41,42 @@ with tempfile.TemporaryDirectory(prefix='nexus-selection-') as scratch:
   assert len(active)==1 and active[0].parent.name==model['id']
   assert {p.name for p in downloads.glob('*.pnmodel')}=={model['package']['name']}
  checks.append('each single-model selection installs and downloads only that model')
+# Profile installation uses only disposable directories and never edits a registry.
+with tempfile.TemporaryDirectory(prefix='nexus-profiles-') as scratch:
+ root=Path(scratch);relative=root/'Profiles/default';absolute=root/'Custom profile'
+ for directory in [relative,absolute]:
+  directory.mkdir(parents=True);(directory/'prefs.js').write_text('user_pref("paper-nexus.fixture", true);\n',encoding='utf-8')
+ ini=root/'profiles.ini';ini.write_text('[Profile0]\nName=Default\nIsRelative=1\nPath=Profiles/default\nDefault=1\n[Profile1]\nName=Custom\nIsRelative=0\nPath='+str(absolute)+'\n[Profile2]\nPath=missing\n[Profile3]\nPath=Profiles/default\n',encoding='utf-8')
+ result=root/'result.json'
+ def probe(extra=(),success=True):
+  call=subprocess.run([str(exe),'--zotero-probe','--profiles-ini',str(ini),'--result',str(result),*extra],capture_output=True,timeout=30)
+  assert (call.returncode==0)==success,(call.stdout,call.stderr,result.read_text() if result.exists() else '')
+  return json.loads(result.read_text(encoding='utf-8-sig')) if success else None
+ before=probe();assert len(before['profiles'])==2 and before['profiles'][0]['preferred']
+ assert {Path(p['path']).resolve() for p in before['profiles']}=={relative.resolve(),absolute.resolve()}
+ checks.append('profiles.ini resolves relative and absolute paths; missing and duplicate profiles excluded')
+ if before['running']:raise AssertionError('Close test Zotero before running installer staging tests')
+ plugin=ROOT/'dist'/config['plugin']['name'];target=relative/'extensions/cite-lens@local.research.xpi';target.parent.mkdir();target.write_bytes(b'previous plugin')
+ other=target.parent/'other-addon.xpi';other.write_bytes(b'other plugin retained');prefs=(relative/'prefs.js').read_bytes()
+ args=['--stage-profile',str(relative),'--plugin-file',str(plugin)];staged=probe(args)
+ assert target.read_bytes()==plugin.read_bytes() and (target.parent/'.nexus-previous').read_bytes()==b'previous plugin'
+ assert not staged['profiles'][0]['installed'] and not (relative/'extensions.json').exists()
+ assert other.read_bytes()==b'other plugin retained' and (relative/'prefs.js').read_bytes()==prefs and not list(absolute.glob('extensions/*'))
+ checks.append('verified XPI staged only in selected profile; settings and other plugins preserved; pending until enabled')
+ registry=relative/'extensions.json'
+ def state(**changes):
+  row={'id':'cite-lens@local.research','version':config['version'],'active':True,'userDisabled':False,'appDisabled':False};row.update(changes)
+  registry.write_text(json.dumps({'addons':[row]}),encoding='utf-8');stamp=max(registry.stat().st_mtime,target.stat().st_mtime)+1;os.utime(registry,(stamp,stamp));return probe()['profiles'][0]['installed']
+ assert not state(active=False,userDisabled=True)
+ assert not state(version='0.0.0')
+ assert not state(appDisabled=True)
+ assert state()
+ stamp=target.stat().st_mtime_ns;probe(args);assert target.stat().st_mtime_ns==stamp
+ checks.append('installed requires matching version, verified XPI and active non-disabled Zotero registry; reuse does not replace file')
+ corrupt=root/'bad.xpi';corrupt.write_bytes(b'corrupt');probe(['--stage-profile',str(relative),'--plugin-file',str(corrupt)],success=False)
+ assert target.read_bytes()==plugin.read_bytes() and (relative/'prefs.js').read_bytes()==prefs
+ checks.append('corrupt XPI rejected before changing an existing profile')
+
 with tempfile.TemporaryDirectory(prefix='nexus-installer-') as scratch:
  root=Path(scratch);data=root/'data';data.mkdir();(data/'zotero.sqlite').write_text('installer test marker, not a real library');downloads=root/'plugins'
  def run(ids='minilm',success=True,extra=None,directory=data,online=False):

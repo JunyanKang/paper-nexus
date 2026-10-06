@@ -19,3 +19,16 @@ test('overview shows one stable representative per community; entering and leavi
  const detail=V.scene(model,i,{community:'community:a'});assert.deepEqual(detail.nodes.map(n=>n.id),['a','b']);assert.equal(detail.edges.length,1);assert.deepEqual(detail.matches,['b']);assert.equal(V.scene(model,i).nodes,overview.nodes);
 });
 test('topic search can retain multiple matching groups without lighting unrelated neighbours',()=>{const model={searchActive:true,searchGroups:true,matches:['a','c']},i={adj:new Map([['a',new Set(['a','b'])],['c',new Set(['c','d'])]])};assert.deepEqual([...V.emphasis(model,i).near].sort(),['a','c']);});
+
+test('pointer attraction stays local, releases to rest and preserves graph coordinates',()=>{
+ const nodes=[{id:'a',x:0,y:0},{id:'b',x:36,y:0}],camera={x:0,y:0,k:1},saved=JSON.stringify(nodes);
+ assert.equal(V.nearest(nodes,{x:18,y:0},camera,'a').id,'a');
+ assert.equal(V.nearest(nodes,{x:35,y:0},camera,'a').id,'b');
+ assert.equal(V.nearest(nodes,{x:120,y:0},camera,'a'),null);
+ const offsets=new Map();for(let i=0;i<120;i++)V.magnetic(offsets,new Map([['a',{x:8,y:2}]]),16);
+ assert.ok(Math.abs(offsets.get('a').x-8)<.05);let running=true;
+ for(let i=0;i<180;i++)running=V.magnetic(offsets,new Map(),16);
+ assert.equal(running,false);assert.equal(offsets.size,0);assert.equal(JSON.stringify(nodes),saved);
+ V.magnetic(offsets,new Map([['a',{x:8,y:2}]]),16,true);assert.equal(offsets.size,0);
+ let alpha=1;for(let i=0;i<100;i++)alpha=V.opacity(alpha,.32,16);assert.equal(alpha,.32);
+});

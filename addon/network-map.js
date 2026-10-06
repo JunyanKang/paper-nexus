@@ -137,8 +137,8 @@ var CiteLensNetworkMap=(()=>{
   const rawGroups=communityGroups(nodes.map(n=>n.id),clusterLinks,1.05);
   const groups=rawGroups.map(ids=>{const members=ids.map(id=>byID.get(id)),papers=members,id='community:'+(members.find(n=>n.kind!=='paper')?.id||ids[0]);return{id,members:ids,papers:papers.length,r:35+Math.sqrt(ids.length)*18,pinned:members.some(n=>n.pinned),vx:0,vy:0};});
   const owner=new Map();groups.forEach((g,i)=>{for(const id of g.members){owner.set(id,g);const n=byID.get(id);n.community=g.id;n.color=g.papers<2?6:hash(g.id)%6;}});
-  const cols=Math.ceil(Math.sqrt(groups.length*1.4)),spacing=Math.max(110,Math.sqrt(nodes.length/groups.length)*55),old=new Map();
-  groups.forEach((g,i)=>{const saved=g.members.map(id=>byID.get(id)).filter(n=>Number.isFinite(n.x)&&Number.isFinite(n.y));if(saved.length){g.x=saved.reduce((s,n)=>s+n.x,0)/saved.length;g.y=saved.reduce((s,n)=>s+n.y,0)/saved.length;}else{g.x=((i%cols)-(cols-1)/2)*spacing+(hash(g.id)%47);g.y=(Math.floor(i/cols)-Math.floor((groups.length-1)/cols)/2)*spacing+(hash(g.id+'y')%47);}old.set(g.id,{x:g.x,y:g.y});});
+  const spacing=Math.max(110,Math.sqrt(nodes.length/groups.length)*55),old=new Map(),aspect=1.65;
+  groups.forEach((g,i)=>{const saved=g.members.map(id=>byID.get(id)).filter(n=>Number.isFinite(n.x)&&Number.isFinite(n.y));if(saved.length){g.x=saved.reduce((s,n)=>s+n.x,0)/saved.length;g.y=saved.reduce((s,n)=>s+n.y,0)/saved.length;}else{const angle=i*Math.PI*(3-Math.sqrt(5)),radius=Math.sqrt(i+.5)*spacing*.72;g.x=Math.cos(angle)*radius*Math.sqrt(aspect);g.y=Math.sin(angle)*radius/Math.sqrt(aspect);}old.set(g.id,{x:g.x,y:g.y});});
   const bridges=new Map();for(const e of clusterLinks){const a=owner.get(e.source),b=owner.get(e.target);if(a===b)continue;const key=[a.id,b.id].sort().join('|');if(!bridges.has(key))bridges.set(key,{a,b,weight:0});bridges.get(key).weight+=e.weight*(graph.mode==='topics'&&e.kind==='cites'?.02:1);}
   // Self-organising community centres: pair separation and real bridge forces.
   // There is no nominated root and no fixed ring or common attraction point.

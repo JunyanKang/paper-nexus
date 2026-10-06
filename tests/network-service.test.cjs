@@ -35,3 +35,27 @@ test('network reuses cached author identity evidence without metadata requests o
  const result=await ctx.CiteLensNetwork.readRecord(item);assert.equal(result.creators[0].ORCID,oid);assert.equal(result.creators[0].firstName,'Jane');assert.equal(local[0].firstName,'J.');assert.equal(local[0].ORCID,undefined);
  await N.snapshot();N.authorMetadataChanged('10.1234/example');assert.deepEqual([...N.dirtyItems],[1]);
 });
+
+test('unchanged modes reuse completed and in-flight jobs without canceling one another',async()=>{
+ const s=await cacheService();s.ctx.Zotero.getMainWindow=()=>({AbortController});s.ctx.Zotero.Promise={delay:()=>new Promise(r=>setTimeout(r,0))};
+ let builds=0,releases=[];s.N.map=async payload=>{builds++;await new Promise(r=>releases.push(r));return{nodes:[],mode:payload.mode};};
+ const snapshot={},p={mode:'authors',cacheKey:'1:2',nodes:[],openEntities:[]};
+ const author=s.N.graphJob(snapshot,p),topic=s.N.graphJob(snapshot,{...p,mode:'topics'});
+ assert.equal(s.N.graphJob(snapshot,{...p,query:'Alice',positions:[{id:'a',x:4}]}),author);
+ await new Promise(r=>setTimeout(r,5));assert.equal(builds,2);assert.equal(author.controller.signal.aborted,false);
+ releases.splice(0).forEach(r=>r());await Promise.all([author.promise,topic.promise]);
+ assert.equal(s.N.graphJob(snapshot,p),author);assert.equal(s.N.graphJob(snapshot,{...p,mode:'topics'}),topic);assert.equal(builds,2);
+ const changed=s.N.graphJob({},p);assert.notEqual(changed,author);await new Promise(r=>setTimeout(r,5));releases.splice(0).forEach(r=>r());await changed.promise;assert.equal(builds,3);
+ s.N.clearGraphJobs('topics');assert.equal(topic.controller.signal.aborted,true);assert.equal(changed.controller.signal.aborted,false);
+});
+
+test('cancelled and failed jobs can retry; prepared graphs replace the unprepared copy',async()=>{
+ const s=await cacheService();s.ctx.Zotero.getMainWindow=()=>({AbortController});s.ctx.Zotero.Promise={delay:()=>Promise.resolve()};
+ let attempts=0;s.N.map=async()=>{if(++attempts===1)throw Error('fixture failure');return{nodes:[],mode:'authors'};};
+ const snapshot={},p={mode:'authors',cacheKey:'1:2',nodes:[],openEntities:[]};
+ const failed=s.N.graphJob(snapshot,p);await assert.rejects(failed.promise,/fixture failure/);
+ const retried=s.N.graphJob(snapshot,p);assert.notEqual(retried,failed);await retried.promise;
+ const initial=retried.value;s.N.compute=async()=>({graph:{...initial,prepared:true},index:{}});
+ const view=await s.N.presentation(retried);assert.equal(await retried.promise,view.graph);assert.equal(retried.value,view.graph);assert.notEqual(retried.value,initial);
+ retried.controller.abort();const next=s.N.graphJob(snapshot,p);assert.notEqual(next,retried);await next.promise;assert.equal(attempts,3);
+});

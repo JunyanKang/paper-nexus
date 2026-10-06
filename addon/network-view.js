@@ -66,10 +66,25 @@ var CiteLensNetworkView=(()=>{
   index.projections?.clear();index.detail={id,relations,edges,near:new Set([id,...relations.map(e=>e.target)])};
  }
  function emphasis(model,index,{selected='',hover=''}={}){
-  const searching=!!model.searchActive,roots=new Set(searching?(model.matches||[]):[selected||hover].filter(Boolean));
+  const searching=!!model.searchActive,roots=new Set(searching?(model.matches||[]):[hover||selected].filter(Boolean));
   if(!searching&&!roots.size)return {roots,near:null,searching};const near=new Set(roots);if(searching&&model.searchGroups)return {roots,near,searching};for(const id of roots)for(const other of (index.detail?.id===id?index.detail.near:index.adj.get(id))||[])near.add(other);
   return {roots,near,searching};
  }
+ // Screen-space feedback never alters scientific graph coordinates or layout.
+ function nearest(nodes,point,camera,current='',radius=30){
+  if(!point)return null;let best=null,distance=radius,held=null,heldDistance=Infinity;
+  for(const n of nodes){const d=Math.hypot(point.x-(n.x*camera.k+camera.x),point.y-(n.y*camera.k+camera.y));if(n.id===current){held=n;heldDistance=d;}if(d<distance){distance=d;best=n;}}
+  return held&&heldDistance<radius*1.4&&(!best||best.id===current||distance>heldDistance*.65)?held:best;
+ }
+ function magnetic(state,targets,dt=16,reduced=false){
+  let pending=false;const step=clamp(dt,1,32)/1000;
+  for(const [id,target] of targets)if(!state.has(id))state.set(id,{x:0,y:0,vx:0,vy:0});
+  for(const [id,p] of state){const t=targets.get(id)||{x:0,y:0};if(reduced){p.x=p.y=p.vx=p.vy=0;state.delete(id);continue;}
+   for(const axis of ['x','y']){const v='v'+axis;p[v]+=(190*(t[axis]-p[axis])-25*p[v])*step;p[axis]+=p[v]*step;}
+   if(Math.abs(p.x-t.x)+Math.abs(p.y-t.y)+Math.abs(p.vx)+Math.abs(p.vy)<.06){p.x=t.x;p.y=t.y;p.vx=p.vy=0;if(!targets.has(id))state.delete(id);}else pending=true;
+  }return pending;
+ }
+ function opacity(current,target,dt=16,reduced=false){const value=reduced?target:current+(target-current)*(1-Math.exp(-clamp(dt,1,40)/85));return Math.abs(value-target)<.004?target:value;}
  function lineWidth(count,active=false){return Math.min(3.2,.75+Math.log2(Math.max(1,count))*.55)+(active?.45:0);}
  function labels(candidates,width,height){
   const grid=new Map(),accepted=[],cell=48;
@@ -77,6 +92,6 @@ var CiteLensNetworkView=(()=>{
   for(const c of candidates.sort((a,b)=>b.priority-a.priority||a.id.localeCompare(b.id))){const r=c.rect;if(r.x<6||r.y<5||r.x+r.w>width-6||r.y+r.h>height-62)continue;const keys=cells(r),occupied=keys.flatMap(k=>grid.get(k)||[]);if(occupied.some(o=>r.x<o.x+o.w&&r.x+r.w>o.x&&r.y<o.y+o.h&&r.y+r.h>o.y))continue;accepted.push(c);for(const key of keys){if(!grid.has(key))grid.set(key,[]);grid.get(key).push(r);}}
   return accepted;
  }
- return{wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,emphasis,detail};
+ return{nearest,magnetic,opacity,wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,emphasis,detail};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkView;

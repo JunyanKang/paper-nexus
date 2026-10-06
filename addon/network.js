@@ -2,7 +2,7 @@
 var CiteLensNetwork = {
   semanticIndexes:new Map(),workers:new Set(),state:{schema:1,sources:{}},views:new Set(),listeners:new Set(),generation:0,dead:true,
   async start(){
-    this.dead=false;this.cacheRoot=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-cache-v3');this.cacheWrite=Promise.resolve();this.dirty=true;this.fullDirty=true;this.dirtyItems=new Set();this.records=new Map();this.attachmentParents=new Map();this.semanticIndexes=new Map();this.generation++;this.path=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-citations.json');
+    this.dead=false;this.graphJobs=new Map();this.cacheRoot=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-cache-v3');this.cacheWrite=Promise.resolve();this.dirty=true;this.fullDirty=true;this.dirtyItems=new Set();this.records=new Map();this.attachmentParents=new Map();this.semanticIndexes=new Map();this.generation++;this.path=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-citations.json');
     try{if(await IOUtils.exists(this.path)){if((await IOUtils.stat(this.path)).size>30*1024*1024)throw Error('Cache too large');const data=JSON.parse(await IOUtils.readUTF8(this.path));if(data.schema!==1||!data.sources||typeof data.sources!=='object'||Array.isArray(data.sources))throw Error('Invalid cache');this.state=data;}}
     catch(e){Zotero.logError(e);this.state={schema:1,sources:{}};this.warning='关联缓存无法读取，可重新读取论文中的引文。';}
     this.indexPath=PathUtils.join(PathUtils.parent(this.path),'network-semantic-index.json');try{if(await IOUtils.exists(this.indexPath)&&(await IOUtils.stat(this.indexPath)).size<16*1024*1024){const saved=JSON.parse(await IOUtils.readUTF8(this.indexPath));if(saved.schema===1)this.semanticIndexes=new Map(saved.entries||[]);}}catch(_){}
@@ -62,10 +62,29 @@ var CiteLensNetwork = {
     const item=await Zotero.Items.getAsync(reader.itemID);if(!item?.getFilePathAsync)return null;const file=await item.getFilePathAsync();if(!file)return null;const stat=await IOUtils.stat(file);
     return this.cacheKey(['references-v2',item.libraryID,item.key,item.dateModified,stat.size,stat.lastModified,pdf.fingerprints||pdf.fingerprint||'',pdf.numPages]);
   },
+  // Keep one job per unchanged snapshot/scope/mode, including jobs still running.
+  // Changing the visible tab never cancels or restarts inference.
+  graphJobs:new Map(),
+  graphJob(snapshot,payload){
+    const modelID=payload.mode==='topics'&&typeof CiteLensModels!=='undefined'?CiteLensModels.selected():'';
+    const key=JSON.stringify([payload.cacheKey,payload.mode,modelID,payload.limit,[...(payload.openEntities||[])].sort(),payload.openEntities?.length?payload.selected:'']);
+    let job=this.graphJobs.get(key);if(job&&job.snapshot===snapshot&&!job.controller.signal.aborted){this.graphJobs.delete(key);this.graphJobs.set(key,job);return job;}
+    job?.controller.abort();const win=Zotero.getMainWindow();
+    job={snapshot,mode:payload.mode,controller:new win.AbortController(),listeners:new Set(),value:null,progress:null};this.graphJobs.set(key,job);
+    job.promise=(async()=>{await Zotero.Promise.delay(0);const result=await this.map({...payload,query:''},{signal:job.controller.signal,progress:p=>{job.progress=p;for(const fn of job.listeners)fn(p);}});if(job.controller.signal.aborted)throw Error('已取消');job.value=result;return result;})().catch(e=>{if(this.graphJobs.get(key)===job)this.graphJobs.delete(key);throw e;});job.promise.catch(()=>{});
+    while(this.graphJobs.size>4){const oldest=this.graphJobs.keys().next().value;this.graphJobs.get(oldest).controller.abort();this.graphJobs.delete(oldest);}
+    return job;
+  },
+  async presentation(job){
+    if(!job.presentation)job.presentation=job.promise.then(graph=>this.compute('presentation',{graph},{signal:job.controller.signal})).then(value=>{job.value=value.graph;job.promise=Promise.resolve(value.graph);return value;}).catch(error=>{job.presentation=null;throw error;});
+    return job.presentation;
+  },
+  clearGraphJobs(mode){for(const [key,job] of this.graphJobs){if(!mode||job.mode===mode){job.controller.abort();this.graphJobs.delete(key);}}},
   async map(payload,options={}){
     const {signal,progress=()=>{}}=options;
+    if(payload.mode==='topics'&&typeof CiteLensModels!=='undefined')await CiteLensModels.prepare?.();
     const {positions,...content}=payload,model=typeof CiteLensModels!=='undefined'?CiteLensModels.installed.get(CiteLensModels.selected()):null;
-    const key=await this.cacheKey(['local-network-2026-3',content,model?.id,model?.version,model?.files]);if(signal?.aborted)throw Error('已取消');
+    const key=await this.cacheKey(['local-network-2026-4',content,model?.id,model?.version,model?.files]);if(signal?.aborted)throw Error('已取消');
     const stored=await this.readCache('graph',key);if(signal?.aborted)throw Error('已取消');
     if(stored&&Array.isArray(stored.nodes)&&Array.isArray(stored.communities)&&stored.stats){const saved=new Map((positions||[]).map(p=>[p.id,p]));for(const n of stored.nodes){const p=saved.get(n.id);if(p)Object.assign(n,p);}stored.cache={hit:true};progress({phase:'layout',completed:1,total:1});return stored;}
     const result=await this.buildMap(payload,options);if(signal?.aborted)throw Error('已取消');await this.writeCache('graph',key,result);return result;
@@ -145,5 +164,5 @@ var CiteLensNetwork = {
     const item=await Zotero.Items.getAsync(id);if(!item||item.deleted)throw Error('附件已移除，请刷新文献库');
     await Zotero.Reader.open(id,Number.isInteger(evidence?.pageIndex)?{pageIndex:evidence.pageIndex}:undefined);
   },
-  async stop(){this.dead=true;for(const w of [...this.workers])w.cancel?.();this.workers.clear();this.generation++;if(this.observer)Zotero.Notifier.unregisterObserver(this.observer);for(const close of [...this.views])close();this.views.clear();this.listeners.clear();this.data=null;this.records?.clear();this.semanticIndexes.clear();await this.write?.catch(()=>{});await this.indexWrite?.catch(()=>{});await this.cacheWrite?.catch(()=>{});}
+  async stop(){this.dead=true;this.clearGraphJobs();for(const w of [...this.workers])w.cancel?.();this.workers.clear();this.generation++;if(this.observer)Zotero.Notifier.unregisterObserver(this.observer);for(const close of [...this.views])close();this.views.clear();this.listeners.clear();this.data=null;this.records?.clear();this.semanticIndexes.clear();await this.write?.catch(()=>{});await this.indexWrite?.catch(()=>{});await this.cacheWrite?.catch(()=>{});}
 };
