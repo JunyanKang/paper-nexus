@@ -40,7 +40,7 @@
 适用于 **Zotero 10.0.5–10.0.x**，提供 macOS、Windows 安装器，免费开源。
 
 1. 在 [发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载对应系统的安装器。
-2. 选择一个或多个本地模型，安装器从 GitHub 下载；插件已内置。
+2. 选择一个或多个本地模型，安装器从 GitHub 获取插件和模型。
 3. 按安装器提示将插件添加到 Zotero，打开 PDF 开始阅读。
 
 日后在插件内检查更新，模型和文献索引继续保留。

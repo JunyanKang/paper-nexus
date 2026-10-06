@@ -40,7 +40,7 @@ As your collection grows, the network updates in the background, connecting fami
 For **Zotero 10.0.5–10.0.x**, with native macOS and Windows installers. Free and open source.
 
 1. Download the installer for your platform from the [release page](https://github.com/JunyanKang/paper-nexus/releases/latest).
-2. Choose one or more local models to download from GitHub. The plugin is already included.
+2. Choose one or more local models. The installer downloads the plugin and models from GitHub.
 3. Follow the installer to add the plugin to Zotero, then open a PDF.
 
 Later, check for updates in the plugin. Your models and literature index stay in place.

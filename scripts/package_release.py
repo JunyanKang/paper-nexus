@@ -31,10 +31,12 @@ for installer in installers:
  with zipfile.ZipFile(installer) as z:
   assert not z.testzip()
   if 'macOS' in installer.name:
-   assert z.read('Paper Nexus Installer.app/Contents/Resources/plugin.xpi')==xpi.read_bytes()
+   assert not any(n.endswith('.xpi') for n in z.namelist())
+   config=json.loads(z.read('Paper Nexus Installer.app/Contents/Resources/installer.json'));assert config['plugin']['sha256']==hashlib.sha256(xpi.read_bytes()).hexdigest()
   else:
    assert set(z.namelist())=={'Paper Nexus Setup.exe'}
-   assert xpi.read_bytes() in z.read('Paper Nexus Setup.exe'), 'Windows executable must embed the exact XPI'
+   assert xpi.read_bytes() not in z.read('Paper Nexus Setup.exe')
+   assert hashlib.sha256(xpi.read_bytes()).hexdigest().encode() in z.read('Paper Nexus Setup.exe'), 'Windows download catalog must match XPI'
 assets=[*installers,xpi,dist/'updates.json']
 model_version=max((m['version'] for m in catalog['models']),key=lambda value:tuple(map(int,value.split('.'))))
 def describe(paths):

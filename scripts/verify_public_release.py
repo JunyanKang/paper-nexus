@@ -64,12 +64,13 @@ for name in installer_names:
         assert archive.testzip() is None
         if 'macOS' in name:
             prefix='Paper Nexus Installer.app/Contents/Resources/'
-            assert archive.read(prefix+'plugin.xpi')==xpi
+            assert not any(n.endswith('.xpi') for n in archive.namelist())
             config=json.loads(archive.read(prefix+'installer.json'))
             assert config['version']==version and config['plugin']['sha256']==hashlib.sha256(xpi).hexdigest()
         else:
             assert set(archive.namelist())=={'Paper Nexus Setup.exe'}
-            assert xpi in archive.read('Paper Nexus Setup.exe')
+            assert xpi not in archive.read('Paper Nexus Setup.exe')
+            assert hashlib.sha256(xpi).hexdigest().encode() in archive.read('Paper Nexus Setup.exe')
 model_checks = {}
 if args.models:
     model_version = max((m['version'] for m in catalog['models']), key=lambda v: tuple(map(int,v.split('.'))))

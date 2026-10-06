@@ -4,9 +4,9 @@ Paper Nexus 1.0 separates the XPI, public data-only model packs, and the user's 
 
 ## Portable runtime
 
-The same XPI and `.pnmodel` archives are used on macOS and Windows. Inference runs in Zotero's privileged worker using ONNX Runtime Web 1.30.0, single-threaded WebAssembly. The plugin requires no native helper, Python interpreter, shell script or background server. The optional standalone Cocoa / Windows Forms installer downloads models and prepares the bundled XPI; it does not remain running after setup. The XPI ships the JavaScript loader; each model pack includes its matching WASM runtime, tokenizer, weights and licenses.
+The same XPI and `.pnmodel` archives are used on macOS and Windows. Inference runs in Zotero's privileged worker using ONNX Runtime Web 1.30.0, single-threaded WebAssembly. The plugin requires no native helper, Python interpreter, shell script or background server. The optional standalone Cocoa / Windows Forms installer downloads both models and the XPI; it does not remain running after setup. The XPI ships the JavaScript loader; each model pack includes its matching WASM runtime, tokenizer, weights and licenses.
 
-Models live under the Zotero data directory in `paper-nexus-models/<id>/<version>`. An atomic active pointer selects a verified version. Installation checks exact archive entries, sizes and SHA256 digests; installer downloads use SHA256-pinned GitHub release packages. The in-plugin downloader uses those same packages for bundled profiles; file-level pinned upstream URLs remain in the provenance catalog for reproducible pack builds. Download cancellation and rejected archives retain the existing active model. Plugin updates preserve this directory. The initial upgrade from an older bundled-model XPI requires installing a separate model pack once.
+By default, models live under the Zotero data directory in `paper-nexus-models/<id>/<version>`. An atomic active pointer selects a verified version. Installation checks exact archive entries, sizes and SHA256 digests; installer downloads use SHA256-pinned GitHub release packages. The in-plugin downloader uses those same packages for bundled profiles; file-level pinned upstream URLs remain in the provenance catalog for reproducible pack builds. Download cancellation and rejected archives retain the existing active model. Plugin updates preserve this directory. The initial upgrade from an older bundled-model XPI requires installing a separate model pack once.
 
 ## Included profiles
 
@@ -33,8 +33,8 @@ See [Validation](VALIDATION.md) for measured speed, retrieval quality, memory, p
 
 ## Standalone installers
 
-Both platform assistants embed the same XPI, model catalog and compact OFL-licensed
-UI font subset. Weights are not embedded. At least one model must be selected; a
+Both platform assistants embed only the pinned download catalog and compact OFL-licensed
+UI font subset. The XPI and weights are downloaded and SHA256-verified. At least one model must be selected; a
 user may select multiple. Each model has separate waiting, download, verification,
 installation and completed states. The installer verifies the archive before
 extraction and every file before committing the active pointer. A portable CLI is
@@ -46,3 +46,5 @@ and downloadable choices are separate. A sole biomedical installation is selecte
 automatically when the preferred model is unavailable. Neither installer writes
 Zotero's database or modifies plugin security preferences. The final XPI handoff
 uses Zotero's official Install Plugin From File interface.
+
+A folder picker can select another existing model root. After a verified install, the installer atomically writes `paper-nexus-model-location.json` in the Zotero data directory. The plugin reads this on startup and when opening settings, and offers its own folder picker. Changing roots cancels stale inference and refreshes installed model choices; it does not move existing files. An unavailable external drive is reported without silently falling back to a different directory.
