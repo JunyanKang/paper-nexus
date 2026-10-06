@@ -80,14 +80,14 @@ def rebuild(source):
         # Windows uses this flag to choose CJK glyphs, even when cmap has them.
         # A small UI subset lacks the probe characters used by fontTools pruning.
         font['OS/2'].ulCodePageRange1 |= 1 << 18
-        names = {1: 'Nexus Sans', 2: 'Bold' if weight == 600 else style,
+        names = {1: 'Nexus Sans '+style, 2: 'Regular',
                  3: 'Nexus Sans '+style, 4: 'Nexus Sans '+style, 6: 'NexusSans-'+style}
         for record in font['name'].names:
             if record.nameID in names:
                 record.string = names[record.nameID].encode(record.getEncoding())
-        if weight == 600:
-            font['OS/2'].fsSelection = (font['OS/2'].fsSelection & ~(1 << 6)) | (1 << 5)
-            font['head'].macStyle |= 1
+        # Separate face families avoid GDI+ mixing subset faces during CJK shaping.
+        font['OS/2'].fsSelection = (font['OS/2'].fsSelection & ~((1 << 0) | (1 << 5))) | (1 << 6)
+        font['head'].macStyle &= ~3
         font.save(ROOT / 'installers/assets' / ('NexusSans-'+style+'.ttf'))
 
 
