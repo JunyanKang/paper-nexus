@@ -3,9 +3,9 @@
     "cite-lens@local.research": {
       "updates": [
         {
-          "version": "1.0.2",
-          "update_link": "https://junyankang.github.io/paper-nexus/v1.0.2/paper-nexus-1.0.2.xpi",
-          "update_hash": "sha512:2447c6d4208fb06becba3ced440473e734eef36de98bb904c1f9736786a94fc0e59fb3c7b79dc4187753f6522150c774f54635c643a13366a9b2208029ceb625",
+          "version": "1.0.3",
+          "update_link": "https://junyankang.github.io/paper-nexus/v1.0.3/paper-nexus-1.0.3.xpi",
+          "update_hash": "sha512:e762f27cdc6995c1b39c577ad39632ae62c044f90c561209af72a2c992ebca2c27ed358388d9ed7e29c21e53fc77435a0ee7572aaa1d0e1efe379103b88ef772",
           "applications": {
             "zotero": {
               "strict_min_version": "10.0.5",
