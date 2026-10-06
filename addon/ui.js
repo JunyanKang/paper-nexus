@@ -552,8 +552,9 @@ var CiteLensUI = {
       let rows;
       if(view==='queue')rows=CiteLensServices.state.queue.filter(x=>x.status!=='saved');
       else{
-        const loading=this.el(doc,'div','正在读取…','cl-panel-loading');loading.setAttribute('role','status');body.append(loading);await new Promise(resolve=>win.setTimeout(resolve,40));if(disposed||ticket!==generation)return;
-        try{const refs=await this.waitFor(CiteLens.references(reader),win,30000,'文献仍在读取，请稍后重试'),context=this.context(reader);rows=[];for(let i=0;i<refs.length;i++){rows.push({record:this.resolved(refs[i]),context});if(i%12===0){await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}}}
+        const cached=CiteLens.readers.get(reader)?.referenceList;
+        if(!cached){const loading=this.el(doc,'div','正在读取…','cl-panel-loading');loading.setAttribute('role','status');body.append(loading);await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}
+        try{const refs=cached||await this.waitFor(CiteLens.references(reader),win,30000,'文献仍在读取，请稍后重试'),context=this.context(reader);rows=[];for(let i=0;i<refs.length;i++){rows.push({record:this.resolved(refs[i]),context});if(!cached&&i%12===0){await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}}}
         catch(e){if(ticket===generation&&root.isConnected){body.replaceChildren(this.el(doc,'p',e.message,'cl-empty'),this.quiet(doc,'重试',()=>render()));body.setAttribute('aria-busy','false');}return;}
       }
       if(ticket!==generation||!root.isConnected)return;
@@ -570,7 +571,7 @@ var CiteLensUI = {
       let count=0;const limit=60;
       const appendPage=async()=>{
         let batch=0;for(const entry of rows.slice(count,count+limit)){
-          if(disposed||ticket!==generation)return;if(batch++%3===0){await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}
+          if(disposed||ticket!==generation)return;if(batch++>0&&batch%3===0){await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}
           const record=entry.record,item=this.el(doc,'article',null,'cl-list-row');
           const title=this.button(doc,'',()=>{
             const expanded=item.querySelector('.cl-inline-detail');
