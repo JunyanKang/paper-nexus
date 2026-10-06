@@ -51,7 +51,12 @@ def check():
     required = {ord(c) for c in ui_text() if ord(c) >= 32 and not c.isspace()}
     for _, style in FACES:
         path = ROOT / 'installers/assets' / ('NexusSans-'+style+'.ttf')
-        missing = required-covered(path.read_bytes(), required)
+        data = path.read_bytes()
+        count = struct.unpack_from('>H', data, 4)[0]
+        os2 = next(struct.unpack_from('>I', data, p+8)[0] for p in range(12, 12+16*count, 16) if data[p:p+4] == b'OS/2')
+        if not struct.unpack_from('>I', data, os2+78)[0] & (1 << 18):
+            raise SystemExit(path.name+' missing Windows Simplified Chinese code-page support')
+        missing = required-covered(data, required)
         if missing:
             raise SystemExit(path.name+' missing UI glyphs: '+''.join(chr(c) for c in sorted(missing)))
     print('Installer fonts cover all current UI characters in both weights')
@@ -72,6 +77,9 @@ def rebuild(source):
         cutter = subset.Subsetter(options=options)
         cutter.populate(text=ui_text())
         cutter.subset(font)
+        # Windows uses this flag to choose CJK glyphs, even when cmap has them.
+        # A small UI subset lacks the probe characters used by fontTools pruning.
+        font['OS/2'].ulCodePageRange1 |= 1 << 18
         names = {1: 'Nexus Sans', 2: 'Bold' if weight == 600 else style,
                  3: 'Nexus Sans '+style, 4: 'Nexus Sans '+style, 6: 'NexusSans-'+style}
         for record in font['name'].names:
