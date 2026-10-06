@@ -62,6 +62,10 @@ enum ZoteroInstall {
   guard let plugin=config["plugin"] as? [String:Any],(try? sha(target))==plugin["sha256"] as? String,let a=try? fm.attributesOfItem(atPath:target.path),let b=try? fm.attributesOfItem(atPath:registry.path),let staged=a[.modificationDate] as? Date,let read=b[.modificationDate] as? Date,read>=staged,let bytes=try? Data(contentsOf:registry),bytes.count<32*1024*1024,let record=(try? JSONSerialization.jsonObject(with:bytes)) as? [String:Any],let addons=record["addons"] as? [[String:Any]] else{return false}
   return addons.contains{$0["id"] as? String==id && $0["version"] as? String==productVersion && $0["active"] as? Bool==true && $0["userDisabled"] as? Bool != true && $0["appDisabled"] as? Bool != true}
  }
+ static func refreshStartupCache(_ profile:ZoteroProfile) throws {
+  let fm=FileManager.default,cache=profile.directory.appendingPathComponent("addonStartup.json.lz4"),backup=profile.directory.appendingPathComponent(".paper-nexus-startup.previous")
+  if fm.fileExists(atPath:cache.path){if fm.fileExists(atPath:backup.path){try fm.removeItem(at:backup)};try fm.copyItem(at:cache,to:backup);try fm.removeItem(at:cache)}
+ }
  static func stage(_ file:URL,_ profile:ZoteroProfile) throws {
   let fm=FileManager.default,plugin=config["plugin"] as! [String:Any]
   guard isDirectory(profile.directory),fm.fileExists(atPath:profile.directory.appendingPathComponent("prefs.js").path),try sha(file)==plugin["sha256"] as! String else{throw failure("插件或 Zotero 配置校验失败 / Plugin or profile verification failed")}
@@ -69,11 +73,14 @@ enum ZoteroInstall {
   let folder=profile.directory.appendingPathComponent("extensions"),target=folder.appendingPathComponent(id+".xpi"),temp=folder.appendingPathComponent(".nexus-"+UUID().uuidString),backup=folder.appendingPathComponent(".nexus-previous")
   try fm.createDirectory(at:folder,withIntermediateDirectories:true)
   let fd=open(profile.directory.appendingPathComponent(".paper-nexus-installer.lock").path,O_CREAT|O_RDWR,0o600);guard fd>=0 else{throw failure("无法写入配置 / Cannot write to profile")};defer{flock(fd,LOCK_UN);close(fd)};guard flock(fd,LOCK_EX|LOCK_NB)==0 else{throw failure("另一个安装器正在运行 / Another installer is running")}
-  if (try? sha(target))==plugin["sha256"] as? String{return}
+  let profileFD=open(profile.directory.appendingPathComponent(".parentlock").path,O_CREAT|O_RDWR,0o600);guard profileFD>=0 else{throw failure("无法锁定 Zotero 配置 / Cannot lock Zotero profile")};defer{close(profileFD)}
+  var nativeLock=Darwin.flock(l_start:0,l_len:0,l_pid:0,l_type:Int16(F_WRLCK),l_whence:Int16(SEEK_SET));guard fcntl(profileFD,F_SETLK,&nativeLock)==0 else{throw failure("请退出 Zotero 后继续 / Quit Zotero to continue")}
+  if (try? sha(target))==plugin["sha256"] as? String{try refreshStartupCache(profile);return}
   defer{try? fm.removeItem(at:temp)};try fm.copyItem(at:file,to:temp);try fm.setAttributes([.modificationDate:Date()],ofItemAtPath:temp.path);guard try sha(temp)==plugin["sha256"] as! String,!running() else{throw failure("请退出 Zotero 后重试 / Quit Zotero and retry")}
   let hadPrevious=fm.fileExists(atPath:target.path);if hadPrevious{if fm.fileExists(atPath:backup.path){try fm.removeItem(at:backup)};try fm.copyItem(at:target,to:backup)}
-  do{if hadPrevious{_ = try fm.replaceItemAt(target,withItemAt:temp)}else{try fm.moveItem(at:temp,to:target)};guard try sha(target)==plugin["sha256"] as! String else{throw failure("安装校验失败 / Installation verification failed")}}
+  do{if hadPrevious{_ = try fm.replaceItemAt(target,withItemAt:temp,options:.usingNewMetadataOnly)}else{try fm.moveItem(at:temp,to:target)};guard try sha(target)==plugin["sha256"] as! String else{throw failure("安装校验失败 / Installation verification failed")}}
   catch{if hadPrevious,fm.fileExists(atPath:backup.path){try? fm.removeItem(at:target);try? fm.copyItem(at:backup,to:target)};throw error}
+  try refreshStartupCache(profile)
  }
 }
 

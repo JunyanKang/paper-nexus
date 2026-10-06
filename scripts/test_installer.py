@@ -64,7 +64,21 @@ with tempfile.TemporaryDirectory(prefix='nexus-profiles-') as scratch:
  else:
   plugin=ROOT/'dist'/config['plugin']['name'];target=relative/'extensions/cite-lens@local.research.xpi';target.parent.mkdir();target.write_bytes(b'previous plugin')
   other=target.parent/'other-addon.xpi';other.write_bytes(b'other plugin retained');prefs=(relative/'prefs.js').read_bytes()
-  stage_args=['--stage-profile',str(relative),'--plugin-file',str(plugin)];staged=probe(stage_args)
+  stage_args=['--stage-profile',str(relative),'--plugin-file',str(plugin)]
+  startup=relative/'addonStartup.json.lz4';startup.write_bytes(b'old version startup cache')
+  lock=relative/('.parentlock' if sys.platform=='darwin' else 'parent.lock')
+  with lock.open('a+b') as handle:
+   if sys.platform=='darwin':
+    import fcntl
+    fcntl.lockf(handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+   probe(stage_args,success=False)
+   assert target.read_bytes()==b'previous plugin' and startup.read_bytes()==b'old version startup cache'
+  checks.append('native profile lock blocks installation without changing plugin or startup cache')
+  staged=probe(stage_args)
+  assert not startup.exists() and (relative/'.paper-nexus-startup.previous').read_bytes()==b'old version startup cache'
+  stamp=target.stat().st_mtime_ns;startup.write_bytes(b'stale repeated cache');probe(stage_args)
+  assert not startup.exists() and target.stat().st_mtime_ns==stamp
+  checks.append('startup cache backed up and invalidated on update and same-XPI pending retry')
   assert target.read_bytes()==plugin.read_bytes() and (target.parent/'.nexus-previous').read_bytes()==b'previous plugin'
   assert not staged['profiles'][0]['installed'] and not (relative/'extensions.json').exists()
   assert other.read_bytes()==b'other plugin retained' and (relative/'prefs.js').read_bytes()==prefs and not list(absolute.glob('extensions/*'))
