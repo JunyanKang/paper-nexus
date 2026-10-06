@@ -29,3 +29,16 @@
 > Use case: logo-brand / identity-preserve. Asset: Paper Nexus Zotero plugin mascot, a sibling of the supplied Paper Voice mascot. Preserve the family: warm ivory paper, deep petrol-teal accessories, muted brushed-gold fittings, softly rounded physical forms, upper-left studio light, tactile 3D material, friendly black eyes and an understated smile. Paper Voice means listening; Paper Nexus means following citations between papers. Create a concrete, legible paper character, not an abstract N, molecular graph or AI sparkle. Use two offset paper sheets with a small folded corner, cream arms and short feet. Hold a petrol-teal magnifying glass at the right side, with a restrained brushed-gold inner rim and a clear interlocking-chain emblem inside its pale lens. Leave the whole smiling face and feet visible. Keep the paper thin, the silhouette concrete, and the lens emblem simple. Strong silhouette at 24, 32 and 48 pixels. Center the complete character with eight percent transparent margin. No headphones, large open book, scarf, extra tools, words, letters, background tile or ground shadow. Clean transparent alpha edges.
 
 评价顺序是功能可辨认、家族一致、小尺寸轮廓、明暗主题适应、配件是否遮挡主体。生成图不是功能界面截图；文档中的产品截图来自实际 Zotero 页面。
+
+
+## 产品首页与统一截图
+
+首页按“价值主张 → 多中心网络实景 → 引文识别 → 双语摘要 → 网络探索 → 保存与引用 → 个性化 → 安装”组织。Hero 使用内置 imagegen，沿用 Paper Voice 的银白空气感、海军蓝衬线标题与纸张角色；Paper Nexus 保留放大镜及链环。配图统一银白主题、Arial 13 px、零透明度，来自当前 Zotero 页面，品牌插画与界面截图各自承担不同任务。
+
+### Hero 生成提示词
+
+Use case: ads-marketing.
+Asset type: wide GitHub product homepage hero banner, aspect ratio 3:1, landscape, polished companion product to Paper Voice.
+Input image 1 is the Paper Voice banner: borrow the exact premium soft 3D paper material, luminous silver-white and pale blue atmosphere, navy editorial serif typography, calm depth and composition. Input image 2 is the chosen Paper Nexus mascot: preserve this character's identity, paper-sheet stack (not an open book), tab, face, teal and gold magnifying glass with linked-chain symbol.
+Create a NEW Paper Nexus banner. Left 58%: very legible, large navy editorial serif words exactly "Paper Nexus". Below, smaller words exactly "Read a paper. Discover the connections." Right 38%: the chosen Nexus mascot at near full height, curious and calm, magnifying glass raised. Behind and around the mascot: several softly floating paper slips arranged as three small, distinct connected research constellations with delicate teal lines and muted teal, lavender and warm gold nodes, conveying a MULTICENTER network of literature. Keep these subtle and behind the character; avoid a single central starburst and avoid dense spaghetti. The left lettering area must remain airy and uncluttered.
+Lighting: broad soft studio daylight, tactile creamy paper, elegant soft shadows. Background: silver-white with pale blue atmospheric depth consistent with the Paper Voice reference. Full-bleed banner, no external border, no extra labels, no fake UI, no buttons, no watermark, no other text. Excellent readability at 960 CSS pixels. This is branding art, not a software screenshot.

@@ -1,42 +1,92 @@
-<p align="center"><img src="addon/assets/nexus.png" width="120" alt="Paper Nexus" /></p>
-<h1 align="center">Paper Nexus</h1>
-<p align="center"><strong>Follow a citation. Find the next paper.</strong></p>
-<p align="center"><a href="https://github.com/JunyanKang/paper-nexus/releases/latest">Download</a> · <a href="README.md">中文</a> · <a href="docs/GUIDE.md">User guide</a></p>
+<p align="center"><img src="docs/images/hero.png" width="960" alt="Paper Nexus · Read a paper. Discover the connections."></p>
 
-Paper Nexus brings citation previews, abstract translation, Zotero collections and a local literature network into your reading workflow.
+<h1 align="center">Follow a citation. Discover a network.</h1>
 
-![Citation cards](docs/images/hover.png)
+<p align="center"><a href="README.md">简体中文</a> · <b>English</b></p>
+<p align="center">Understand a reference, compare its abstract, and save what matters—all inside Zotero.<br>Then follow authors, topics and citations to your next paper.</p>
+<p align="center"><b>Citation hover cards · Bilingual abstracts · Local multicentre networks</b></p>
+<p align="center"><a href="#download-and-install">Download</a> · <a href="docs/GUIDE.md">Illustrated guide</a> · <a href="https://github.com/JunyanKang/paper-nexus/issues">Feedback</a></p>
 
-## Keep reading, keep your place
+<p align="center"><img src="docs/images/topics.png" width="960" alt="Paper Nexus topic network showing multiple research communities"></p>
 
-Hover a citation to see its references in compact, consecutive cards: title, authors, journal, available IF/quartile, DOI link and collection locations. Hover a title to read its abstract alongside the card. Switch between original, translated and paired bilingual text, resize the window or dock it beside any edge of the reference panel.
+## Who does this sentence cite?
 
-![Bilingual abstract](docs/images/translation.png)
+Hover over a numbered, superscript or author–year citation. Its reference appears beside the text. Multiple references form a continuous stack, ready to compare without paging through cards.
 
-Bookmark papers for later, save them to an existing or new collection, and return to an in-text citation through the locator icon and its occurrence count. The copy icon creates a bibliography entry in your preferred format, including APA, AMA, MLA, NLM and major biomedical journal styles.
+**Title, authors, year, journal, and available IF and Q metrics** stay together. Open the DOI from the title, or jump to an existing Zotero item and see which collection contains it.
 
-## Explore the connections
+<p align="center"><img src="docs/images/hover.png" width="540" alt="Two references from one citation, displayed as connected silver-themed cards"></p>
 
-![Local literature network](docs/images/network.png)
+## Read the abstract before opening another paper
 
-Choose a library or collection and organize it by **author or topic**. Search locates a paper or author; select a node for details and focus its neighborhood. **Expand references** brings cited papers into the graph. Changes to your Zotero library refresh the network automatically.
+Hover over a title to open its abstract beside the card. Switch between **original, translated and bilingual** views. Sentence pairs and subtle background colours make it easy to check a term against the source.
 
-Pan with two fingers, pinch to zoom, or drag a node to adjust the layout. Zoom and focus reveal more detail as you explore.
+Move or resize the window, or dock it on any side of the card. Keep it nearby as you read; click elsewhere in the PDF to close it.
 
-## Install
+<p align="center"><img src="docs/images/translation.png" width="500" alt="Sentence-paired bilingual abstract using the same silver theme"></p>
 
-For Zotero **10.0.5–10.0.x**. No Python, Node.js or API key is required.
+Choose **Tencent, Microsoft, Google**, or your own **language-model API**. PubMed/PMC abstract lookup works without an API key. [Reading and translation →](docs/GUIDE.md#读摘要与译文)
 
-1. Download **paper-nexus-0.4.6.xpi** from [the latest release](https://github.com/JunyanKang/paper-nexus/releases/latest).
-2. In Zotero, open **Tools → Plugins → gear → Install Plugin From File** and select the XPI.
-3. Open a PDF and hover a citation, or click the Paper Nexus mascot to open the reference list.
+## Turn your library into a map you can explore
 
-Use **Settings → General → Check for updates** for future upgrades, or enable automatic updates.
+Find the authors working across your collection, the subjects it covers, and the papers that connect them.
 
-## Make it yours
+| What you want to explore | Where to start |
+|---|---|
+| Authors and their papers | Switch to **Authors** |
+| Research subjects across a collection | Switch to **Topics**, using local titles and abstracts |
+| A particular paper or author | Search and locate it in the graph |
+| A paper's immediate connections | Select its node, then focus its neighbourhood |
+| References beyond your library | Choose **Expand references** |
 
-Settings has two pages: **General and Appearance**. Choose your translation service, language and citation style; then customize the shared theme, font and interface language. Paper Nexus and [Paper Voice](https://github.com/JunyanKang/paper-voice) share a family of paper mascots and familiar controls.
+**No paper is assigned as the centre.** Multiple communities arrange themselves around their relationships. Each pair of nodes shares one line; its width reflects distinct relationship signals. Select a node to inspect those connections. The overview shows research topics or authors; select a topic to reveal its papers. Pan with two fingers, pinch to zoom, or drag a node to reposition it.
 
-[Installation](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Network](docs/NETWORK.md) · [FAQ](docs/FAQ.md) · [Privacy](docs/PRIVACY.md) · [Changes](CHANGELOG.md)
+<p align="center"><img src="docs/images/network.png" width="960" alt="Author cooperation network with shared papers and direct collaborators"></p>
 
-MIT · [Contribute](CONTRIBUTING.md) · [Report an issue](https://github.com/JunyanKang/paper-nexus/issues)
+**Topics and authors offer two distinct views.** Topic nodes organize research content from titles and abstracts; select one to reveal its papers. Author nodes bring together papers across years and connect through coauthored work. Expanded references follow the same rules, with existing local papers merged into the network.
+
+Adding, editing or deleting Zotero items updates the graph in the background. Unchanged work is reused, progress stays in the corner, and the existing network remains available. Open a local item or PDF from its details, or save an external reference. [Explore the network →](docs/NETWORK.md)
+
+### One XPI, with the local model included
+
+**The complete package is approximately 22.5 MB and includes the semantic model, tokenizer and runtime.** Install it to build a network from your own Zotero library. No separate model download, API key or training step is required.
+
+Titles alone can participate; available abstracts add context. On first opening a library or collection, Paper Nexus builds a local semantic index with visible progress. Subsequent updates reuse cached work. Each person's network comes from their own papers; the package contains no other user's bibliography or precomputed network.
+
+For more concise topic names, enable **Language model · API** under **General → Topic analysis**. Your selected model names the groups formed locally. Translation and topic naming can share a provider key while using separate models. Default local topic analysis works offline; abstract lookup and online translation use their respective services when requested.
+
+## Keep the useful connections
+
+**Read later** keeps a lead close at hand. **Save** chooses an existing or new collection; papers already in your library open directly.
+
+**Locate citations** takes you back to the argument. Hover over the location icon and count, then choose an occurrence from a compact list.
+
+<p align="center"><img src="docs/images/citation-locations.png" width="500" alt="Compact citation-location menu, with the current occurrence distinguished"></p>
+
+**Copy references** in your preferred style. Choose from **33 CSL style entries**, including APA, AMA, MLA, NLM, Vancouver, Nature, Science, Cell, PNAS, NEJM, JAMA, eLife, PLOS, Development and IOVS.
+
+## Comfortable from the first click
+
+Two settings pages keep things simple: **General** for data and translation, with updates at the bottom; **Appearance** for themes, fonts, sizes and interface language.
+
+Ten themes, custom backgrounds and adjustable transparency carry through cards, abstracts, menus and the network. Paper Nexus and [Paper Voice](https://github.com/JunyanKang/paper-voice) belong to the same family: one follows connections; the other reads papers aloud.
+
+<p align="center"><img src="docs/images/settings-general.png" width="324" alt="General settings with update controls at the bottom"> <img src="docs/images/settings.png" width="324" alt="Appearance settings"></p>
+
+## Download and install
+
+For **Zotero 10.0.5–10.0.x**. Free and open source; no separate Python or Node.js installation.
+
+The current version is **0.4.8**, with the local semantic model included. New users can download the complete XPI; existing users can upgrade from the plugin settings.
+
+**[Download the complete 0.4.8 XPI →](https://github.com/JunyanKang/paper-nexus/releases/tag/v0.4.8)**
+
+1. Obtain the complete **paper-nexus-VERSION.xpi**; public versions are listed under release assets. No source ZIP or separate model is needed.
+2. In Zotero, choose **Tools → Plugins → gear menu → Install Plugin From File**.
+3. Open a PDF and hover over a citation, or click the paper-and-magnifier toolbar icon.
+
+Existing users can check for updates at the bottom of **Settings → General**, or enable automatic updates. Preferences and reading lists stay with you.
+
+[Illustrated guide](docs/GUIDE.md) · [Installation](docs/INSTALL.md) · [FAQ](docs/FAQ.md) · [Privacy](docs/PRIVACY.md) · [What's new](CHANGELOG.md)
+
+Created by [Junyan Kang](https://github.com/JunyanKang) · [MIT License](LICENSE) · [Contributing](CONTRIBUTING.md)

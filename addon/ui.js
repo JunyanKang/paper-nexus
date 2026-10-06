@@ -207,6 +207,7 @@ var CiteLensUI = {
     return row;
   },
   fitAuthors(root,doc) {
+    for(const name of root.querySelectorAll('.cl-journal-name')){const text=name.firstElementChild;if(!text)continue;const distance=Math.max(0,text.scrollWidth-name.clientWidth);name.classList.toggle('cl-journal-overflow',distance>2);if(distance>2){const travel=-Math.ceil(distance)+'px',duration=(6+distance/18).toFixed(1)+'s';if(name.style.getPropertyValue('--cl-journal-travel')!==travel)name.style.setProperty('--cl-journal-travel',travel);if(name.style.getPropertyValue('--cl-journal-duration')!==duration)name.style.setProperty('--cl-journal-duration',duration);}}
     for(const row of root.querySelectorAll('.cl-authors')){
       if(!row.isConnected||!row.clientWidth)continue;
       const labels=[...row.querySelectorAll('.cl-author-name')],fits=()=>labels.every(x=>x.scrollWidth<=x.clientWidth+1);
@@ -288,7 +289,7 @@ var CiteLensUI = {
       this.bindAbstract(doc,root,title,()=>record);
       const authorData=record.authorData,authors=authorData?.authors?.length?authorData.authors:record.creators?.length?record.creators:record.author?[{lastName:record.author}]:[];
       if(authors.length)root.append(this.authorList(doc,authors,{incomplete:!authorData?.authors?.length&&!record.verified&&/et al\b|…|\.\.\./i.test(record.raw||'')}));
-      const journal=this.el(doc,'div',null,'cl-journal'),journalName=this.el(doc,'strong',C.plainTitle(record.journal||(['book','bookSection'].includes(record.type)?record.publisher:'')||''),'cl-journal-name');journalName.title=journalName.textContent;journal.append(journalName);root.append(journal);
+      const journal=this.el(doc,'div',null,'cl-journal'),journalName=this.el(doc,'strong',C.plainTitle(record.journal||(['book','bookSection'].includes(record.type)?record.publisher:'')||''),'cl-journal-name');journalName.setAttribute('aria-label',journalName.textContent);const journalText=this.el(doc,'span',journalName.textContent,'cl-journal-text');journalName.replaceChildren(journalText);journal.append(journalName);root.append(journal);
       journal.append(this.citationControl(doc,root,reader,record,{context,onJump:()=>{const floating=root.closest('.cl-floating');if(floating)floating.remove();for(const view of [reader?._internalReader?._primaryView,reader?._internalReader?._secondaryView])view?._onSetOverlayPopup?.(null);}}));
       const currentMetric=S.metricFor(record);if(currentMetric.status==='available')journal.append(this.metric(doc,record));
       const doi=C.doi(record.DOI||authorData?.DOI);
@@ -343,8 +344,8 @@ var CiteLensUI = {
           const item=items[0].item,publisher=item.getField('publisher'),publication=item.getField('publicationTitle');
           const identifier=item.getField('ISSN'),metricChanged=(!record.ISSN&&!!identifier)||(!record.journal&&!!publication);
           if(!record.ISSN&&identifier)record.ISSN=identifier;
-          if(!record.publisher&&publisher){record.publisher=publisher;if(['book','bookSection'].includes(record.type)){if(!record.journal)journal.firstElementChild.textContent=publisher;else{const publisherLine=this.el(doc,'div','出版 · '+publisher,'cl-publisher');journal.after(publisherLine);}}}
-          if(!record.journal&&publication){record.journal=publication;journal.firstElementChild.textContent=publication;}
+          if(!record.publisher&&publisher){record.publisher=publisher;if(['book','bookSection'].includes(record.type)){if(!record.journal)journalText.textContent=publisher;else{const publisherLine=this.el(doc,'div','出版 · '+publisher,'cl-publisher');journal.after(publisherLine);}}}
+          if(!record.journal&&publication){record.journal=publication;journalText.textContent=publication;}
           if(metricChanged){render();return;}
         }
         doc.defaultView.requestAnimationFrame(()=>this.fitPopup(root,doc));
@@ -528,6 +529,8 @@ var CiteLensUI = {
     const subtitle=this.el(doc,'div','阅读与关联','cl-subtitle'),tabs=this.el(doc,'div',null,'cl-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','文献范围');
     search.type='search';search.placeholder='搜索题名、作者、年份或 DOI';search.setAttribute('aria-label','搜索参考文献');
     head.append(row,tabs,search);root.append(head,body,footer);doc.body.append(root);
+    const indexing=this.el(doc,'div',null,'cl-index-progress'),indexLabel=this.el(doc,'span','引用位置'),indexBar=this.el(doc,'progress');indexBar.max=100;indexing.hidden=true;indexing.setAttribute('role','status');indexing.append(indexLabel,indexBar);head.append(indexing);
+    const locationProgress=e=>{const value=e?.detail?.value??CiteLens.readers.get(reader)?.locationProgress;indexing.hidden=value===undefined||value===null||value>=100;indexBar.value=Number(value)||0;indexLabel.textContent='引用位置 · '+Math.round(Number(value)||0)+'%';};doc.addEventListener('cl-location-progress',locationProgress);cleanups.push(()=>doc.removeEventListener('cl-location-progress',locationProgress));locationProgress();
     const outside=e=>{if(!root.isConnected||root.hidden||root.inert&&!root.dataset.dockMotion||root.contains(e.target)||e.target.closest?.('.cl-select-popover,.cl-tooltip,[data-cite-lens="toolbar"]'))return;close(false);};
     const documents=new Set([doc,Zotero.getMainWindow()?.document,reader?._internalReader?._primaryView?._iframeWindow?.document,reader?._internalReader?._secondaryView?._iframeWindow?.document]);try{if(doc.defaultView.frameElement?.ownerDocument)documents.add(doc.defaultView.frameElement.ownerDocument);}catch(_){}
     for(const surface of documents)if(surface){for(const type of ['pointerdown','mousedown']){surface.addEventListener(type,outside,true);cleanups.push(()=>surface.removeEventListener(type,outside,true));}}
@@ -536,21 +539,21 @@ var CiteLensUI = {
     let view='references',selected=options.record?{record:options.record,context:options.context}:null,generation=0,scroll=0;
     const queries={references:'',queue:''};
     const render=async()=>{
-      const ticket=++generation;body.replaceChildren();footer.replaceChildren();
+      const ticket=++generation;body.replaceChildren();footer.replaceChildren();body.setAttribute('aria-busy','true');
       const queueCount=CiteLensServices.state.queue.filter(x=>x.status!=='saved').length;
       for(const b of tabs.children){const active=b.dataset.view===view;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;if(active)body.setAttribute('aria-labelledby',b.id);if(b.dataset.view==='queue'){const count=b.querySelector('.cl-tab-count');count.textContent=String(queueCount);count.hidden=!queueCount;}}
       root.classList.toggle('cl-selected',!!selected);search.hidden=!!selected;tabs.hidden=!!selected;subtitle.textContent=selected?'文献详情':'本篇引用与本地阅读清单';
       if(selected){
         const backbar=this.el(doc,'div',null,'cl-backbar');backbar.append(this.quiet(doc,'返回列表',()=>{selected=null;render();}));body.append(backbar);
         body.append(this.card(doc,selected.record,reader,{detailed:true,context:selected.context,onRecord:record=>{selected.record=record;},onChange:()=>{}}));
-        body.scrollTop=0;return;
+        body.scrollTop=0;body.setAttribute('aria-busy','false');return;
       }
       let rows;
       if(view==='queue')rows=CiteLensServices.state.queue.filter(x=>x.status!=='saved');
       else{
-        body.append(this.el(doc,'p','正在读取本篇参考文献…','cl-empty'));
-        try{rows=(await CiteLens.references(reader)).map(record=>({record:this.resolved(record),context:this.context(reader)}));}
-        catch(e){if(ticket===generation&&root.isConnected){body.replaceChildren(this.el(doc,'p',e.message,'cl-empty'));}return;}
+        const loading=this.el(doc,'div','正在读取…','cl-panel-loading');loading.setAttribute('role','status');body.append(loading);await new Promise(resolve=>win.setTimeout(resolve,40));if(disposed||ticket!==generation)return;
+        try{const refs=await CiteLens.references(reader),context=this.context(reader);rows=[];for(let i=0;i<refs.length;i++){rows.push({record:this.resolved(refs[i]),context});if(i%12===0){await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}}}
+        catch(e){if(ticket===generation&&root.isConnected){body.replaceChildren(this.el(doc,'p',e.message,'cl-empty'));body.setAttribute('aria-busy','false');}return;}
       }
       if(ticket!==generation||!root.isConnected)return;
       body.replaceChildren();const q=CiteLensCore.norm(search.value),total=rows.length;
@@ -564,8 +567,9 @@ var CiteLensUI = {
         if(q)empty.append(this.button(doc,'清除搜索',()=>{search.value='';queries[view]='';render();}));body.append(empty);
       }
       let count=0;const limit=60;
-      const appendPage=()=>{
-        for(const entry of rows.slice(count,count+limit)){
+      const appendPage=async()=>{
+        let batch=0;for(const entry of rows.slice(count,count+limit)){
+          if(disposed||ticket!==generation)return;if(batch++%3===0){await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}
           const record=entry.record,item=this.el(doc,'article',null,'cl-list-row');
           const title=this.button(doc,'',()=>{
             const expanded=item.querySelector('.cl-inline-detail');
@@ -586,7 +590,7 @@ var CiteLensUI = {
           item.append(meta);body.append(item);
         }
         count+=limit;if(count<rows.length){const b=this.button(doc,`继续显示 ${Math.min(limit,rows.length-count)} 条`,()=>{b.remove();appendPage();});b.style.margin='14px 18px';body.append(b);}
-      };appendPage();body.scrollTop=scroll;
+      };await appendPage();if(ticket===generation&&root.isConnected){body.scrollTop=scroll;body.setAttribute('aria-busy','false');}
 
     };
     for(const [key,label] of [['references','本篇文献'],['queue','稍后阅读']]){
@@ -616,7 +620,7 @@ var CiteLensUI = {
     const update=this.quiet(doc,'检查更新',()=>CiteLensUpdater.phase==='available'?CiteLensUpdater.apply():CiteLensUpdater.check()),updateStatus=this.el(doc,'div','','cl-status');updateStatus.dataset.updateStatus='true';updateStatus.setAttribute('role','status');updateStatus.setAttribute('aria-live','polite');updateStatus.setAttribute('aria-atomic','true');
     const release=this.quiet(doc,'打开发布页',()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));release.hidden=true;
     footer.classList.add('cl-update-footer');
-    const updateRow=this.el(doc,'div',null,'cl-update-row'),links=this.el(doc,'div',null,'cl-update-links');footer.append(links);
+    const updateRow=this.el(doc,'div',null,'cl-update-row'),links=this.el(doc,'div',null,'cl-update-links');footer.append(updateRow,links);
     version.textContent+=' · Junyan Kang';links.append(version);
     for(const [label,path] of [['指南','/blob/main/docs/GUIDE.md'],['反馈','/issues'],['隐私','/blob/main/docs/PRIVACY.md']])links.append(this.quiet(doc,label,()=>Zotero.launchURL(CiteLens.homepage+path)));
     const persist=async()=>{await S.persist();CiteLensThemes.refresh();};
@@ -653,25 +657,34 @@ var CiteLensUI = {
     const main=this.el(doc,'div'),llm=this.el(doc,'div',null,'cl-llm-settings');llm.hidden=true;translation.append(main,llm);
     const translationSelect=(parent,label,key,choices,fallback)=>{const input=this.el(doc,'select');input.dataset.translationSetting=key;for(const [value,name] of choices){const option=this.el(doc,'option',name);option.value=value;input.append(option);}input.value=T.get(key,fallback);input.addEventListener('change',()=>{T.set(key,input.value);syncTranslation();CiteLensThemes.refresh();});return row(parent,label,key,input);};
     const provider=translationSelect(main,'翻译服务','translationProvider',[['tencenttransmart','腾讯'],['bing','微软'],['google','Google'],['llm','大模型 · API']],'tencenttransmart');
-    const configure=this.button(doc,'',()=>{main.hidden=true;llm.hidden=false;back.focus();});configure.classList.add('cl-llm-summary');main.append(configure);
+    const configure=this.button(doc,'',()=>{main.hidden=true;data.hidden=true;tabs.hidden=true;footer.hidden=true;llm.hidden=false;root.scrollTop=0;back.focus();});configure.classList.add('cl-llm-summary');main.append(configure);
+
     const target=translationSelect(main,'译文语言','translationTarget',T.languages,'zh-Hans');
     const size=this.el(doc,'select');size.setAttribute('aria-label','译文字号');size.dataset.translationSetting='translationSize';for(const n of [10,11,12,13,14,15,16,18,20]){const o=this.el(doc,'option',n+' px');o.value=n;size.append(o);}size.value=T.get('translationSize','13');size.addEventListener('change',()=>{T.set('translationSize',size.value);CiteLensThemes.refresh();});row(main,'译文字号','translationSize',size);
-    const subhead=this.el(doc,'div',null,'cl-llm-heading'),back=this.quiet(doc,'‹',()=>{llm.hidden=true;main.hidden=false;configure.focus();});back.setAttribute('aria-label','返回译文设置');
-    const help=this.quiet(doc,'↗',()=>Zotero.launchURL(CiteLens.homepage+'/blob/main/docs/GUIDE.md#译文'));help.setAttribute('aria-label','大模型翻译指南');subhead.append(back,this.el(doc,'strong','大模型翻译'),help);llm.append(subhead);
+    const engine=translationSelect(main,'主题分析','networkEngine',[['local','本地模型'],['llm','大模型 · API']],'local');engine.addEventListener('change',()=>{for(const listener of CiteLensNetwork.listeners)listener();});main.append(configure);
+    const subhead=this.el(doc,'div',null,'cl-llm-heading'),back=this.quiet(doc,'‹',()=>{llm.hidden=true;main.hidden=false;data.hidden=false;tabs.hidden=false;footer.hidden=false;root.scrollTop=0;configure.focus();});back.setAttribute('aria-label','返回常规设置');
+    const help=this.quiet(doc,'更新模型',async()=>{
+      if(llmBusy)return;llmBusy=true;help.disabled=true;const fields={endpoint,model,clusterModel},before=T.llmConfig(service.value),draft=Object.fromEntries(Object.entries(fields).map(([k,input])=>[k,input.value]));
+      const controls=[...llm.querySelectorAll('input,select,button')].filter(x=>x!==back);controls.forEach(x=>x.disabled=true);llmStatus.classList.remove('cl-error');llmStatus.textContent='正在更新模型…';
+      try{const result=await T.refreshModelSources();if(root.isConnected){const after=T.llmConfig(service.value);for(const [k,input] of Object.entries(fields))if(draft[k]===before[k])input.value=after[k];refreshModels();const ok=(result.results||[]).filter(r=>r.ok),failed=(result.results||[]).filter(r=>!r.ok);llmStatus.textContent=[result.catalogError?'目录：'+result.catalogError:result.changed?'目录已更新':'目录已是最新',ok.length?ok.length+' 家模型列表已刷新':'',...failed.map(r=>r.name+'：'+r.message)].filter(Boolean).join(' · ');llmStatus.classList.toggle('cl-error',!!result.catalogError||!!failed.length);syncTranslation();}}
+      catch(e){if(root.isConnected){llmStatus.textContent=e.message;llmStatus.classList.add('cl-error');}}finally{llmBusy=false;controls.forEach(x=>x.disabled=false);help.disabled=false;}
+    });help.dataset.updateModels='true';help.setAttribute('aria-label','更新所有服务商的模型与接口预设');subhead.append(back,this.el(doc,'strong','大模型配置'),help);llm.append(subhead);
     const service=this.el(doc,'select');service.dataset.translationSetting='llmProvider';for(const preset of T.llmPresets){const option=this.el(doc,'option',preset.name);option.value=preset.id;service.append(option);}service.value=T.get('llmProvider','minimax');row(llm,'服务商','llmProvider',service);
-    const model=row(llm,'模型','llmModel',this.el(doc,'input')),endpoint=row(llm,'地址','llmEndpoint',this.el(doc,'input')),secret=row(llm,'密钥','llmKey',this.el(doc,'input'));endpoint.dataset.llm='endpoint';model.dataset.llm='model';secret.dataset.llm='key';secret.type='password';secret.autocomplete='off';secret.spellcheck=false;
+    const model=row(llm,'翻译模型','llmModel',this.el(doc,'input')),clusterModel=row(llm,'聚类模型','llmClusterModel',this.el(doc,'input')),endpoint=row(llm,'地址','llmEndpoint',this.el(doc,'input')),secret=row(llm,'密钥','llmKey',this.el(doc,'input'));endpoint.dataset.llm='endpoint';model.dataset.llm='model';clusterModel.dataset.llm='clusterModel';secret.dataset.llm='key';secret.type='password';secret.autocomplete='off';secret.spellcheck=false;
+    const modelMenus=new Map();for(const [input,task] of [[model,'translation'],[clusterModel,'clustering']]){const holder=this.el(doc,'span',null,'cl-model-combo'),choices=this.el(doc,'select');input.setAttribute('aria-label',task==='translation'?'翻译模型':'聚类模型');input.before(holder);holder.append(input,choices);choices.dataset.editableFor=input.id;choices.setAttribute('aria-label',input.getAttribute('aria-label'));modelMenus.set(input,{choices,task});}
+    const refreshModels=()=>{for(const [input,{choices,task}] of modelMenus){choices.replaceChildren(...T.modelChoices(service.value,task,input.value).map(value=>{const o=this.el(doc,'option',T.modelChoiceLabel(service.value,value));o.value=value;return o;}));choices.value=input.value;}};
     const llmStatus=this.el(doc,'div','','cl-translation-status');llmStatus.setAttribute('role','status');llmStatus.setAttribute('aria-live','polite');
-    const loadLLM=()=>{const config=T.llmConfig(service.value);endpoint.value=config.endpoint;model.value=config.model;secret.value='';secret.placeholder=config.endpoint&&T.llmKey(config)?'已保存 · 留空保留':'填写服务商密钥';llmStatus.textContent='';};service.addEventListener('change',loadLLM);loadLLM();
+    const loadLLM=()=>{const config=T.llmConfig(service.value);endpoint.value=config.endpoint;model.value=config.model;clusterModel.value=config.clusterModel;secret.value='';secret.placeholder=config.endpoint&&T.llmKey(config)?'已保存 · 留空保留':'填写服务商密钥';llmStatus.textContent='';refreshModels();};service.addEventListener('change',loadLLM);loadLLM();
     const remove=this.iconButton(doc,'移除密钥','remove',()=>{const config=T.llmConfig(service.value);T.removeLLMKey(config);loadLLM();llmStatus.textContent='密钥已移除';});secret.closest('.cl-setting-row').append(remove);
-    let llmBusy=false;const saveLLM=async test=>{if(llmBusy)return;llmBusy=true;const controls=[...llm.querySelectorAll('input,select,button')].filter(x=>x!==back&&x!==help);controls.forEach(x=>x.disabled=true);llmStatus.classList.remove('cl-error');llmStatus.textContent=test?'连接中…':'保存中…';try{await T.saveLLM({...T.llmConfig(service.value),endpoint:endpoint.value,model:model.value},secret.value);secret.value='';loadLLM();provider.value='llm';T.set('translationProvider','llm');syncTranslation();if(test)await T.translateLLM('Gene expression regulates retinal development.','en',{target:target.value,noCache:true});if(root.isConnected)llmStatus.textContent=test?'连接成功':'已保存';}catch(e){if(root.isConnected){llmStatus.textContent=e.message;llmStatus.classList.add('cl-error');}}finally{llmBusy=false;controls.forEach(x=>x.disabled=false);}};
-    const apiActions=this.el(doc,'div',null,'cl-llm-actions');apiActions.append(this.button(doc,'保存',()=>saveLLM(false)),this.button(doc,'保存并测试',()=>saveLLM(true),true));llm.append(apiActions,llmStatus,this.el(doc,'div','密钥仅存本机 · 费用由服务商收取','cl-llm-note'));
-    const syncTranslation=()=>{configure.hidden=provider.value!=='llm';configure.replaceChildren(this.el(doc,'span','✧'),this.el(doc,'span','配置大模型 · '+T.llmConfig().name),this.el(doc,'span','›'));for(const option of target.options)option.disabled=provider.value==='tencenttransmart'&&option.value==='zh-Hant';if(target.selectedOptions[0]?.disabled){target.value='zh-Hans';T.set('translationTarget',target.value);}};syncTranslation();
+    let llmBusy=false;const saveLLM=async test=>{if(llmBusy)return;llmBusy=true;const controls=[...llm.querySelectorAll('input,select,button')].filter(x=>x!==back);controls.forEach(x=>x.disabled=true);llmStatus.classList.remove('cl-error');llmStatus.textContent=test?'连接中…':'保存中…';try{await T.saveLLM({...T.llmConfig(service.value),endpoint:endpoint.value,model:model.value,clusterModel:clusterModel.value},secret.value,{activateTranslation:false});secret.value='';loadLLM();syncTranslation();if(T.get('networkEngine','local')==='llm')for(const listener of CiteLensNetwork.listeners)listener();if(test){const results=await T.testLLM(T.llmConfig(service.value),{onProgress:task=>{if(root.isConnected)llmStatus.textContent=task==='translation'?'正在测试翻译…':'正在测试聚类…';}});if(root.isConnected){llmStatus.textContent=['translation','clustering'].map(task=>(task==='translation'?'翻译':'聚类')+'：'+(results[task].ok?'连接成功':results[task].message)).join(' · ');llmStatus.classList.toggle('cl-error',Object.values(results).some(r=>!r.ok));}}else if(root.isConnected)llmStatus.textContent='已保存';}catch(e){if(root.isConnected){llmStatus.textContent=e.message;llmStatus.classList.add('cl-error');}}finally{llmBusy=false;controls.forEach(x=>x.disabled=false);}};
+    const apiActions=this.el(doc,'div',null,'cl-llm-actions');apiActions.append(this.button(doc,'保存',()=>saveLLM(false)),this.button(doc,'保存并测试',()=>saveLLM(true),true));llm.append(apiActions,llmStatus);
+    const syncTranslation=()=>{configure.hidden=false;configure.replaceChildren(this.el(doc,'span','✧'),this.el(doc,'span','配置大模型 · '+T.llmConfig().name),this.el(doc,'span','›'));for(const option of target.options)option.disabled=provider.value==='tencenttransmart'&&option.value==='zh-Hant';if(target.selectedOptions[0]?.disabled){target.value='zh-Hans';T.set('translationTarget',target.value);}};syncTranslation();
     const apiRow=this.el(doc,'div',null,'cl-setting-row cl-ncbi-row'),apiLink=this.quiet(doc,'E-utilities',()=>Zotero.launchURL('https://www.ncbi.nlm.nih.gov/account/register/'));apiLink.title='注册 NCBI 账户并创建 API key';
     const apiInput=this.el(doc,'input',null,'cl-api-key');apiInput.type='password';apiInput.autocomplete='off';apiInput.spellcheck=false;apiInput.placeholder='API key（可选）';apiInput.setAttribute('aria-label','E-utilities API key（可选）');apiInput.value=CiteLensAbstracts.apiKey();
     const ncbiStatus=this.el(doc,'div','','cl-status');ncbiStatus.dataset.ncbiStatus='true';
     const testNCBI=this.quiet(doc,'测试',async button=>{const ticket=++testTicket;button.disabled=true;this.status(ncbiStatus,'连接中…');try{CiteLensAbstracts.apiKey(apiInput.value);await CiteLensAbstracts.testConnection();if(ticket===testTicket&&root.isConnected)this.status(ncbiStatus,'连接成功'+(apiInput.value.trim()?'':' · 无密钥'));}catch(e){if(ticket===testTicket&&root.isConnected)this.status(ncbiStatus,e.message,true);}finally{if(ticket===testTicket)button.disabled=false;}});testNCBI.dataset.ncbiTest='true';apiRow.append(apiLink,apiInput,testNCBI);data.prepend(apiRow,ncbiStatus);
     apiInput.addEventListener('input',()=>{testTicket++;testNCBI.disabled=false;ncbiStatus.textContent='';});apiInput.addEventListener('change',()=>{try{CiteLensAbstracts.apiKey(apiInput.value);}catch(e){this.status(ncbiStatus,e.message,true);}});
-    const citationSelect=row(data,'引文格式','citationStyle',this.el(doc,'select')),citationStatus=this.el(doc,'div','','cl-status');data.append(citationStatus,updateRow);citationSelect.disabled=true;
+    const citationSelect=row(data,'引文格式','citationStyle',this.el(doc,'select')),citationStatus=this.el(doc,'div','','cl-status');data.append(citationStatus);citationSelect.disabled=true;
     CiteLensCitationFormat.choices().then(choices=>{if(!root.isConnected)return;for(const [value,label] of choices){const o=this.el(doc,'option',label);o.value=value;citationSelect.append(o);}citationSelect.value=CiteLensCitationFormat.id(S.state.settings.citationStyle);citationSelect.disabled=false;}).catch(e=>this.status(citationStatus,e.message,true));
     citationSelect.addEventListener('change',async()=>{const previous=S.state.settings.citationStyle;citationSelect.disabled=true;this.status(citationStatus,'');try{await CiteLensCitationFormat.load(citationSelect.value);S.state.settings.citationStyle=citationSelect.value;await S.persist();}catch(e){citationSelect.value=CiteLensCitationFormat.id(previous);this.status(citationStatus,e.message,true);}finally{citationSelect.disabled=false;}});
     const automatic=this.el(doc,'input');automatic.type='checkbox';automatic.id='cl-setting-autoUpdate';const autoLabel=this.el(doc,'label',null,'cl-auto-update');autoLabel.htmlFor=automatic.id;autoLabel.append(automatic,this.el(doc,'span','自动更新'));updateRow.append(autoLabel,updateStatus,release,update);

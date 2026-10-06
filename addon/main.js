@@ -2,7 +2,7 @@ var CiteLens = {
   id:'cite-lens@local.research',name:'Paper Nexus',label:'Paper Nexus',homepage:'https://github.com/JunyanKang/paper-nexus',readers:new Map(),panels:new Map(),windows:new Map(),dead:false,
   async start() {
     if(this.rootURI){const resources=Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler);this.assetResource='paper-nexus-'+this.version.replace(/\./g,'-');resources.setSubstitutionWithFlags(this.assetResource,Services.io.newURI(this.rootURI),resources.ALLOW_CONTENT_ACCESS);this.assetURI='resource://'+this.assetResource+'/assets/';}
-    await Zotero.uiReadyPromise;await CiteLensServices.init();CiteLensTranslation.init();await CiteLensThemes.initialize();this.dead=false;await CiteLensUpdater.start(this);await CiteLensNetwork.start();
+    await Zotero.uiReadyPromise;await CiteLensServices.init();CiteLensTranslation.init();await CiteLensThemes.initialize();this.dead=false;await CiteLensUpdater.start(this);await CiteLensNetwork.start();CiteLensSemantic.start();
     this.toolbarHandler=e=>e.append(this.toolbar(e.doc,e.reader));
     this.selectionHandler=({doc,reader,params,append})=>{
       const raw=params.annotation?.text;if(!raw||raw.length<4)return;
@@ -51,7 +51,7 @@ var CiteLens = {
         if(!overlay||overlay.type!=='reference'){
           const chars=view._pdfPages?.[position?.pageIndex]?.chars,point=position?.rects?.[0];
           const numeric=overlay?.type!=='citation'&&CiteLensCitationLinks.atPoint(state.citationPages?.get(position?.pageIndex),point,state.referenceList||[]);
-          if(numeric?.records.length){const key=position.pageIndex+':sup:'+numeric.text;if(last===key)return;last=key;pdfdoc.defaultView.clearTimeout(timer);const ticket=++hoverEpoch,frame=view._iframeWindow.frameElement?.getBoundingClientRect(),xy={x:e.clientX+(frame?.left||0),y:e.clientY+(frame?.top||0)};timer=pdfdoc.defaultView.setTimeout(()=>{if(ticket===hoverEpoch&&!this.dead)this.floating(doc,reader,numeric.records,xy,this.citationContext(reader,position));},500);return;}
+          if(numeric?.records?.length){const key=position.pageIndex+':sup:'+numeric.text;if(last===key)return;last=key;pdfdoc.defaultView.clearTimeout(timer);const ticket=++hoverEpoch,frame=view._iframeWindow.frameElement?.getBoundingClientRect(),xy={x:e.clientX+(frame?.left||0),y:e.clientY+(frame?.top||0)};timer=pdfdoc.defaultView.setTimeout(()=>{if(ticket===hoverEpoch&&!this.dead)this.floating(doc,reader,numeric.records,xy,this.citationContext(reader,position));},500);return;}
           if(overlay?.type!=='citation'&&chars?.length&&point){
             const index=chars.findIndex(c=>c.rect&&point[0]>=c.rect[0]&&point[0]<=c.rect[2]&&point[1]>=c.rect[1]&&point[1]<=c.rect[3]);
             if(index>=0){const start=Math.max(0,index-100),end=Math.min(chars.length,index+100);let text='',offset=0;for(let j=start;j<end;j++){if(j===index)offset=text.length;text+=chars[j].c+((chars[j].spaceAfter||chars[j].lineBreakAfter)?' ':'');}
@@ -143,8 +143,17 @@ var CiteLens = {
   },
   async citationLocations(reader,record){
     const refs=await this.references(reader),state=this.readers.get(reader);if(!state?.citationPages)return [];
-    if(!state.locationIndex)state.locationIndex=CiteLensCitationLinks.occurrences(state.citationPages,refs);
-    const original=refs.find(r=>CiteLensCore.identity(r)===CiteLensCore.identity(record)||r.raw&&r.raw===record.raw);return original?state.locationIndex.get(CiteLensCore.identity(original))||[]:[];
+    if(!state.locationIndex){
+      if(!state.locationPromise){
+        const report=(value,error='')=>{state.locationProgress=value;const doc=reader._iframeWindow?.document;if(doc)doc.dispatchEvent(new doc.defaultView.CustomEvent('cl-location-progress',{detail:{value,error}}));};
+        report(0);
+        const job=(async()=>{const pages=[];for(const [id,page] of state.citationPages){if(this.dead||!this.readers.has(reader))throw Error('已关闭');const numeric=new Set((page.pointRuns||[]).flatMap(r=>r.offsets)),ranges=(page.mentions||[]).map(m=>[m.start,m.end]).sort((a,b)=>a[0]-b[0]),chars=[],offsets=new Map();let range=0;for(const c of page.chars||[]){const at=page.offsets.get(c.offset);while(range<ranges.length&&ranges[range][1]<=at)range++;if(numeric.has(c.offset)||range<ranges.length&&at>=ranges[range][0]&&at<ranges[range][1]){chars.push({offset:c.offset,ignorable:c.ignorable,rect:c.rect?Array.from(c.rect):null});offsets.set(c.offset,at);}}pages.push([id,{text:page.text,offsets,mentions:page.mentions,pointRuns:page.pointRuns,chars}]);await Zotero.Promise.delay(0);}
+          const lookup=new Map();for(const ref of refs){lookup.set(CiteLensCore.identity(ref),CiteLensCore.identity(ref));if(ref.raw)lookup.set(ref.raw,CiteLensCore.identity(ref));}state.locationLookup=lookup;const result=await CiteLensNetwork.compute('citations',{pages,refs},{progress:value=>report(value)});if(this.dead||!this.readers.has(reader))throw Error('已关闭');state.locationIndex=result;report(100);return result;})();
+        state.locationPromise=job;job.catch(()=>report(null,'引用位置暂不可用')).finally(()=>{if(state.locationPromise===job)state.locationPromise=null;});
+      }
+      await state.locationPromise;
+    }
+    const key=state.locationLookup?.get(CiteLensCore.identity(record))||state.locationLookup?.get(record.raw);return key?state.locationIndex.get(key)||[]:[];
   },
   async jumpToCitation(reader,location){
     const view=reader._internalReader?._primaryView,win=reader._iframeWindow;if(!view||!location?.position)throw Error('无法定位此引用');
@@ -181,5 +190,5 @@ var CiteLens = {
     }}catch(_){}
     if(s?.doc)CiteLensThemes.release(s.doc);this.readers.delete(reader);
   },
-  async stop() {this.dead=true;CiteLensThemes.stop();CiteLensTranslation.stop();CiteLensUpdater.stop();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);Zotero.Reader.unregisterEventListener('renderTextSelectionPopup',this.selectionHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();delete Zotero.CiteLens;}
+  async stop() {this.dead=true;CiteLensThemes.stop();CiteLensTranslation.stop();CiteLensUpdater.stop();await CiteLensNetwork.stop();await CiteLensSemantic.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);Zotero.Reader.unregisterEventListener('renderTextSelectionPopup',this.selectionHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();delete Zotero.CiteLens;}
 };

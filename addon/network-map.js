@@ -2,48 +2,104 @@
 var CiteLensNetworkMap=(()=>{
  const C=CiteLensCore,NC=CiteLensNetworkCore;
  const hash=s=>{let n=2166136261;for(const c of String(s))n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;};
- function build({nodes,edges,references,mode='authors',expanded=[],limit=600,externalLimit=300,query='',selected='',positions=[]}){
+ function build({nodes,edges,references,mode='authors',expanded=[],limit=600,externalLimit=300,query='',selected='',positions=[],openEntities=[]}){
   const byID=new Map(nodes.map(n=>[n.id,n])),matches=query?NC.search(nodes,query):[],priority=new Set([selected,...matches.map(n=>n.id)]),ordered=[...nodes.filter(n=>priority.has(n.id)),...nodes.filter(n=>!priority.has(n.id))],visible=ordered.slice(0,limit),papers=new Map(visible.map(n=>[n.id,{...n,kind:'paper',local:true}])),links=[],linkKeys=new Set(),refMap=new Map(references),visibleIDs=new Set(papers.keys()),knownDOI=new Map(),knownTitle=new Map();
   const addLink=(source,target,kind,evidence=[])=>{if(source===target)return;const key=source+'|'+target+'|'+kind;if(linkKeys.has(key))return;linkKeys.add(key);links.push({source,target,kind,evidence});};
   for(const n of nodes){const doi=C.recordDOI(n);if(doi){if(!knownDOI.has(doi))knownDOI.set(doi,[]);knownDOI.get(doi).push(n);}const key=C.norm(n.title)+'|'+n.year;if(!knownTitle.has(key))knownTitle.set(key,[]);knownTitle.get(key).push(n);}
   for(const e of edges)if(papers.has(e.source)&&papers.has(e.target))addLink(e.source,e.target,e.kind,e.evidence);
   let externalCount=0,omittedReferences=0;
   for(const source of expanded){if(!papers.has(source))continue;for(const [i,r] of (refMap.get(source)||[]).entries()){
-   if(r.status==='ambiguous'){omittedReferences++;continue;}let target=r.target&&byID.get(r.target);const ref=r.ref;
+   if(r.status==='ambiguous'){omittedReferences++;continue;}let target=r.target&&byID.get(r.target);const ref={...r.ref,title:C.researchTitle(r.ref)};
    if(!target){const doi=C.recordDOI(ref),candidates=doi?knownDOI.get(doi)||[]:knownTitle.get(C.norm(ref.title)+'|'+ref.year)||[];if(candidates.length===1)target=candidates[0];}
    const key=target?.id||'ref:'+(C.recordDOI(ref)||[C.norm(ref.title),ref.year,ref.author].join('|'));
    if(!target&&(!C.norm(ref.title)||C.norm(ref.title).length<12)){omittedReferences++;continue;}
-   if(!papers.has(key)){if(!target&&externalCount>=externalLimit){omittedReferences++;continue;}const n=target||{...ref,id:key,creators:ref.author?[{lastName:ref.author}]:[],attachments:[],collections:[]};papers.set(key,{...n,kind:'paper',local:!!target});if(!target)externalCount++;}
+   if(!papers.has(key)){if(!target&&externalCount>=externalLimit){omittedReferences++;continue;}const n=target||{...ref,id:key,creators:ref.creators||ref.authors||[],attachments:[],collections:[]};papers.set(key,{...n,kind:'paper',local:!!target});if(!target)externalCount++;}
    addLink(source,key,'cites',[r.evidence]);
   }}
-  const hubs=[],groups=[],allPapers=[...papers.values()];
-  if(mode==='authors'){
-   const authors=new Map();for(const n of allPapers)for(const a of n.creators||[]){const key=NC.authorKey(a);if(!key)continue;if(!authors.has(key))authors.set(key,{id:'author:'+key,kind:'author',title:[a.firstName,a.lastName].join(' '),members:[]});const hub=authors.get(key);if(!hub.members.includes(n.id))hub.members.push(n.id);}
-   const ranked=[...authors.values()].sort((a,b)=>b.members.length-a.members.length||a.title.localeCompare(b.title));
-   for(const hub of ranked.slice(0,160)){hubs.push(hub);groups.push({id:hub.id,title:hub.title,members:hub.members});for(const id of hub.members){addLink(hub.id,id,'author');if(!papers.get(id).group)papers.get(id).group=hub.id;}}
-  }else{
-   for(const g of NC.topics(allPapers)){const hub={id:'topic:'+g.id,kind:'topic',title:g.keywords.join(' · '),members:g.nodes.map(n=>n.id),abstracts:g.abstracts};hubs.push(hub);groups.push(hub);for(const n of g.nodes){papers.get(n.id).group=hub.id;addLink(hub.id,n.id,'topic');}}
-  }
-  // Incomplete external author names are grouped by their real citing source, never invented identities.
-  const ungrouped=new Map();for(const e of links)if(e.kind==='cites'){const n=papers.get(e.target);if(n&&!n.group&&!n.local){if(!ungrouped.has(e.source))ungrouped.set(e.source,[]);ungrouped.get(e.source).push(n.id);n.group='references:'+e.source;}}
-  for(const [source,members] of ungrouped){const n=papers.get(source),hub={id:'references:'+source,kind:'references',title:(n.creators?.[0]?.lastName||n.author||n.title.slice(0,22))+' · '+(n.year||'')+' 引文',members,source};hubs.push(hub);groups.push(hub);for(const id of members)addLink(hub.id,id,'reference-group');}
-  const output=[...allPapers,...hubs],ids=new Set(output.map(n=>n.id)),saved=new Map(positions.map(n=>[n.id,n]));
-  for(const n of output){const p=saved.get(n.id);n.color=hash(n.group||n.id)%6;if(p){n.x=p.x;n.y=p.y;n.pinned=p.pinned||false;}}
-  return {nodes:output,edges:links.filter(e=>ids.has(e.source)&&ids.has(e.target)),groups,matches:matches.filter(n=>papers.has(n.id)).map(n=>n.id),stats:{total:nodes.length,local:allPapers.filter(n=>n.local).length,external:externalCount,authors:hubs.filter(n=>n.kind==='author').length,topics:hubs.filter(n=>n.kind==='topic').length,abstracts:allPapers.filter(n=>n.abstract).length,omittedReferences,hidden:Math.max(0,nodes.length-visible.length),referencesExpanded:expanded.length}};
+  const groups=[],allPapers=[...papers.values()].sort((a,b)=>a.id.localeCompare(b.id));let authorsCount=0;
+  const saved=new Map(positions.map(n=>[n.id,n]));for(const n of allPapers){const p=saved.get(n.id);n.topicTitle=C.researchTitle(n);n.color=6;if(p){n.x=p.x;n.y=p.y;n.pinned=p.pinned||false;}}
+  const graph={mode,selected,positions,openEntities,nodes:allPapers,edges:links,groups,matches:matches.filter(n=>papers.has(n.id)).map(n=>n.id),stats:{total:nodes.length,local:allPapers.filter(n=>n.local).length,external:externalCount,authors:authorsCount,topics:0,abstracts:allPapers.filter(n=>n.abstract).length,omittedReferences,hidden:Math.max(0,nodes.length-visible.length),referencesExpanded:expanded.length}};return mode==='authors'?authors(graph):graph;
  }
+ // Names are identities or contiguous research phrases, never keyword clouds.
+ function labelIndex(all){const global=new Map(),terms=new Map();for(const n of all){const words=new Set(NC.terms(C.researchTitle(n)));terms.set(n.id,words);for(const t of words)global.set(t,(global.get(t)||0)+1);}return{global,terms};}
+ function label(members,all,stats){
+  // Extract supported noun phrases, never turn a title's result clause into a topic.
+  const phrases=new Map(),stop=new Set(('the a an and or of in on for to by with from as at is are was were this that these those its their our using use study studies analysis review role effect effects new novel evidence reveals reveal based during within between through into under after before via how whether can could may might has have had shows show showed demonstrates demonstrate suggests suggest inhibit inhibits inhibited enhance enhances enhanced suppress suppresses suppressed activate activates activated disrupt disrupts disrupted promote promotes regulate regulates restore restores restored increase increases increased decrease decreases decreased measured measure measuring induces induce induced mediates mediated controls control determine determines requires required identifies identified identification characterization characterisation contribution contributions compared comparison associated associates predicts predict underlying').split(' '));
+  const heads=new Set(('cell cells retina retinas fovea foveas foveae photoreceptor photoreceptors neuron neurons progenitor progenitors receptor receptors protein proteins gene genes genome genomes transcript transcripts rna dna chromatin epigenome epigenomes mutation mutations disease diseases disorder disorders syndrome syndromes cancer cancers tumor tumors tumour tumours tissue tissues organ organs organoid organoids embryo embryos synapse synapses junction junctions channel channels pigment pigments rhodopsin opsin opsins biofilm biofilms bacterium bacteria virus viruses microbiome microbiomes immunity inflammation metabolism apoptosis autophagy angiogenesis neurogenesis development maturation differentiation proliferation survival death repair regeneration signaling signalling expression regulation transcription translation splicing resistance response responses therapy therapies treatment treatments imaging microscopy tomography thickness sequencing structure structures function functions physiology anatomy detachment hole holes albinism hypoplasia degeneration dystrophy infection infections').split(' '));
+  for(const n of members){const title=C.researchTitle(n),words=title.match(/[\p{L}][\p{L}\p{M}0-9-]*/gu)||[],seen=new Set();for(let size=1;size<=6;size++)for(let i=0;i<=words.length-size;i++){
+   const part=words.slice(i,i+size),lower=part.map(x=>x.toLowerCase());if(lower.some(w=>stop.has(w))||part.join(' ').length>64)continue;
+   const head=heads.has(lower.at(-1));if(size===1&&!head)continue;
+   const key=lower.map(w=>w.length>4&&w.endsWith('s')&&!w.endsWith('ss')?w.slice(0,-1):w).join(' ');if(seen.has(key))continue;seen.add(key);
+   if(!phrases.has(key))phrases.set(key,{text:part.join(' '),key,count:0,size,head});phrases.get(key).count++;
+  }}
+  const options=[...phrases.values()],headed=options.some(p=>p.head)?options.filter(p=>p.head):options,supported=headed.some(p=>p.size>1)?headed.filter(p=>p.size>1):headed;
+  const complete=supported.filter(p=>!supported.some(q=>q.size===p.size+1&&q.key.startsWith(p.key+' ')&&q.count>=p.count*.6));
+  const score=p=>p.count*Math.sqrt(Math.min(4,p.size))/(1+Math.max(0,p.size-4)*.15);
+  const best=complete.sort((a,b)=>score(b)-score(a)||a.text.localeCompare(b.text))[0];
+  if(best)return best.text.charAt(0).toUpperCase()+best.text.slice(1);
+  const terms=members.flatMap(n=>NC.terms(C.researchTitle(n)));return terms[0]?terms[0].charAt(0).toUpperCase()+terms[0].slice(1):'待归类研究';
+ }
+
+ function authors(graph){
+  const authors=new Map(),pairs=new Map();let unattributed=0;
+  for(const paper of graph.nodes){const ids=[];for(const creator of paper.creators||[]){
+   const key=NC.authorKey(creator);if(!key)continue;const id='author:'+key;if(!authors.has(id))authors.set(id,{id,title:C.clean([creator.firstName,creator.lastName].filter(Boolean).join(' ')),kind:'author',members:[],local:false,color:6,identity:'name'});
+   const node=authors.get(id);if(!node.members.includes(paper.id))node.members.push(paper.id);node.local ||= paper.local;ids.push(id);
+  }const unique=[...new Set(ids)].sort();if(!unique.length)unattributed++;for(let i=0;i<unique.length;i++)for(let j=i+1;j<unique.length;j++){
+   const key=JSON.stringify([unique[i],unique[j]]);if(!pairs.has(key))pairs.set(key,{source:unique[i],target:unique[j],kind:'coauthor',evidence:[]});pairs.get(key).evidence.push({paperID:paper.id});
+  }}
+  graph.paperNodes=graph.nodes;graph.paperEdges=graph.edges;graph.nodes=[...authors.values()].sort((a,b)=>a.id.localeCompare(b.id));graph.edges=[...pairs.values()];graph.stats.authors=graph.nodes.length;graph.stats.unattributed=unattributed;graph.groups=[];
+  return expandMembers(graph);
+ }
+ function topics(graph,semantic,previous=null,progress=()=>{}){
+  const papers=graph.nodes,byID=new Map(papers.map(n=>[n.id,n])),result=CiteLensSemanticCore.graph(papers,semantic.vectors,NC.communities,semantic.assignments,{previous,signatures:semantic.signatures,progress}),assigned=new Map((semantic.assignments||[]).map(r=>[r.id,r.topic]));
+  graph.edges.push(...result.links.map(e=>({source:e.source,target:e.target,kind:'similarity',evidence:[{score:e.score}]})));
+  const covered=new Set(result.groups.flat()),groups=[...result.groups,...papers.filter(n=>!covered.has(n.id)).map(n=>[n.id])],used=new Set(),prior=previous?.groups||[],labels=labelIndex(papers);
+  graph.groups=groups.map(ids=>{const members=new Set(ids);const match=prior.filter(g=>!used.has(g.id)).map(g=>({g,overlap:g.members.filter(id=>members.has(id)).length})).filter(x=>x.overlap/Math.max(ids.length,x.g.members.length)>=.5).sort((a,b)=>b.overlap-a.overlap||a.g.id.localeCompare(b.g.id))[0]?.g;
+   const id=match?.id||'topic:'+hash(ids.join('\0')).toString(36);used.add(id);const names=new Map();for(const pid of ids){const name=assigned.get(pid);if(name)names.set(name,(names.get(name)||0)+1);}const title=[...names].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0]?.[0]||label(ids.map(id=>byID.get(id)),papers,labels);
+   return {id,title,members:ids,kind:'topic',local:ids.some(id=>byID.get(id).local),color:hash(id)%6};
+  });
+  const owner=new Map(graph.groups.flatMap(g=>g.members.map(id=>[id,g.id]))),links=new Map();for(const edge of graph.edges){const a=owner.get(edge.source),b=owner.get(edge.target);if(!a||!b||a===b)continue;const pair=[a,b].sort(),key=JSON.stringify(pair);if(!links.has(key))links.set(key,{source:pair[0],target:pair[1],kind:'topic-relation',evidence:[]});const list=links.get(key).evidence;if(!list.some(e=>e.sourcePaper===edge.source&&e.targetPaper===edge.target&&e.kind===edge.kind))list.push({sourcePaper:edge.source,targetPaper:edge.target,kind:edge.kind,...(edge.evidence?.[0]||{})});}
+  graph.paperNodes=papers;graph.paperEdges=graph.edges;graph.nodes=graph.groups.map(g=>({...g}));graph.edges=[...links.values()];
+  graph.semanticState={...result.state,groups:graph.groups.map(g=>({id:g.id,members:g.members}))};graph.incremental=result.incremental;graph.semantic={classified:semantic.classified,combined:semantic.combined,engine:semantic.engine,personalized:semantic.personalized,encoded:semantic.encoded,cached:semantic.cached};graph.stats.topics=graph.groups.length;
+  return expandMembers(graph);
+ }
+ function expandMembers(graph){
+  const papers=new Map(graph.paperNodes.map(n=>[n.id,n])),opened=new Set(graph.openEntities||[]),shown=new Set();
+  for(const node of graph.nodes){if(!opened.has(node.id))continue;for(const id of [...new Set([...(node.members.includes(graph.selected)?[graph.selected]:[]),...node.members])].slice(0,120)){if(!shown.has(id)){const paper=papers.get(id);if(!paper)continue;graph.nodes.push({...paper,group:node.id});shown.add(id);}graph.edges.push({source:node.id,target:id,kind:'membership',evidence:[{paperID:id}]});}}
+  const saved=new Map((graph.positions||[]).map(p=>[p.id,p]));for(const node of graph.nodes){const p=saved.get(node.id);if(p){node.x=p.x;node.y=p.y;node.pinned=!!p.pinned;node.layoutFixed=Number.isFinite(p.x)&&Number.isFinite(p.y);}}
+  graph.matches=[...new Set(graph.matches.flatMap(id=>graph.nodes.some(n=>n.id===id)?[id]:graph.nodes.filter(n=>n.members?.includes(id)).map(n=>n.id)))];return graph;
+ }
+
  function layout(graph,progress=()=>{}){
-  const nodes=graph.nodes,count=nodes.length,byID=new Map(nodes.map(n=>[n.id,n])),groups=graph.groups,anchors=new Map(),radius=Math.max(180,Math.sqrt(count)*55);
-  groups.forEach((g,i)=>{const angle=i*2.399963229728653,r=radius*Math.sqrt((i+.5)/Math.max(1,groups.length));anchors.set(g.id,{x:Math.cos(angle)*r,y:Math.sin(angle)*r});});
-  for(const n of nodes){const a=anchors.get(n.kind==='paper'?n.group:n.id)||{x:0,y:0},angle=hash(n.id)%6283/1000;n.ax=a.x;n.ay=a.y;if(!Number.isFinite(n.x)){n.x=a.x+Math.cos(angle)*(35+hash(n.id)%110);n.y=a.y+Math.sin(angle)*(35+hash(n.id+'y')%110);}n.vx=n.vy=0;}
-  const edges=graph.edges.map(e=>({a:byID.get(e.source),b:byID.get(e.target),kind:e.kind}));
-  for(let step=0;step<120;step++){
-   const cells=new Map();for(const n of nodes){const k=Math.floor(n.x/64)+','+Math.floor(n.y/64);if(!cells.has(k))cells.set(k,[]);cells.get(k).push(n);n.vx+=(n.ax-n.x)*.028;n.vy+=(n.ay-n.y)*.028;}
-   for(const n of nodes){const gx=Math.floor(n.x/64),gy=Math.floor(n.y/64);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const m of cells.get((gx+dx)+','+(gy+dy))||[]){if(n===m)continue;const x=n.x-m.x,y=n.y-m.y,d2=Math.max(16,x*x+y*y),f=Math.min(2.8,240/d2);n.vx+=x/Math.sqrt(d2)*f;n.vy+=y/Math.sqrt(d2)*f;}}
-   for(const {a,b,kind} of edges){const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,ideal=kind==='cites'?110:75,k=(d-ideal)*(kind==='cites'?.0003:.015);a.vx+=dx/d*k;a.vy+=dy/d*k;b.vx-=dx/d*k;b.vy-=dy/d*k;}
-   for(const n of nodes){if(n.pinned)continue;n.vx*=.7;n.vy*=.7;n.x+=Math.max(-8,Math.min(8,n.vx));n.y+=Math.max(-8,Math.min(8,n.vy));}if(step%20===0)progress(35+Math.round(step/120*60));
+  const nodes=graph.nodes,byID=new Map(nodes.map(n=>[n.id,n])),labels=labelIndex(nodes);if(!nodes.length){graph.communities=[];graph.stats.communities=0;return graph;}
+  const weight=e=>e.kind==='similarity'?2*(e.evidence?.[0]?.score||.3):e.kind==='cites'?(graph.mode==='topics'?.015:.15):e.kind==='related'?1.5:['author','coauthor','topic-relation'].includes(e.kind)?Math.min(5,1+Math.log2(1+(e.evidence?.length||1))):1;
+  const links=graph.edges.map(e=>({...e,weight:weight(e)}));
+  const groups=NC.communities(nodes.map(n=>n.id),links.filter(e=>graph.mode!=='topics'||!['cites','reference-group'].includes(e.kind)),1.05).map(ids=>{const members=ids.map(id=>byID.get(id)),papers=members,id='community:'+ids[0];return{id,members:ids,papers:papers.length,r:35+Math.sqrt(ids.length)*18,pinned:members.some(n=>n.pinned||n.layoutFixed),vx:0,vy:0};});
+  const owner=new Map();groups.forEach((g,i)=>{for(const id of g.members){owner.set(id,g);const n=byID.get(id);n.community=g.id;n.color=g.papers<2?6:hash(g.id)%6;}});
+  const cols=Math.ceil(Math.sqrt(groups.length*1.4)),spacing=Math.max(110,Math.sqrt(nodes.length/groups.length)*55),old=new Map();
+  groups.forEach((g,i)=>{const saved=g.members.map(id=>byID.get(id)).filter(n=>Number.isFinite(n.x)&&Number.isFinite(n.y));if(saved.length){g.x=saved.reduce((s,n)=>s+n.x,0)/saved.length;g.y=saved.reduce((s,n)=>s+n.y,0)/saved.length;}else{g.x=((i%cols)-(cols-1)/2)*spacing+(hash(g.id)%47);g.y=(Math.floor(i/cols)-Math.floor((groups.length-1)/cols)/2)*spacing+(hash(g.id+'y')%47);}old.set(g.id,{x:g.x,y:g.y});});
+  const bridges=new Map();for(const e of links){const a=owner.get(e.source),b=owner.get(e.target);if(a===b)continue;const key=[a.id,b.id].sort().join('|');if(!bridges.has(key))bridges.set(key,{a,b,weight:0});bridges.get(key).weight+=e.weight*(graph.mode==='topics'&&e.kind==='cites'?.02:1);}
+  // Self-organising community centres: pair separation and real bridge forces.
+  // There is no nominated root and no fixed ring or common attraction point.
+  const cellSize=2*Math.max(...groups.map(g=>g.r))+80;
+  for(let step=0;step<(nodes.some(n=>n.layoutFixed)?0:160);step++){
+   const grid=new Map();for(const g of groups){const key=Math.floor(g.x/cellSize)+','+Math.floor(g.y/cellSize);if(!grid.has(key))grid.set(key,[]);grid.get(key).push(g);}
+   for(const a of groups){const gx=Math.floor(a.x/cellSize),gy=Math.floor(a.y/cellSize);for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++)for(const b of grid.get((gx+ox)+','+(gy+oy))||[]){if(a.id>=b.id)continue;let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d<.01){dx=1;dy=.5;d=Math.hypot(dx,dy);}const ideal=a.r+b.r+65;if(d<ideal){const f=(ideal-d)*.1;a.vx-=dx/d*f;a.vy-=dy/d*f;b.vx+=dx/d*f;b.vy+=dy/d*f;}}}
+   for(const {a,b,weight:w} of bridges.values()){const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,ideal=a.r+b.r+90,k=(d-ideal)*Math.min(.045,.008*w);a.vx+=dx/d*k;a.vy+=dy/d*k;b.vx-=dx/d*k;b.vy-=dy/d*k;}
+   for(const g of groups){g.vx*=.65;g.vy*=.65;if(!g.pinned){g.x+=Math.max(-12,Math.min(12,g.vx));g.y+=Math.max(-12,Math.min(12,g.vy));}}if(step%40===0)progress(38+Math.round(step/160*22));
   }
-  for(const n of nodes){delete n.vx;delete n.vy;delete n.ax;delete n.ay;}return graph;
+  for(const n of nodes){const g=owner.get(n.id),prior=old.get(g.id),angle=hash(n.id)%6283/1000,r=Math.sqrt((hash(n.id+'r')%1000)/1000)*g.r*.75;if(!Number.isFinite(n.x)||!Number.isFinite(n.y)){n.x=g.x+Math.cos(angle)*r;n.y=g.y+Math.sin(angle)*r;}else if(!n.pinned&&!n.layoutFixed){n.x+=g.x-prior.x;n.y+=g.y-prior.y;}n.vx=n.vy=0;}
+  for(const n of nodes)if(!n.layoutFixed&&!n.pinned){const near=links.filter(e=>e.source===n.id||e.target===n.id).map(e=>byID.get(e.source===n.id?e.target:e.source)).filter(n=>n?.layoutFixed);if(near.length){const angle=hash(n.id)%6283/1000;n.x=near.reduce((s,n)=>s+n.x,0)/near.length+Math.cos(angle)*70;n.y=near.reduce((s,n)=>s+n.y,0)/near.length+Math.sin(angle)*70;}}
+  const physical=links.map(e=>({a:byID.get(e.source),b:byID.get(e.target),weight:e.weight,local:owner.get(e.source)===owner.get(e.target)}));
+  for(let step=0;step<(nodes.some(n=>n.layoutFixed)?60:150);step++){
+   const cells=new Map();for(const n of nodes){const g=owner.get(n.id),key=Math.floor(n.x/48)+','+Math.floor(n.y/48);if(!cells.has(key))cells.set(key,[]);cells.get(key).push(n);n.vx+=(g.x-n.x)*.009;n.vy+=(g.y-n.y)*.009;}
+   for(const n of nodes){const gx=Math.floor(n.x/48),gy=Math.floor(n.y/48);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const m of cells.get((gx+dx)+','+(gy+dy))||[]){if(n.id>=m.id)continue;let x=n.x-m.x,y=n.y-m.y,d=Math.hypot(x,y);if(d<.01){const angle=hash(n.id+m.id)%6283/1000;x=Math.cos(angle);y=Math.sin(angle);d=1;}const distance=n.kind==='paper'&&m.kind==='paper'?24:38,f=Math.min(3.5,260/(d*d))+Math.max(0,distance-d)*.12;n.vx+=x/d*f;n.vy+=y/d*f;m.vx-=x/d*f;m.vy-=y/d*f;}}
+   for(const {a,b,weight:w,local} of physical){const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,ideal=local?55:160,k=(d-ideal)*(local?.014*Math.min(2,w):.0005);a.vx+=dx/d*k;a.vy+=dy/d*k;b.vx-=dx/d*k;b.vy-=dy/d*k;}
+   for(const n of nodes){if(n.pinned||n.layoutFixed)continue;n.vx*=.68;n.vy*=.68;n.x+=Math.max(-7,Math.min(7,n.vx));n.y+=Math.max(-7,Math.min(7,n.vy));}if(step%30===0)progress(62+Math.round(step/150*34));
+  }
+  for(const n of nodes){delete n.vx;delete n.vy;delete n.layoutFixed;}graph.communities=groups.map(g=>{const members=g.members.map(id=>byID.get(id));return{id:g.id,members:g.members,papers:g.papers,x:members.reduce((s,n)=>s+n.x,0)/members.length,y:members.reduce((s,n)=>s+n.y,0)/members.length};});graph.stats.communities=groups.filter(g=>g.papers>1).length;const degree=new Map(nodes.map(n=>[n.id,new Set()]));for(const e of graph.edges){degree.get(e.source)?.add(e.target);degree.get(e.target)?.add(e.source);}for(const n of nodes)n.degree=degree.get(n.id).size;for(const g of graph.communities){const members=g.members.map(id=>byID.get(id));g.title=graph.groups.find(t=>t.members.filter(id=>g.members.includes(id)).length>=Math.max(2,g.members.length/2))?.title||label(members,nodes,labels);g.color=members[0]?.color||0;}return graph;
  }
- return {build,layout,hash};
+ return {build,layout,topics,authors,hash};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkMap;

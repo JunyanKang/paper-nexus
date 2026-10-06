@@ -33,7 +33,7 @@ var CiteLensCore = (() => {
     return clean(ref.chars?.length ? ref.chars.filter(c=>!c.ignorable).map(c=>c.c+((c.spaceAfter||c.lineBreakAfter)?' ':'')).join('') : ref.text);
   }
   function parse(raw,position=null) {
-    raw=clean(raw);const yearMatch=raw.match(/\b(1[6-9]\d{2}|20\d{2})([a-z])?\b/);
+    raw=clean(raw);const yearMatch=raw.match(/\b(1[6-9]\d{2}|20\d{2})(?:F(?=[a-z][.)]))?([a-z])?(?:[–-](?:(?:19|20)\d{2}|\d{2}))?\b/);
     const year=yearMatch?.[1]||'', suffix=yearMatch?.[2]||'';
     const before=yearMatch?raw.slice(0,yearMatch.index).replace(/^\[?\d+\]?[.)]?\s*/, '').trim():'';
     let author=before.split(',')[0].replace(/\(\s*$/,'').trim();
@@ -61,6 +61,14 @@ var CiteLensCore = (() => {
     return {raw,title:clean(title),year,suffix,author,creators,journal,publisher,volume:locator?.[1]||'',issue:locator?.[2]||'',pages:locator?.[3]||'',number:Number(raw.match(/^\[?(\d{1,4})\]?[.)]?\s/)?.[1])||undefined,DOI:doi(raw),type:chapter?'bookSection':book?'book':'journalArticle',position,source:'PDF 原始参考文献',verified:false};
   }
   function fromReference(ref) { return parse(charsText(ref),ref.position?JSON.parse(JSON.stringify(ref.position)):null); }
+  function researchTitle(record) {
+    const title=plainTitle(record.title),authorList=/^(?:\[?\d+\]?[.)]?\s*)?[\p{L}][\p{L}'’–\- ]*,\s*\p{Lu}\./u;
+    if(!authorList.test(title))return title;
+    // Repair only recognisable bibliography strings, including old cached PDF records.
+    // Never delete eponymous scientific terms such as Müller cells or Parkinson disease.
+    const parsed=parse(record.raw||title),candidate=plainTitle(parsed.title);
+    return parsed.year&&candidate.length>=12&&!authorList.test(candidate)?candidate:'';
+  }
   const identity = r => recordDOI(r)?'doi:'+recordDOI(r):r.raw||r.title?'text:'+norm(r.raw||r.title)+'|'+(r.year||''):'number:'+r.number;
   const similarity = (a,b) => { const x=new Set(norm(a).split(' ').filter(Boolean)),y=new Set(norm(b).split(' ').filter(Boolean));return x.size&&y.size?2*[...x].filter(t=>y.has(t)).length/(x.size+y.size):0; };
   function fromCrossref(m) {
@@ -173,6 +181,6 @@ var CiteLensCore = (() => {
   function ris(records) {
     const one=r=>{const lines=['TY  - '+({book:'BOOK',bookSection:'CHAP',conferencePaper:'CONF',preprint:'UNPB'}[r.type]||'JOUR'),'TI  - '+plainTitle(r.title)];for(const a of r.creators||[])lines.push('AU  - '+clean(a.lastName)+', '+clean(a.firstName));for(const [k,v] of Object.entries({PY:r.year,JO:r.journal,DO:recordDOI(r),VL:r.volume,IS:r.issue,SP:r.pages,UR:r.url||recordDOI(r)&&'https://doi.org/'+recordDOI(r),N1:r.raw}))if(v)lines.push(k+'  - '+clean(v));return lines.join('\n')+'\nER  - \n';};return records.map(one).join('\n');
   }
-  return {clean,titleParts,plainTitle,norm,doi,recordDOI,charsText,parse,fromReference,identity,similarity,fromCrossref,compatibility,rank,decide,issn,parseCSV,metricsImport,metricFor,citationMentions,resolveMention,findCitations,citationAt,citation,ris};
+  return {clean,titleParts,plainTitle,researchTitle,norm,doi,recordDOI,charsText,parse,fromReference,identity,similarity,fromCrossref,compatibility,rank,decide,issn,parseCSV,metricsImport,metricFor,citationMentions,resolveMention,findCitations,citationAt,citation,ris};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensCore;

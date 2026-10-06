@@ -1,83 +1,153 @@
 {
   "schema": 1,
-  "version": "2026-10-05.1",
+  "version": "2026-10-06.1",
   "providers": [
     {
       "id": "minimax",
       "endpoint": "https://api.minimax.cn/v1",
       "model": "MiniMax-M2.7-highspeed",
       "clusterModel": "MiniMax-M3",
-      "source": "https://platform.minimax.cn/docs/guides/text-generation"
+      "source": "https://platform.minimax.cn/docs/guides/text-generation",
+      "models": [
+        "MiniMax-M2.7-highspeed",
+        "MiniMax-M3",
+        "MiniMax-M2.7",
+        "MiniMax-M2.5-highspeed"
+      ],
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "deepseek",
       "endpoint": "https://api.deepseek.com",
       "model": "deepseek-flash",
-      "clusterModel": "deepseek-flash",
-      "source": "https://api-docs.deepseek.com/news/news260910/"
+      "clusterModel": "deepseek-v4-pro",
+      "source": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "models": [
+        "deepseek-flash",
+        "deepseek-v4-pro"
+      ],
+      "versions": {
+        "deepseek-flash": "V4.1 Flash",
+        "deepseek-v4-pro": "V4 Pro-0813"
+      },
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "qwen",
       "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-      "model": "qwen-flash",
-      "clusterModel": "qwen-plus",
-      "source": "https://help.aliyun.com/zh/model-studio/text-generation-model"
+      "model": "qwen3.8-flash",
+      "clusterModel": "qwen3.7-plus",
+      "source": "https://help.aliyun.com/zh/model-studio/text-generation-model/",
+      "models": [
+        "qwen3.8-flash",
+        "qwen3.7-plus",
+        "qwen3.7-plus-2026-05-26",
+        "qwen3.7-flash-2026-07-15"
+      ],
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "doubao",
       "endpoint": "https://ark.cn-beijing.volces.com/api/v3",
       "model": "doubao-seed-2-1-lite-260915",
       "clusterModel": "doubao-seed-2-1-pro-260915",
-      "source": "https://docs.volcengine.com/docs/82379/1553576"
+      "source": "https://docs.volcengine.com/docs/ark/model-parameter-support?lang=zh",
+      "models": [
+        "doubao-seed-2-1-lite-260915",
+        "doubao-seed-2-1-pro-260915"
+      ],
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "glm",
       "endpoint": "https://open.bigmodel.cn/api/paas/v4",
       "model": "glm-4.7-flash",
-      "clusterModel": "glm-4.7",
-      "source": "https://www.zhipuai.cn/zh/news/148"
+      "clusterModel": "glm-5.3",
+      "source": "https://docs.bigmodel.cn/cn/guide/models/text/glm-5.3",
+      "models": [
+        "glm-4.7-flash",
+        "glm-5.3",
+        "glm-4.7"
+      ],
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "kimi",
       "endpoint": "https://api.moonshot.cn/v1",
-      "model": "kimi-k2.5",
+      "model": "kimi-k2.6",
       "clusterModel": "kimi-k3",
-      "source": "https://www.kimi.com/help/kimi-api/api-overview"
+      "source": "https://platform.kimi.com/docs/get-api-key",
+      "models": [
+        "kimi-k2.6",
+        "kimi-k3",
+        "kimi-k2.7-code-highspeed"
+      ],
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "hunyuan",
       "endpoint": "https://tokenhub.tencentmaas.com/v1",
       "model": "hy3",
       "clusterModel": "hy3",
-      "source": "https://cloud.tencent.com/document/product/1823/130051"
+      "source": "https://cloud.tencent.com/document/product/1823/130051",
+      "models": [
+        "hy3",
+        "hy4-preview",
+        "hy-mt2-pro",
+        "hy-mt2-plus"
+      ],
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "qianfan",
       "endpoint": "https://qianfan.baidubce.com/v2",
-      "model": "ernie-speed-pro-128k",
-      "clusterModel": "ernie-4.5-turbo-128k",
-      "source": "https://cloud.baidu.com/doc/qianfan-api/s/Dmba8k71y"
+      "model": "ernie-4.5-turbo-128k",
+      "clusterModel": "ernie-5.0",
+      "source": "https://intl.cloud.baidu.com/en/doc/qianfan/s/7m95lyy43-intl-en",
+      "models": [
+        "ernie-4.5-turbo-128k",
+        "ernie-5.0"
+      ],
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "openai",
       "endpoint": "https://api.openai.com/v1",
-      "model": "gpt-4.1-mini",
-      "clusterModel": "gpt-4.1",
-      "source": "https://platform.openai.com/docs/models"
+      "model": "gpt-4.1-mini-2025-04-14",
+      "clusterModel": "gpt-4.1-2025-04-14",
+      "source": "https://developers.openai.com/api/docs/models/all",
+      "models": [
+        "gpt-4.1-mini-2025-04-14",
+        "gpt-4.1-2025-04-14"
+      ],
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "anthropic",
       "endpoint": "https://api.anthropic.com/v1",
-      "model": "claude-haiku-4-5",
-      "clusterModel": "claude-sonnet-4-6",
-      "source": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+      "model": "claude-haiku-4-5-20251001",
+      "clusterModel": "claude-sonnet-5-5",
+      "source": "https://platform.claude.com/docs/en/models/overview",
+      "models": [
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-5-5",
+        "claude-opus-5-5"
+      ],
+      "checkedAt": "2026-10-06"
     },
     {
       "id": "gemini",
       "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai",
       "model": "gemini-3.5-flash-lite",
       "clusterModel": "gemini-3.8-flash",
-      "source": "https://ai.google.dev/gemini-api/docs/models"
+      "source": "https://ai.google.dev/gemini-api/docs/models",
+      "models": [
+        "gemini-3.5-flash-lite",
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.1-pro-preview"
+      ],
+      "checkedAt": "2026-10-06"
     }
   ]
 }

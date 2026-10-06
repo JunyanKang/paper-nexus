@@ -1,0 +1,25 @@
+{
+  "model": "Xenova/all-MiniLM-L6-v2",
+  "revision": "751bff37182d3f1213fa05d7196b954e230abad9",
+  "runtime": "onnxruntime-web@1.30.0",
+  "files": [
+    {
+      "path": "addon/models/minilm/model_quantized.onnx",
+      "url": "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/751bff37182d3f1213fa05d7196b954e230abad9/onnx/model_quantized.onnx",
+      "sha256": "afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1",
+      "bytes": 22972370
+    },
+    {
+      "path": "addon/models/minilm/tokenizer.json",
+      "url": "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/751bff37182d3f1213fa05d7196b954e230abad9/tokenizer.json",
+      "sha256": "da0e79933b9ed51798a3ae27893d3c5fa4a201126cef75586296df9b4d2c62a0",
+      "bytes": 711661
+    },
+    {
+      "path": "addon/vendor/onnx/ort-wasm-simd-threaded.wasm",
+      "url": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort-wasm-simd-threaded.wasm",
+      "sha256": "3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2",
+      "bytes": 14239897
+    }
+  ]
+}

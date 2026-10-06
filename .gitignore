@@ -31,3 +31,7 @@ docs/images/settings-data.png
 docs/images/translation-settings.png
 
 docs/images/panel.png
+
+# Downloaded runtime/model binaries; build fetches pinned public artifacts
+addon/vendor/onnx/*.wasm
+addon/models/

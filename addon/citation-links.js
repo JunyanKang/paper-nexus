@@ -26,8 +26,8 @@ var CiteLensCitationLinks={
     const pointRuns=numericRuns.filter(r=>ratios.some(ratio=>Math.abs(ratio-r.ratio)<.025));
     return {text,offsets,chars,overlays,mentions:CiteLensCore.citationMentions(text),numericRuns,pointRuns};
   },
-  occurrences(pages,refs){
-    const C=CiteLensCore,index=new Map();
+  occurrences(pages,refs,progress=()=>{}){
+    const C=CiteLensCore,index=new Map();let completed=0;
     for(const [pageIndex,page] of pages){
       const bibliography=refs.filter(r=>r.position?.pageIndex===pageIndex).flatMap(r=>r.position.rects||[]),overlap=(a,b)=>a[0]<b[2]&&a[2]>b[0]&&a[1]<b[3]&&a[3]>b[1];
       const add=(mentions,chars,start,end)=>{
@@ -38,6 +38,7 @@ var CiteLensCitationLinks={
       };
       for(const mention of page.mentions){const chars=(page.chars||[]).filter(c=>{const at=page.offsets.get(c.offset);return at>=mention.start&&at<mention.end;});add([mention],chars,mention.start,mention.end);}
       for(const run of page.pointRuns||[]){const chars=(page.chars||[]).filter(c=>run.offsets.includes(c.offset)),start=page.offsets.get(run.offsets[0]),end=page.offsets.get(run.offsets.at(-1))+1;add(C.citationMentions(run.text,{nativeNumeric:true}),chars,start,end);}
+      progress(Math.round(++completed/pages.size*100));
     }
     for(const rows of index.values())rows.sort((a,b)=>a.position.pageIndex-b.position.pageIndex||a.start-b.start);return index;
   },
