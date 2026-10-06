@@ -19,7 +19,7 @@ def build(model):
  with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
   content={'manifest.json':json.dumps(model,ensure_ascii=False,indent=2).encode(),**{f['name']:file_for(f).read_bytes() for f in model['files']}}
   for name,data in sorted(content.items()):
-   info=zipfile.ZipInfo(name,(2026,10,6,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16;z.writestr(info,data)
+   info=zipfile.ZipInfo(name,(2026,10,6,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16;z.writestr(info,data)
  print(out.name,out.stat().st_size)
  return out
 if __name__=='__main__':

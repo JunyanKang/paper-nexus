@@ -14,12 +14,12 @@ out=root/'dist'/f'paper-nexus-{version}{suffix}.xpi';out.parent.mkdir(exist_ok=T
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
  for p in sorted((root/'addon').rglob('*')):
   if p.is_file() and 'models' not in p.relative_to(root/'addon').parts and p.suffix!='.wasm':
-   info=zipfile.ZipInfo(p.relative_to(root/'addon').as_posix(),(2026,10,5,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16
+   info=zipfile.ZipInfo(p.relative_to(root/'addon').as_posix(),(2026,10,5,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16
    z.writestr(info,p.read_bytes())
  if args.personal_adapter:
   adapter=json.loads(args.personal_adapter.read_text(encoding='utf-8'));assert adapter['dimension']==384 and adapter['rank']>0 and adapter['model']=='Xenova/all-MiniLM-L6-v2'
   assert adapter['accepted'] is True, 'Only evaluated personal adapters may be included'
-  info=zipfile.ZipInfo('models/personal/adapter.json',(2026,10,5,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16;z.writestr(info,args.personal_adapter.read_bytes())
+  info=zipfile.ZipInfo('models/personal/adapter.json',(2026,10,5,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16;z.writestr(info,args.personal_adapter.read_bytes())
 if args.personal_adapter:
  (out.parent/(out.name+'.sha256')).write_text(hashlib.sha256(out.read_bytes()).hexdigest()+'  '+out.name+'\n',encoding='utf-8')
  print(out.name);raise SystemExit(0)
