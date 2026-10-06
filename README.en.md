@@ -22,9 +22,11 @@ Hover over a title to open its abstract alongside the card. Switch between **ori
 
 ## Turn your reading list into a research map
 
-Group and name topics locally without an API key, or choose an external model. Saved networks reopen without repeating analysis.
+Group and name topics and explore coauthors entirely on your computer, without a network-model API key. Saved networks reopen without repeating analysis.
 
-**Explore research by topic and collaboration by author.** Open a topic to reveal its papers, follow shared work between authors, search for a paper or focus on its immediate connections.
+**Topic networks show what papers study.** Open a research topic to reveal its papers, or search for an idea across related groups.
+
+**Author networks show who works together.** Find an author, explore direct or second-degree collaborators, and open the shared papers behind each connection.
 
 As your collection grows, the network updates in the background, connecting familiar work with papers still to discover.
 
@@ -47,6 +49,6 @@ For **Zotero 10.0.5–10.0.x**, with native macOS and Windows installers. Free a
 
 Later, check for updates in the plugin. Your models and literature index stay in place.
 
-[Installation](docs/INSTALL.md) · [User guide](docs/GUIDE.md) · [Research network](docs/NETWORK.md) · [FAQ](docs/FAQ.md) · [Privacy](docs/PRIVACY.md) · [What's new](CHANGELOG.md)
+[Installation](docs/INSTALL.md) · [User guide](docs/GUIDE.md) · [Research network](docs/NETWORK.md) · [Settings](docs/SETTINGS.md) · [FAQ](docs/FAQ.md) · [Privacy](docs/PRIVACY.md) · [What's new](CHANGELOG.md)
 
 Created by [Junyan Kang](https://github.com/JunyanKang) · [MIT License](LICENSE)

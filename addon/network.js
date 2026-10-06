@@ -1,4 +1,4 @@
-/* Local metadata and evidence cache; API topic analysis is explicitly opt-in. */
+/* Local metadata, semantic networks and coauthor evidence. No remote model analysis. */
 var CiteLensNetwork = {
   semanticIndexes:new Map(),workers:new Set(),state:{schema:1,sources:{}},views:new Set(),listeners:new Set(),generation:0,dead:true,
   async start(){
@@ -56,32 +56,23 @@ var CiteLensNetwork = {
     return this.cacheKey(['references-v2',item.libraryID,item.key,item.dateModified,stat.size,stat.lastModified,pdf.fingerprints||pdf.fingerprint||'',pdf.numPages]);
   },
   async map(payload,options={}){
-    const {signal,progress=()=>{}}=options,engine=CiteLensTranslation.get('networkEngine','local');let config=null;
-    if(engine==='llm'){const c=CiteLensTranslation.llmTaskConfig('clustering');config=[c.id,c.endpoint,c.model,CiteLensTranslation.get('llmRevision',0)];}
+    const {signal,progress=()=>{}}=options;
     const {positions,...content}=payload,model=typeof CiteLensModels!=='undefined'?CiteLensModels.installed.get(CiteLensModels.selected()):null;
-    const key=await this.cacheKey([content,engine,config,model?.id,model?.version,model?.files]);if(signal?.aborted)throw Error('已取消');
+    const key=await this.cacheKey(['local-network-2026-2',content,model?.id,model?.version,model?.files]);if(signal?.aborted)throw Error('已取消');
     const stored=await this.readCache('graph',key);if(signal?.aborted)throw Error('已取消');
     if(stored&&Array.isArray(stored.nodes)&&Array.isArray(stored.communities)&&stored.stats){const saved=new Map((positions||[]).map(p=>[p.id,p]));for(const n of stored.nodes){const p=saved.get(n.id);if(p)Object.assign(n,p);}stored.cache={hit:true};progress({phase:'layout',completed:1,total:1});return stored;}
-    const result=await this.buildMap(payload,options);if(signal?.aborted)throw Error('已取消');if(!result.groupingError)await this.writeCache('graph',key,result);return result;
+    const result=await this.buildMap(payload,options);if(signal?.aborted)throw Error('已取消');await this.writeCache('graph',key,result);return result;
   },
   async buildMap(payload,{signal,progress=()=>{},preview=null}={}){
-    if(payload.mode!=='topics'){
-      if(CiteLensTranslation.get('networkEngine','local')!=='llm')return this.compute('map',payload,{signal,progress});
-      progress({phase:'authors',completed:0,total:1});const graph=await this.compute('prepare',payload,{signal,progress});progress({phase:'authors',completed:1,total:1});
-      try{const result=await CiteLensSemantic.classifyAuthors(graph,{signal,progress});graph.authorGroups=result.groups;graph.authorAnalysis={engine:result.classified||result.cached?(result.fallback?'mixed':'llm'):'local',classified:result.classified,cached:result.cached,localFallback:result.fallback};}
-      catch(error){if(signal?.aborted)throw error;graph.groupingError=error.message;graph.authorAnalysis={engine:'local'};}
-      return this.compute('layout',graph,{signal,progress});
-    }
+    if(payload.mode!=='topics')return this.compute('map',payload,{signal,progress});
     const graph=await this.compute('prepare',payload,{signal});
     // Until inference completes, show progress without publishing paper nodes as topics.
     if(preview&&!payload.positions?.length)preview({...graph,nodes:[],edges:[],communities:[],pending:true});
     const semantic=await CiteLensSemantic.analyze(graph.nodes,{signal,progress});
     if(signal?.aborted)throw Error('已取消');
-    let groupingError='';if(CiteLensTranslation.get('networkEngine','local')==='llm'){try{Object.assign(semantic,await CiteLensSemantic.classifyTopics(graph.nodes,{signal,progress}));}catch(error){if(signal?.aborted)throw error;groupingError=error.message;}}
     const cacheKey=JSON.stringify([payload.cacheKey||'default',semantic.engine]),previous=this.semanticIndexes.get(cacheKey);
     const result=await this.compute('semantic-map',{graph,semantic,previous},{signal,progress});
     if(signal?.aborted||this.dead)throw Error('已取消');this.semanticIndexes.delete(cacheKey);this.semanticIndexes.set(cacheKey,result.semanticState);delete result.semanticState;while(this.semanticIndexes.size>4)this.semanticIndexes.delete(this.semanticIndexes.keys().next().value);if(this.indexPath){const data=JSON.stringify({schema:1,entries:[...this.semanticIndexes]});this.indexWrite=(this.indexWrite||Promise.resolve()).catch(()=>{}).then(()=>IOUtils.writeUTF8(this.indexPath,data,{tmpPath:this.indexPath+'.tmp'}));}
-    if(groupingError)result.groupingError=groupingError;
     if(signal?.aborted||this.dead)throw Error('已取消');return result;
   },
   subscribe(fn){this.listeners.add(fn);return ()=>this.listeners.delete(fn);},

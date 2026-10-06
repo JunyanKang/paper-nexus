@@ -1,0 +1,10 @@
+This product includes a filtered vocabulary derived from Medical Subject Headings
+(MeSH), 2026 version, provided by the U.S. National Library of Medicine (NLM).
+NLM does not endorse Paper Nexus or its topic assignments. This vocabulary is not
+the complete MeSH vocabulary and is used only to recognize phrases actually
+present in document titles or abstracts.
+
+Source: https://nlmpubs.nlm.nih.gov/projects/mesh/MESH_FILES/xmlmesh/desc2026.gz
+Source SHA256: ccd4d0d33bebfd4c836a59e7dd0c635b1d4e20c4f5a6abc55e2eb0ba4c8716dd
+Terms: https://www.nlm.nih.gov/databases/download/terms_and_conditions_mesh.html
+Reproduce with scripts/build_topic_lexicon.py and the source above.

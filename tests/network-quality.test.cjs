@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),C=require('../addon/core.js'),SC=require('../addon/semantic-core.js');
-const ctx={CiteLensCore:C,CiteLensSemanticCore:SC};vm.createContext(ctx);for(const f of ['network-core.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+f),'utf8'),ctx);const N=ctx.CiteLensNetworkCore,M=ctx.CiteLensNetworkMap;
+const ctx={CiteLensCore:C,CiteLensSemanticCore:SC};vm.createContext(ctx);for(const f of ['network-core.js','topic-lexicon.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+f),'utf8'),ctx);const N=ctx.CiteLensNetworkCore,M=ctx.CiteLensNetworkMap;
 const person=(firstName,lastName,extra={})=>({firstName,lastName,...extra}),paper=(id,title,creators)=>({id,title,creators,local:true}),build=nodes=>M.build({nodes,edges:[],references:[],mode:'authors'});
 test('ORCID checksum, normalization and hard identity conflicts',()=>{
  const a='0000-0002-1825-0097',b='0000-0001-5109-3700';assert.equal(N.orcid('https://orcid.org/'+a),a);assert.equal(N.orcid(a.slice(0,-1)+'8'),'');assert.equal(N.orcid(b),b);

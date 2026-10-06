@@ -16,6 +16,17 @@ with tempfile.TemporaryDirectory(prefix='nexus-installer-') as scratch:
   return result
  run('minilm',success=False,directory=root/'missing');checks.append('reject non-Zotero target')
  run('minilm',success=False,extra=['--cancel-test'],online=args.online);assert not (data/'paper-nexus-models/minilm/active.json').exists();checks.append('cancel transfer without activating partial model')
+ # Plugin-only download must work without a Zotero directory or a selected model.
+ standalone=root/'plugin-only'
+ def plugin_only(folder=standalone,source=ROOT/'dist',extra=()):
+  return subprocess.run([str(exe),'--quiet','--plugin-only','--download-dir',str(folder),'--plugin-dir',str(source),*extra],capture_output=True,timeout=120)
+ assert plugin_only().returncode==0
+ plugin=standalone/config['plugin']['name'];assert hashlib.sha256(plugin.read_bytes()).hexdigest()==config['plugin']['sha256'];checks.append('standalone XPI download needs no Zotero library or model')
+ stamp=plugin.stat().st_mtime_ns;assert plugin_only().returncode==0 and plugin.stat().st_mtime_ns==stamp;checks.append('standalone verified XPI is reused')
+ cancelled=root/'cancelled-plugin';assert plugin_only(cancelled,extra=['--cancel-test']).returncode!=0;assert not list(cancelled.iterdir());checks.append('cancelled standalone XPI leaves no partial files')
+ corrupt=root/'corrupt-plugin';corrupt.mkdir();(corrupt/config['plugin']['name']).write_bytes(b'corrupt')
+ rejected=root/'rejected-plugin';assert plugin_only(rejected,corrupt).returncode!=0;assert not list(rejected.iterdir());checks.append('standalone corrupted XPI cannot be installed')
+ assert plugin_only(standalone,corrupt).returncode==0 and hashlib.sha256(plugin.read_bytes()).hexdigest()==config['plugin']['sha256'];checks.append('valid cached XPI survives an invalid alternate source')
  ids=','.join(m['id'] for m in config['models']);run(ids,online=args.online)
  for m in config['models']:
   manifest=m['manifest'];folder=data/'paper-nexus-models'/m['id']/manifest['version'];assert json.loads((folder.parent/'active.json').read_text(encoding='utf-8'))==manifest

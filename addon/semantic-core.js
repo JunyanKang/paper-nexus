@@ -21,9 +21,9 @@ var CiteLensSemanticCore=(()=>{
  }
  // Exact incremental mutual top-k: unchanged pairs are reused. Deleting or
  // changing a top neighbour repairs that row, so results equal a fresh build.
- function graph(nodes,vectors,partition,assignments=null,{previous=null,signatures=null,progress=()=>{},threshold=.50,titleThreshold=.58,maxNeighbors=7}={}){
-  const valid=v=>Array.isArray(v)&&v.length>0&&v.every(Number.isFinite),topics=new Map((assignments||[]).map(r=>[r.id,r.topic.trim().toLowerCase()])),byID=new Map(nodes.map((n,i)=>[n.id,i]));
-  const keys=nodes.map((n,i)=>JSON.stringify([signatures?.[i]||vectors[i],!!(n.abstract?.length>=80),topics.get(n.id)||'',!!topics.size,threshold,titleThreshold,maxNeighbors]));
+ function graph(nodes,vectors,partition,{previous=null,signatures=null,progress=()=>{},threshold=.50,titleThreshold=.58,maxNeighbors=7}={}){
+  const valid=v=>Array.isArray(v)&&v.length>0&&v.every(Number.isFinite),byID=new Map(nodes.map((n,i)=>[n.id,i]));
+  const keys=nodes.map((n,i)=>JSON.stringify([signatures?.[i]||vectors[i],!!(n.abstract?.length>=80),threshold,titleThreshold,maxNeighbors]));
   const old=new Map(previous?.version===1?previous.rows:[]),changed=new Set(nodes.filter((n,i)=>old.get(n.id)?.key!==keys[i]).map(n=>n.id)),removed=new Set([...old.keys()].filter(id=>!byID.has(id))),repair=new Set(changed),near=nodes.map(()=>[]);
   for(let i=0;i<nodes.length;i++)if(!changed.has(nodes[i].id)){
    const row=old.get(nodes[i].id);if(!Array.isArray(row?.near)||row.near.some(x=>changed.has(x.id)||removed.has(x.id))){repair.add(nodes[i].id);continue;}
@@ -32,7 +32,7 @@ var CiteLensSemanticCore=(()=>{
   const offer=(i,j,score)=>{const list=near[i],last=list[list.length-1];if(list.length>=maxNeighbors&&(score<last.score||score===last.score&&nodes[j].id.localeCompare(nodes[last.j].id)>=0))return;let at=list.length;while(at>0&&(score>list[at-1].score||score===list[at-1].score&&nodes[j].id.localeCompare(nodes[list[at-1].j].id)<0))at--;list.splice(at,0,{j,score});if(list.length>maxNeighbors)list.pop();};
   const fast=kernelFactory?.(vectors),usable=vectors.map(valid);let comparisons=0;const targets=[...repair].map(id=>byID.get(id)).sort((a,b)=>a-b),done=new Set();
   for(let at=0;at<targets.length;at++){const i=targets[at],scores=fast?.(i,targets.length===nodes.length?i+1:0);if(usable[i])for(let j=0;j<nodes.length;j++){
-   if(i===j||done.has(j)||!usable[j]||vectors[i].length!==vectors[j].length||topics.size&&topics.get(nodes[i].id)!==topics.get(nodes[j].id))continue;
+   if(i===j||done.has(j)||!usable[j]||vectors[i].length!==vectors[j].length)continue;
    // Unchanged repaired rows need a refill; ordinary unchanged rows only need
    // candidates from changed/new papers, never duplicate their retained list.
    const sendI=true,sendJ=repair.has(nodes[j].id)||changed.has(nodes[i].id);
@@ -54,7 +54,6 @@ var CiteLensSemanticCore=(()=>{
   while(candidates.length&&chosen.length<max){candidates.sort((a,b)=>(.75*b.score-.25*b.redundancy)-(.75*a.score-.25*a.redundancy)||String(a.node.id).localeCompare(String(b.node.id)));const best=candidates.shift();chosen.push(best.node.id);for(const row of candidates)row.redundancy=Math.max(row.redundancy,dot(row.vector,best.vector));}
   return chosen;
  }
- function validateTopics(result,nodes){if(!Array.isArray(result?.papers))throw Error('模型未返回有效的主题结果');const allowed=new Set(nodes.map(n=>n.id)),seen=new Set();const rows=[];for(const row of result.papers){if(!allowed.has(row.id)||seen.has(row.id)||typeof row.topic!=='string'||!row.topic.trim()||row.topic.length>120)throw Error('模型返回了不匹配的文献或主题');seen.add(row.id);rows.push({id:row.id,topic:row.topic.trim(),keywords:Array.isArray(row.keywords)?row.keywords.filter(x=>typeof x==='string').map(x=>x.slice(0,50)).slice(0,5):[]});}if(seen.size!==allowed.size)throw Error('模型未完成全部文献的主题分析');return rows;}
- return{setKernel,normalize,representatives,tokenize,pool,dot,project,combine,graph,validateTopics,validAdapter,abstractChunks};
+ return{setKernel,normalize,representatives,tokenize,pool,dot,project,combine,graph,validAdapter,abstractChunks};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensSemanticCore;

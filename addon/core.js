@@ -69,6 +69,12 @@ var CiteLensCore = (() => {
     const parsed=parse(record.raw||title),candidate=plainTitle(parsed.title);
     return parsed.year&&candidate.length>=12&&!authorList.test(candidate)?candidate:'';
   }
+  // Shared scientific record for local embeddings and research content.
+  // Identity/creator evidence for author graphs is carried separately by coauthor edges.
+  function researchRecord(record) {
+    const title=researchTitle(record),abstract=plainTitle(record.abstract||record.abstractNote||'');
+    return {schema:'nexus-paper/1',id:record.id,title,abstract,evidence:abstract?'provided-abstract':'title-only'};
+  }
   const identity = r => recordDOI(r)?'doi:'+recordDOI(r):r.raw||r.title?'text:'+norm(r.raw||r.title)+'|'+(r.year||''):'number:'+r.number;
   const similarity = (a,b) => { const x=new Set(norm(a).split(' ').filter(Boolean)),y=new Set(norm(b).split(' ').filter(Boolean));return x.size&&y.size?2*[...x].filter(t=>y.has(t)).length/(x.size+y.size):0; };
   function fromCrossref(m) {
@@ -181,6 +187,6 @@ var CiteLensCore = (() => {
   function ris(records) {
     const one=r=>{const lines=['TY  - '+({book:'BOOK',bookSection:'CHAP',conferencePaper:'CONF',preprint:'UNPB'}[r.type]||'JOUR'),'TI  - '+plainTitle(r.title)];for(const a of r.creators||[])lines.push('AU  - '+clean(a.lastName)+', '+clean(a.firstName));for(const [k,v] of Object.entries({PY:r.year,JO:r.journal,DO:recordDOI(r),VL:r.volume,IS:r.issue,SP:r.pages,UR:r.url||recordDOI(r)&&'https://doi.org/'+recordDOI(r),N1:r.raw}))if(v)lines.push(k+'  - '+clean(v));return lines.join('\n')+'\nER  - \n';};return records.map(one).join('\n');
   }
-  return {clean,titleParts,plainTitle,researchTitle,norm,doi,recordDOI,charsText,parse,fromReference,identity,similarity,fromCrossref,compatibility,rank,decide,issn,parseCSV,metricsImport,metricFor,citationMentions,resolveMention,findCitations,citationAt,citation,ris};
+  return {clean,titleParts,plainTitle,researchTitle,researchRecord,norm,doi,recordDOI,charsText,parse,fromReference,identity,similarity,fromCrossref,compatibility,rank,decide,issn,parseCSV,metricsImport,metricFor,citationMentions,resolveMention,findCitations,citationAt,citation,ris};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensCore;

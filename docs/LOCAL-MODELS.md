@@ -46,11 +46,11 @@ uses Zotero's official Install Plugin From File interface.
 A folder picker can select another existing model root. After a verified install, the installer atomically writes `paper-nexus-model-location.json` in the Zotero data directory. The plugin reads this on startup and when opening settings, and offers its own folder picker. Changing roots cancels stale inference and refreshes installed model choices; it does not move existing files. An unavailable external drive is reported without silently falling back to a different directory.
 
 
-## Complete local and API network modes
+## Local network analysis
 
-Local mode performs both semantic grouping and extractive topic naming without an API key. API mode supplies batches of at most 24 new or edited titles/abstracts and up to 64 candidate existing topics; the model decides memberships and scientific names. Existing memberships are reused, not globally reclassified on each addition. Embeddings still provide local similarity links and layout. API failures retain local results and are identified in the UI.
+Both semantic grouping and topic naming run on your computer without an API key. Topic labels are grounded in paper titles, available abstracts and biomedical terminology. Additions and edits update the affected content; unchanged vectors remain reusable.
 
-Author nodes always represent locally resolved bibliographic identities. Local mode partitions the evidence-backed coauthor graph. API mode may partition connected coauthor components of at most 80 authors and choose an existing representative; disconnected groups, unknown identities, duplicated memberships, and missing members are rejected. Larger consortium components use the local worker. Results are cached by provider, endpoint, model, identities, context and evidence; changes affect the corresponding component. The model cannot create coauthor evidence.
+Author nodes represent locally resolved bibliographic identities. An evidence-backed coauthor graph supplies collaboration groups and representative names. This algorithm is shared across both local model choices and does not run text embeddings. No remote model receives library metadata for network analysis.
 
 Completed scoped graphs and parsed PDF references use a separate atomic disk cache, bounded to 64 files / 64 MiB, with a 12 MiB file-read limit. Serialization and parsing run in a worker. Scope, mode, model identity, content form the cache key. PDF identity includes attachment identity, file size, modification time and PDF fingerprint. Reference caches retain only citation-relevant coordinates rather than every page glyph. On restart, metadata is reconciled with Zotero before the matching graph is reused; this is not a zero-I/O startup guarantee.
 

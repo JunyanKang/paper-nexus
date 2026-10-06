@@ -1,12 +1,11 @@
 {
   "schema": 1,
-  "version": "2026-10-06.1",
+  "version": "2026-10-06.2",
   "providers": [
     {
       "id": "minimax",
       "endpoint": "https://api.minimax.cn/v1",
       "model": "MiniMax-M2.7-highspeed",
-      "clusterModel": "MiniMax-M3",
       "source": "https://platform.minimax.cn/docs/guides/text-generation",
       "models": [
         "MiniMax-M2.7-highspeed",
@@ -20,7 +19,6 @@
       "id": "deepseek",
       "endpoint": "https://api.deepseek.com",
       "model": "deepseek-flash",
-      "clusterModel": "deepseek-v4-pro",
       "source": "https://api-docs.deepseek.com/quick_start/pricing/",
       "models": [
         "deepseek-flash",
@@ -36,7 +34,6 @@
       "id": "qwen",
       "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1",
       "model": "qwen3.8-flash",
-      "clusterModel": "qwen3.7-plus",
       "source": "https://help.aliyun.com/zh/model-studio/text-generation-model/",
       "models": [
         "qwen3.8-flash",
@@ -50,7 +47,6 @@
       "id": "doubao",
       "endpoint": "https://ark.cn-beijing.volces.com/api/v3",
       "model": "doubao-seed-2-1-lite-260915",
-      "clusterModel": "doubao-seed-2-1-pro-260915",
       "source": "https://docs.volcengine.com/docs/ark/model-parameter-support?lang=zh",
       "models": [
         "doubao-seed-2-1-lite-260915",
@@ -62,7 +58,6 @@
       "id": "glm",
       "endpoint": "https://open.bigmodel.cn/api/paas/v4",
       "model": "glm-4.7-flash",
-      "clusterModel": "glm-5.3",
       "source": "https://docs.bigmodel.cn/cn/guide/models/text/glm-5.3",
       "models": [
         "glm-4.7-flash",
@@ -75,7 +70,6 @@
       "id": "kimi",
       "endpoint": "https://api.moonshot.cn/v1",
       "model": "kimi-k2.6",
-      "clusterModel": "kimi-k3",
       "source": "https://platform.kimi.com/docs/get-api-key",
       "models": [
         "kimi-k2.6",
@@ -88,7 +82,6 @@
       "id": "hunyuan",
       "endpoint": "https://tokenhub.tencentmaas.com/v1",
       "model": "hy3",
-      "clusterModel": "hy3",
       "source": "https://cloud.tencent.com/document/product/1823/130051",
       "models": [
         "hy3",
@@ -102,7 +95,6 @@
       "id": "qianfan",
       "endpoint": "https://qianfan.baidubce.com/v2",
       "model": "ernie-4.5-turbo-128k",
-      "clusterModel": "ernie-5.0",
       "source": "https://intl.cloud.baidu.com/en/doc/qianfan/s/7m95lyy43-intl-en",
       "models": [
         "ernie-4.5-turbo-128k",
@@ -114,7 +106,6 @@
       "id": "openai",
       "endpoint": "https://api.openai.com/v1",
       "model": "gpt-4.1-mini-2025-04-14",
-      "clusterModel": "gpt-4.1-2025-04-14",
       "source": "https://developers.openai.com/api/docs/models/all",
       "models": [
         "gpt-4.1-mini-2025-04-14",
@@ -126,7 +117,6 @@
       "id": "anthropic",
       "endpoint": "https://api.anthropic.com/v1",
       "model": "claude-haiku-4-5-20251001",
-      "clusterModel": "claude-sonnet-5-5",
       "source": "https://platform.claude.com/docs/en/models/overview",
       "models": [
         "claude-haiku-4-5-20251001",
@@ -139,7 +129,6 @@
       "id": "gemini",
       "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai",
       "model": "gemini-3.5-flash-lite",
-      "clusterModel": "gemini-3.8-flash",
       "source": "https://ai.google.dev/gemini-api/docs/models",
       "models": [
         "gemini-3.5-flash-lite",

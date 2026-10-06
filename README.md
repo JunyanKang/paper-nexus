@@ -22,9 +22,11 @@
 
 ## 从论文列表，走向研究地图
 
-**按主题看研究，按作者看合作。** 点击主题展开论文，沿着作者找到共同工作；搜索快速定位，聚焦查看直接联系。
+**主题网络，回答“这些论文在研究什么”。** 从研究主题进入相关论文，用关键词聚焦可能相关的方向。
 
-本地即可完成分组和主题命名，也可选择大模型分析。网络在后台随文献库更新，重复打开复用已有结果，让已读与未读、熟悉与陌生的工作连起来。
+**作者网络，回答“谁在和谁合作”。** 搜索作者，查看有共同论文支持的一级或二级合作圈，并回到具体文献。
+
+分组、主题命名与作者合作分析都在本机完成，无需网络模型密钥。网络在后台随文献库更新，重复打开复用已有结果，让已读与未读、熟悉与陌生的工作连起来。
 
 <p align="center"><img src="docs/images/topics.png" width="960" alt="主题网络：从研究主题展开和探索论文"></p>
 <p align="center"><img src="docs/images/network.png" width="960" alt="作者合作网络：共同论文连接作者"></p>
@@ -46,6 +48,6 @@
 日后在插件内检查更新，模型和文献索引继续保留。
 
 
-[安装帮助](docs/INSTALL.md) · [使用指南](docs/GUIDE.md) · [文献网络](docs/NETWORK.md) · [常见问题](docs/FAQ.md) · [隐私说明](docs/PRIVACY.md) · [更新记录](CHANGELOG.md)
+[安装帮助](docs/INSTALL.md) · [使用指南](docs/GUIDE.md) · [文献网络](docs/NETWORK.md) · [设置与服务](docs/SETTINGS.md) · [常见问题](docs/FAQ.md) · [隐私说明](docs/PRIVACY.md) · [更新记录](CHANGELOG.md)
 
 Created by [Junyan Kang](https://github.com/JunyanKang) · [MIT License](LICENSE)

@@ -1,4 +1,4 @@
-const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),C=require('../addon/core.js');const ctx={CiteLensCore:C,CiteLensSemanticCore:require('../addon/semantic-core.js')};vm.createContext(ctx);for(const file of ['network-core.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+file),'utf8'),ctx);const M=ctx.CiteLensNetworkMap;
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),C=require('../addon/core.js');const ctx={CiteLensCore:C,CiteLensSemanticCore:require('../addon/semantic-core.js')};vm.createContext(ctx);for(const file of ['network-core.js','topic-lexicon.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+file),'utf8'),ctx);const M=ctx.CiteLensNetworkMap;
 const author=(firstName,lastName)=>({firstName,lastName}),paper=(key,title='Retinal cone photoreceptor development',extra={})=>({id:'1:'+key,title,year:'2020',DOI:'10.1234/'+key,libraryID:1,creators:[author('Anita','Hendrickson')],attachments:[],collections:[],...extra});
 const input=(nodes,extra={})=>({nodes,edges:[],references:[],mode:'topics',...extra});
 const topic=(nodes,vectors,extra={})=>M.topics(M.build(input(nodes,extra)),{vectors});
@@ -46,14 +46,27 @@ test('large consortia remain bounded while repeated collaborators retain real pa
  const g=M.build(input(nodes,{mode:'authors'}));assert.equal(g.nodes.length,240);assert.ok(g.edges.length<=240*12);assert.ok(g.nodes.every(n=>n.coauthorCount===239));
  const leader=g.nodes.find(n=>n.title==='Person0 Consortium'),peer=g.nodes.find(n=>n.title==='Person1 Consortium'),e=g.edges.find(e=>[e.source,e.target].includes(leader.id)&&[e.source,e.target].includes(peer.id));assert.equal(e.evidence.length,5);assert.ok(e.strength>2);assert.ok(g.edges.every(e=>e.evidence.length>=1));
 });
-test('API groups remain authoritative even when embeddings disagree, while local mode names groups offline',()=>{const nodes=[paper('a','Photoreceptor development'),paper('b','Photoreceptor regeneration'),paper('c','Immune cell response')];const raw=M.build(input(nodes)),assignments=raw.nodes.map(n=>({id:n.id,topicId:n.id==='1:c'?'api-topic:immune':'api-topic:retina',topic:n.id==='1:c'?'Immune cell response':'Photoreceptor development'}));const api=M.topics(raw,{vectors:raw.nodes.map((n,i)=>[Number(i===0),Number(i===1),Number(i===2)]),assignments,engine:'llm',authoritative:true});assert.equal(api.groups.length,2);assert.equal(api.groups.find(g=>g.id==='api-topic:retina').members.length,2);assert.equal(api.semantic.grouping,'llm');assert.equal(api.semantic.naming,'llm');assert.equal(api.groups.find(g=>g.id==='api-topic:retina').title,'Photoreceptor development');const local=topic(nodes,[[1,0],[1,0],[0,1]]);assert.equal(local.semantic.grouping,'local');assert.equal(local.semantic.naming,'local');assert.ok(local.groups.every(g=>g.title&&!g.title.includes('2020')));});
-
-test('author community labels are exact author identities, and API partition never changes coauthor edges',()=>{
- const nodes=[paper('1','Retinal development',{creators:[author('Alice','Smith'),author('Bob','Jones')]}),paper('2','Cancer signaling',{creators:[author('Bob','Jones'),author('Carol','Chen')]})];const local=M.layout(M.build(input(nodes,{mode:'authors'})));assert.ok(local.communities.every(g=>local.nodes.some(n=>n.title===g.title)));assert.ok(local.nodes.every(n=>n.kind==='author'&&!n.year));
- const api=M.build(input(nodes,{mode:'authors'})),original=JSON.stringify(api.edges);api.authorGroups=api.nodes.map(n=>({members:[n.id],title:n.title}));M.layout(api);assert.equal(api.communities.length,3);assert.equal(JSON.stringify(api.edges),original);assert.ok(api.communities.every(g=>g.members.length===1));
-});
 test('legacy expansion input cannot add external nodes; local citation edges remain available',()=>{
  const a=paper('a'),b=paper('b'),extra={expanded:[a.id],externalLimit:9999,references:[[a.id,[{status:'missing',ref:{title:'External study',creators:[author('Foreign','Researcher')]}}]]],edges:[{source:a.id,target:b.id,kind:'cites',evidence:[{pageIndex:2}]}]};
  const g=M.build(input([a,b],extra));assert.equal(g.nodes.length,2);assert.ok(g.nodes.every(n=>n.local));assert.equal(g.edges.length,1);assert.equal(g.edges[0].kind,'cites');assert.ok(!('external' in g.stats));
  const authors=M.build(input([a,b],{...extra,mode:'authors'}));assert.equal(authors.nodes.length,1);assert.ok(authors.nodes.every(n=>!n.title.includes('Foreign')));
+});
+
+test('scientific labels reject conjunction fragments, generic method labels and orphan modifiers',()=>{
+ for(const [title,forbidden] of [
+  ["A diet high in fat and meat but low in dietary fibre increases the genotoxic potential of 'faecal water'.",/meat but low|but|increases/],
+  ['Statin use after diagnosis of breast cancer and survival: a population-based cohort study.',/diagnosis|cohort|population-based/],
+  ['Methylmercury: A Potential Environmental Risk Factor Contributing to Epileptogenesis',/potential|contributing|risk factor/],
+  ['Differences among total and in vitro digestible phosphorus content of plant foods and beverages.',/^vitro/]
+ ]){const graph=topic([paper('a',title)],[[1,0]]);assert.doesNotMatch(graph.groups[0].title,forbidden);assert.notEqual(graph.groups[0].title,'Unclassified research');}
+});
+test('medical phrases and acronyms remain intact while author text does not become a topic',()=>{
+ assert.equal(topic([paper('a','Flatulence--causes, relation to diet and remedies.')],[[1,0]]).groups[0].title,'Flatulence');
+ const g=topic([paper('a','Hendrickson retinal development')],[[1,0]]);assert.doesNotMatch(g.groups[0].title,/Hendrickson/);
+ assert.match(topic([paper('a','DHEA, DHEAS and PCOS.')],[[1,0]]).groups[0].title,/DHEA|PCOS/i);
+ assert.match(topic([paper('a','Parkinson disease',{creators:[author('James','Parkinson')]})],[[1,0]]).groups[0].title,/Parkinson disease/);
+});
+test('uninformative titles use bounded abstract evidence without inventing an unsupported topic',()=>{
+ assert.equal(topic([paper('a','A new perspective',{abstract:'Retinal ganglion cell regeneration restores vision.'})],[[1,0]]).groups[0].title,'Retinal ganglion cell regeneration');
+ assert.equal(topic([paper('a','A new perspective')],[[1,0]]).groups[0].title,'Unclassified research');
 });

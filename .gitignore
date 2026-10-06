@@ -61,3 +61,6 @@ coverage/
 playwright-report/
 .vscode/
 .idea/
+
+# Retired network API settings capture
+docs/images/model-settings.png
