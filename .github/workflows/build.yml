@@ -24,10 +24,27 @@ jobs:
       - name: JavaScript syntax
         run: python scripts/check_syntax.py
       - run: python scripts/build.py
+      - name: Build native installer
+        if: runner.os != 'Linux'
+        run: python scripts/build_installer.py
+      - name: Download installer model fixtures
+        if: runner.os != 'Linux'
+        shell: python
+        run: |
+          import json, urllib.request
+          from pathlib import Path
+          for m in json.loads(Path('installers/models.json').read_text(encoding='utf-8'))['models']:
+              urllib.request.urlretrieve(m['package']['url'], Path('dist') / m['package']['name'])
+      - name: Native installation and recovery
+        if: runner.os != 'Linux'
+        run: python scripts/test_installer.py
       - uses: actions/upload-artifact@v4
         with:
           name: paper-nexus-${{ matrix.os }}
           path: |
+            dist/Paper-Nexus-*.zip
+            .build/installers/test-report.json
+            .build/installers/*.png
             dist/*.xpi
             dist/updates.json
             dist/SHA256SUMS.txt

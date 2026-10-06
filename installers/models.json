@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "models": [
+    {
+      "id": "minilm",
+      "titleZh": "轻量通用 · 推荐",
+      "titleEn": "Lightweight · Recommended",
+      "detailZh": "约 20 MB · 首次构建更快 · 占用较低\n适合日常文献库与跨学科阅读。",
+      "detailEn": "20 MB download · Faster first build · Lower resource use\nFor everyday libraries and mixed research topics.",
+      "package": {
+        "name": "paper-nexus-minilm-1.0.0.pnmodel",
+        "url": "https://github.com/JunyanKang/paper-nexus/releases/download/models-v1.0.0/paper-nexus-minilm-1.0.0.pnmodel",
+        "bytes": 20133091,
+        "sha256": "64c8676919f24330b5c4121700983bbafce265a80182426fdba6cba2cf991c01"
+      }
+    },
+    {
+      "id": "medembed",
+      "titleZh": "生命医学",
+      "titleEn": "Biomedical",
+      "detailZh": "约 29 MB · 首次构建较慢 · 占用较高\n面向英文生命科学与医学文献。",
+      "detailEn": "29 MB download · Slower first build · Higher resource use\nFor English life-science and medical literature.",
+      "package": {
+        "name": "paper-nexus-medembed-1.0.0.pnmodel",
+        "url": "https://github.com/JunyanKang/paper-nexus/releases/download/models-v1.0.0/paper-nexus-medembed-1.0.0.pnmodel",
+        "bytes": 28996591,
+        "sha256": "4a6577e56bf0caa81245c193dd732446994cf051ca677f372cc9b4288e638f84"
+      }
+    }
+  ]
+}
