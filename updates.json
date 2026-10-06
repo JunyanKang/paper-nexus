@@ -5,7 +5,7 @@
         {
           "version": "1.0.2",
           "update_link": "https://junyankang.github.io/paper-nexus/v1.0.2/paper-nexus-1.0.2.xpi",
-          "update_hash": "sha512:46abf111c7652d1e76953b250da36884bf727314f32927b672a1bdfa3b5c90510e76c8ff2e8a4d217d7e79a41545d7d923defc17e5062332fc6330a9166f5e62",
+          "update_hash": "sha512:2447c6d4208fb06becba3ced440473e734eef36de98bb904c1f9736786a94fc0e59fb3c7b79dc4187753f6522150c774f54635c643a13366a9b2208029ceb625",
           "applications": {
             "zotero": {
               "strict_min_version": "10.0.5",
