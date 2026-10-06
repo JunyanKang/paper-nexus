@@ -28,10 +28,22 @@ var CiteLensNetwork = {
       try{worker=new win.ChromeWorker('resource://'+CiteLens.assetResource+'/network-worker.js');this.workers.add(worker);worker.cancel=()=>finish(Error('已关闭'));worker.onmessage=e=>{if(e.data.error)finish(Error(e.data.error));else if(e.data.result)finish(null,e.data.result);else if(e.data.progress)progress(e.data.progress);};worker.onerror=e=>finish(Error(e.message||'网络计算失败'));signal?.addEventListener('abort',cancel,{once:true});timer=win.setTimeout(()=>finish(Error('网络计算超时，请缩小文献夹范围')),45000);worker.postMessage({action,payload});}catch(e){finish(e);}
     });
   },
+  searchSession(model){
+    const win=Zotero.getMainWindow(),worker=new win.ChromeWorker('resource://'+CiteLens.assetResource+'/network-worker.js'),pending=new Map();let serial=0,closed=false,readyResolve,readyReject;
+    const ready=new Promise((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});ready.catch(()=>{});
+    const timer=win.setTimeout(()=>close(Error('搜索索引加载超时')),45000);
+    const close=(error=Error('已取消'))=>{if(closed)return;closed=true;win.clearTimeout(timer);worker.terminate();this.workers.delete(worker);readyReject(error);for(const task of pending.values())task.reject(error);pending.clear();};
+    worker.cancel=()=>close();this.workers.add(worker);worker.onerror=e=>close(Error(e.message||'搜索暂不可用'));
+    worker.onmessage=e=>{const data=e.data;if(data.error){close(Error(data.error));return;}if(data.ready){win.clearTimeout(timer);readyResolve();return;}const task=pending.get(data.request);if(task){pending.delete(data.request);task.resolve(data.result);}};
+    worker.postMessage({action:'search-init',payload:{mode:model.mode,nodes:model.nodes.map(n=>({id:n.id,title:n.title,kind:n.kind,members:n.members})),papers:(model.paperNodes||[]).map(n=>({id:n.id,title:n.title,abstract:n.abstract,journal:n.journal,DOI:n.DOI,year:n.year,creators:n.creators}))}});
+    const request=async(action,payload)=>{await ready;if(closed)throw Error('已取消');const id=++serial;return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});worker.postMessage({action,payload:{...payload,request:id}});});};
+    return {close,query:query=>request('search-query',{query}),relations:id=>request('author-links',{id}),neighborhood:(id,depth,limit)=>request('author-neighborhood',{id,depth,limit})};
+  },
   async map(payload,{signal,progress=()=>{},preview=null}={}){
     if(payload.mode!=='topics')return this.compute('map',payload,{signal,progress});
     const graph=await this.compute('prepare',payload,{signal});
-    if(preview&&!payload.positions?.length){const initial=await this.compute('layout',graph,{signal});initial.communities=[];for(const node of initial.nodes)node.color=6;if(signal?.aborted)throw Error('已取消');preview(initial);}
+    // Until inference completes, show progress without publishing paper nodes as topics.
+    if(preview&&!payload.positions?.length)preview({...graph,nodes:[],edges:[],communities:[],pending:true});
     const semantic=await CiteLensSemantic.analyze(graph.nodes,{signal,progress});
     if(signal?.aborted)throw Error('已取消');
     const cacheKey=payload.cacheKey||'default',previous=this.semanticIndexes.get(cacheKey);
@@ -46,7 +58,8 @@ var CiteLensNetwork = {
   async remember(reader,refs){
     if(this.dead)return;const attachment=Zotero.Items.get(reader.itemID),parent=attachment?.parentItem;if(!parent||parent.deleted)return;
     const C=CiteLensCore,N=CiteLensNetworkCore,key=N.id(attachment.libraryID,attachment.key);
-    this.state.sources[key]={source:N.id(parent.libraryID,parent.key),attachmentID:attachment.id,attachmentKey:attachment.key,modified:attachment.dateModified,refs:refs.slice(0,5000).map(r=>({title:C.plainTitle(r.title),DOI:C.recordDOI(r),year:r.year,author:r.author,creators:r.creators||r.authors||[],raw:r.raw,position:r.position})),collectedAt:new Date().toISOString(),total:refs.length};
+    const next={source:N.id(parent.libraryID,parent.key),attachmentID:attachment.id,attachmentKey:attachment.key,modified:attachment.dateModified,refs:refs.slice(0,5000).map(r=>({title:C.plainTitle(r.title),DOI:C.recordDOI(r),year:r.year,author:r.author,creators:r.creators||r.authors||[],raw:r.raw,position:r.position})),total:refs.length};
+    const previous=this.state.sources[key];if(previous){const {collectedAt,...content}=previous;if(JSON.stringify(content)===JSON.stringify(next))return;}this.state.sources[key]={...next,collectedAt:new Date().toISOString()};
     this.dirty=true;this.generation++;const data=JSON.stringify(this.state);this.write=(this.write||Promise.resolve()).catch(()=>{}).then(()=>IOUtils.writeUTF8(this.path,data,{tmpPath:this.path+'.tmp'}));await this.write;for(const f of this.listeners)f();
   },
   async snapshot({force=false,progress=()=>{}}={}){
@@ -64,14 +77,16 @@ var CiteLensNetwork = {
       for(let i=0;i<queue.length;i++){
         if(this.dead)throw Error('已关闭');const id=queue[i],item=await Zotero.Items.getAsync(id);
         if(item?.parentID&&!ids.has(item.parentID)){ids.add(item.parentID);queue.push(item.parentID);}
-        const record=await this.readRecord(item);if(record)records.set(id,record);else records.delete(id);
+        const record=await this.readRecord(item),previous=this.records.get(id);if(record)records.set(id,previous&&JSON.stringify(previous)===JSON.stringify(record)?previous:record);else records.delete(id);
         completed++;if(Date.now()-sliceStarted>=8||i%24===0){progress({phase:'metadata',completed,total:queue.length});await Zotero.Promise.delay(0);sliceStarted=Date.now();}
       }
       const permitted=new Set(libraries.map(l=>l.id));for(const [id,n] of records)if(!permitted.has(n.libraryID))records.delete(id);
       const nodes=[...records.values()],byID=new Map(nodes.map(n=>[n.id,n])),sources=Object.values(this.state.sources).filter(s=>Array.isArray(s.refs)&&byID.get(s.source)?.attachments.some(a=>a.id===s.attachmentID&&a.key===s.attachmentKey&&a.dateModified===s.modified));
-      progress({phase:'metadata',completed:queue.length,total:queue.length});const graph=await this.compute('snapshot',{nodes,sources});
+      progress({phase:'metadata',completed:queue.length,total:queue.length});const scopeSignature=JSON.stringify([libraries,collections,sources]);
+      if(this.data&&this.snapshotScope===scopeSignature&&records.size===this.records.size&&[...records].every(([id,n])=>this.records.get(id)===n)){this.dirty=this.generation!==ticket;return this.data;}
+      const graph=await this.compute('snapshot',{nodes,sources});
       if(this.dead)throw Error('已关闭');this.records=records;this.attachmentParents=new Map(nodes.flatMap(n=>n.attachments.map(a=>[a.id,n.itemID])));
-      this.data={...graph,libraries,collections,builtAt:Date.now(),incremental:{full,read:completed,reused:Math.max(0,nodes.length-completed)}};this.dirty=this.generation!==ticket;return this.data;
+      this.snapshotScope=scopeSignature;this.data={...graph,libraries,collections,builtAt:Date.now(),incremental:{full,read:completed,reused:Math.max(0,nodes.length-completed)}};this.dirty=this.generation!==ticket;return this.data;
     })();this.snapshotFlight=work;try{return await work;}catch(error){this.dirty=true;this.fullDirty ||= full;for(const id of pending)this.dirtyItems.add(id);throw error;}finally{this.snapshotFlight=null;}
   },
   scope(data,libraryID,collectionID){

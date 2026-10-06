@@ -20,15 +20,15 @@ var CiteLensSemanticCore=(()=>{
  }
  // Exact incremental mutual top-k: unchanged pairs are reused. Deleting or
  // changing a top neighbour repairs that row, so results equal a fresh build.
- function graph(nodes,vectors,partition,assignments=null,{previous=null,signatures=null,progress=()=>{}}={}){
+ function graph(nodes,vectors,partition,assignments=null,{previous=null,signatures=null,progress=()=>{},threshold=.50,titleThreshold=.58,maxNeighbors=7}={}){
   const valid=v=>Array.isArray(v)&&v.length>0&&v.every(Number.isFinite),topics=new Map((assignments||[]).map(r=>[r.id,r.topic.trim().toLowerCase()])),byID=new Map(nodes.map((n,i)=>[n.id,i]));
-  const keys=nodes.map((n,i)=>JSON.stringify([signatures?.[i]||vectors[i],!!(n.abstract?.length>=80),topics.get(n.id)||'',!!topics.size]));
+  const keys=nodes.map((n,i)=>JSON.stringify([signatures?.[i]||vectors[i],!!(n.abstract?.length>=80),topics.get(n.id)||'',!!topics.size,threshold,titleThreshold,maxNeighbors]));
   const old=new Map(previous?.version===1?previous.rows:[]),changed=new Set(nodes.filter((n,i)=>old.get(n.id)?.key!==keys[i]).map(n=>n.id)),removed=new Set([...old.keys()].filter(id=>!byID.has(id))),repair=new Set(changed),near=nodes.map(()=>[]);
   for(let i=0;i<nodes.length;i++)if(!changed.has(nodes[i].id)){
    const row=old.get(nodes[i].id);if(!Array.isArray(row?.near)||row.near.some(x=>changed.has(x.id)||removed.has(x.id))){repair.add(nodes[i].id);continue;}
    near[i]=row.near.filter(x=>byID.has(x.id)).map(x=>({j:byID.get(x.id),score:x.score}));
   }
-  const offer=(i,j,score)=>{const list=near[i];list.push({j,score});list.sort((a,b)=>b.score-a.score||nodes[a.j].id.localeCompare(nodes[b.j].id));if(list.length>7)list.pop();};
+  const offer=(i,j,score)=>{const list=near[i];list.push({j,score});list.sort((a,b)=>b.score-a.score||nodes[a.j].id.localeCompare(nodes[b.j].id));if(list.length>maxNeighbors)list.pop();};
   const usable=vectors.map(valid);let comparisons=0;const targets=[...repair].map(id=>byID.get(id)).sort((a,b)=>a-b),done=new Set();
   for(let at=0;at<targets.length;at++){const i=targets[at];if(usable[i])for(let j=0;j<nodes.length;j++){
    if(i===j||done.has(j)||!usable[j]||vectors[i].length!==vectors[j].length||topics.size&&topics.get(nodes[i].id)!==topics.get(nodes[j].id))continue;
@@ -36,8 +36,8 @@ var CiteLensSemanticCore=(()=>{
    // candidates from changed/new papers, never duplicate their retained list.
    const sendI=true,sendJ=repair.has(nodes[j].id)||changed.has(nodes[i].id);
    let score=0;for(let k=0;k<vectors[i].length;k++)score+=vectors[i][k]*vectors[j][k];comparisons++;
-   const threshold=(nodes[i].abstract?.length>=80&&nodes[j].abstract?.length>=80)?.50:.58;
-   if(score>=threshold){if(sendI)offer(i,j,score);if(sendJ)offer(j,i,score);}
+   const minimum=(nodes[i].abstract?.length>=80&&nodes[j].abstract?.length>=80)?threshold:titleThreshold;
+   if(score>=minimum){if(sendI)offer(i,j,score);if(sendJ)offer(j,i,score);}
   }done.add(i);if(at%16===0)progress({phase:'neighbors',completed:at+1,total:targets.length});}
   const edges=new Map();for(let i=0;i<nodes.length;i++)for(const {j,score} of near[i]){if(!near[j].some(n=>n.j===i))continue;const ids=[nodes[i].id,nodes[j].id].sort();edges.set(JSON.stringify(ids),{source:ids[0],target:ids[1],weight:score*score,score});}
   const links=[...edges.values()].sort((a,b)=>a.source.localeCompare(b.source)||a.target.localeCompare(b.target)),groups=partition(nodes.map(n=>n.id),links,1.05);

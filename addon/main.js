@@ -1,9 +1,9 @@
 var CiteLens = {
-  id:'cite-lens@local.research',name:'Paper Nexus',label:'Paper Nexus',homepage:'https://github.com/JunyanKang/paper-nexus',readers:new Map(),panels:new Map(),windows:new Map(),dead:false,
+  id:'cite-lens@local.research',name:'Paper Nexus',label:'Paper Nexus',homepage:'https://github.com/JunyanKang/paper-nexus',toolbarNodes:new WeakMap(),readers:new Map(),panels:new Map(),windows:new Map(),dead:false,
   async start() {
     if(this.rootURI){const resources=Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler);this.assetResource='paper-nexus-'+this.version.replace(/\./g,'-');resources.setSubstitutionWithFlags(this.assetResource,Services.io.newURI(this.rootURI),resources.ALLOW_CONTENT_ACCESS);this.assetURI='resource://'+this.assetResource+'/assets/';}
     await Zotero.uiReadyPromise;await CiteLensServices.init();CiteLensTranslation.init();await CiteLensThemes.initialize();this.dead=false;await CiteLensUpdater.start(this);await CiteLensNetwork.start();CiteLensSemantic.start();
-    this.toolbarHandler=e=>e.append(this.toolbar(e.doc,e.reader));
+    this.toolbarHandler=e=>{if(this.dead)return;const button=this.toolbar(e.doc,e.reader);if(!button.isConnected)e.append(button);this.normalizeToolbar(e.doc);e.doc.defaultView.setTimeout(()=>{if(!this.dead)this.normalizeToolbar(e.doc);},0);};
     this.selectionHandler=({doc,reader,params,append})=>{
       const raw=params.annotation?.text;if(!raw||raw.length<4)return;
       const b=CiteLensUI.button(doc,'识别引文',async()=>{
@@ -19,7 +19,12 @@ var CiteLens = {
   },
   addWindow(win) {if(this.windows.has(win))return;const e=win.document.createXULElement('menuitem');e.id='cite-lens-tools';e.setAttribute('class','menuitem-iconic');e.setAttribute('image',this.assetURI+'nexus.png');e.setAttribute('label','Paper Nexus');e.addEventListener('command',()=>{const reader=Zotero.Reader.getByTabID(win.Zotero_Tabs.selectedID);this.showNetwork(reader);});win.document.getElementById('menu_ToolsPopup')?.append(e);this.windows.set(win,e);},
   removeWindow(win) {this.windows.get(win)?.remove();this.windows.delete(win);CiteLensThemes.release(win.document);},
-  toolbar(doc,reader) {const b=CiteLensUI.button(doc,'',()=>this.togglePanel(reader));b.prepend(CiteLensUI.logo(doc,24));b.dataset.citeLens='toolbar';b.setAttribute('aria-label','Paper Nexus');b.setAttribute('aria-expanded','false');b.style.cssText='display:inline-flex;align-items:center;justify-content:center;padding:3px;width:32px;min-height:30px;font-size:12px';return b;},
+  toolbar(doc,reader) {const existing=this.toolbarNodes.get(doc)||doc.querySelector('[data-cite-lens=toolbar]');if(existing){existing._paperToolbarLive=true;this.toolbarNodes.set(doc,existing);return existing;}const b=CiteLensUI.button(doc,'',()=>this.togglePanel(reader));b.prepend(CiteLensUI.logo(doc,24));b.dataset.citeLens='toolbar';b.setAttribute('aria-label','Paper Nexus');b.setAttribute('aria-expanded','false');b.style.cssText='display:inline-flex;align-items:center;justify-content:center;padding:3px;width:32px;min-height:30px;font-size:12px';b._paperToolbarLive=true;this.toolbarNodes.set(doc,b);return b;},
+  normalizeToolbar(doc) {
+    const host=doc.querySelector('.toolbar .end')||doc.querySelector('.toolbar');if(!host)return;
+    const buttons=[];for(const selector of ['[data-paper-voice="toolbar"]','[data-cite-lens="toolbar"]']){const found=[...doc.querySelectorAll(selector)];if(!found.length)continue;const keep=(selector.includes('cite-lens')?this.toolbarNodes.get(doc):null)||found.find(node=>node._paperToolbarLive)||found[0];for(const duplicate of found)if(duplicate!==keep)duplicate.remove();buttons.push(keep);}
+    const tail=[...host.children].slice(-buttons.length);if(buttons.some((button,i)=>button.parentNode!==host||tail[i]!==button))host.append(...buttons);
+  },
   scan() {
     if(this.dead)return;const active=new Set(Zotero.Reader._readers);
     for(const reader of active){try{this.attach(reader);}catch(e){Zotero.logError(e);}}
@@ -27,10 +32,11 @@ var CiteLens = {
   },
   attach(reader) {
     const doc=reader._iframeWindow?.document;if(!doc?.body)return;CiteLensUI.style(doc);
-    if(!doc.querySelector('[data-cite-lens="toolbar"]'))(doc.querySelector('.toolbar .end')||doc.querySelector('.toolbar'))?.append(this.toolbar(doc,reader));
+    if(!doc.querySelector('[data-cite-lens="toolbar"]'))(doc.querySelector('.toolbar .end')||doc.querySelector('.toolbar'))?.append(this.toolbar(doc,reader));this.normalizeToolbar(doc);
     let state=this.readers.get(reader);
     if(!state){state={doc,hooks:[],refPromise:null};this.readers.set(reader,state);
       state.observer=new doc.defaultView.MutationObserver(records=>{
+        if(records.some(r=>r.target.closest?.('.toolbar')))this.normalizeToolbar(doc);
         // Ignore our own subtree updates so async status changes cannot start a mutation loop.
         if(records.every(r=>(r.target.nodeType===3?r.target.parentElement:r.target).closest?.('.cl-card,.cl-root,.cl-overlay,.cl-citation-group')))return;
         // Mutation delivery runs before paint. A timer here exposes the native blue
@@ -173,6 +179,7 @@ var CiteLens = {
   async importMetrics() {const file=await this.picker('open','导入有来源的 JCR 指标',[['CSV / JSON','*.csv;*.json']]);if(!file)return null;const stat=await IOUtils.stat(file);if(stat.size>20*1024*1024)throw Error('指标文件大于 20 MB');const n=await CiteLensServices.importMetrics(await IOUtils.readUTF8(file));this.refreshMetrics();return n;},
   async exportRIS(records) {if(!records.length)return;const file=await this.picker('save','导出参考文献',[['RIS','*.ris']]);if(file)await IOUtils.writeUTF8(file,CiteLensCore.ris(records));},
   detach(reader) {
+    try{this.toolbarNodes.delete(reader._iframeWindow.document);}catch(_){}
     const s=this.readers.get(reader);
     // Zotero may destroy an iframe before notifying plugins that its reader closed.
     // Releasing all other hooks/maps must still proceed when a DOM wrapper is dead.

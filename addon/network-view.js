@@ -17,7 +17,9 @@ var CiteLensNetworkView=(()=>{
  function zoom(camera,factor,x,y){const k=clamp(camera.k*factor,.06,5),ratio=k/camera.k;return{x:x-(x-camera.x)*ratio,y:y-(y-camera.y)*ratio,k};}
  function step(camera,target,dt=16,reduced=false){const alpha=reduced?1:1-Math.exp(-clamp(dt,1,40)/35);for(const key of ['x','y','k'])camera[key]+=(target[key]-camera[key])*alpha;const pending=Math.abs(camera.x-target.x)+Math.abs(camera.y-target.y)>.08||Math.abs(camera.k-target.k)>.0001;if(!pending)Object.assign(camera,target);return pending;}
  function index(model){const byID=new Map(model.nodes.map(n=>[n.id,n])),adj=new Map(model.nodes.map(n=>[n.id,new Set([n.id])])),primary=new Map(),links=new Map(model.nodes.map(n=>[n.id,[]]));for(const e of model.edges){adj.get(e.source)?.add(e.target);adj.get(e.target)?.add(e.source);links.get(e.source)?.push(e);links.get(e.target)?.push(e);}for(const n of model.nodes)if(n.group){if(!primary.has(n.group))primary.set(n.group,[]);primary.get(n.group).push(n);}return{byID,adj,primary,links};}
- function scene(model,index,{selected='',focused=false,k=1,detail=false}={}){
+ function scene(model,index,{selected='',focused=false,k=1,detail=false,community=''}={}){
+  if(model.communities?.length)return communityScene(model,index,{selected,focused,k,community});
+  if(index.overview){const near=index.detail?.id===selected?index.detail.near:index.adj.get(selected),allEdges=index.detail?index.detail.edges:index.overview,nodes=focused?model.nodes.filter(n=>near?.has(n.id)):model.nodes,ids=focused?new Set(nodes.map(n=>n.id)):null;return {nodes,edges:ids?allEdges.filter(e=>ids.has(e.source)&&ids.has(e.target)):allEdges,near,aggregate:!focused&&!detail&&model.nodes.length>70&&k<.9,hidden:model.nodes.length-nodes.length};}
   const near=index.adj.get(selected),aggregate=!focused&&!detail&&model.nodes.length>70&&k<.9,representatives=new Map(),nodes=[];
   const essential=new Set([selected,...(model.matches||[])]);
   if(near&&(focused||near.size<=50))for(const id of near)essential.add(id);
@@ -38,7 +40,35 @@ var CiteLensNetworkView=(()=>{
    else link.signals.add(e.kind+':'+key);
   }
   const edges=[...combined.values()].map(e=>({...e,kinds:[...e.kinds].sort(),directions:[...e.directions],count:e.signals.size,kind:e.kinds.has('cites')?'cites':[...e.kinds][0]}));for(const e of edges)delete e.signals;
-  edges.sort((a,b)=>Number(b.kinds.some(k=>['author','topic','similarity'].includes(k)))-Number(a.kinds.some(k=>['author','topic','similarity'].includes(k)))||b.count-a.count);return{nodes,edges,near,aggregate,hidden:model.nodes.length-nodes.length};
+  edges.sort((a,b)=>Number(b.kinds.some(k=>['author','topic','similarity'].includes(k)))-Number(a.kinds.some(k=>['author','topic','similarity'].includes(k)))||b.count-a.count);if(!focused)index.overview=edges;return{nodes,edges,near,aggregate,hidden:model.nodes.length-nodes.length};
+ }
+ function communityScene(model,index,{selected='',focused=false,k=1,community=''}={}){
+  if(!index.projections)index.projections=new Map();const key=community+'|'+(index.detail?.id||'');let projected=index.projections.get(key);
+  if(!projected){
+   const owner=new Map(),nodes=[],byCommunity=new Map((model.communities||[]).map(g=>[g.id,g]));
+   if(community){const group=byCommunity.get(community),ids=new Set(group?.members||[]);for(const n of model.nodes)if(ids.has(n.id)){nodes.push(n);owner.set(n.id,n.id);}}
+   else for(const g of model.communities){const members=g.members.map(id=>index.byID.get(id)).filter(Boolean);if(!members.length)continue;if(members.length===1){nodes.push(members[0]);owner.set(members[0].id,members[0].id);continue;}
+    const representative=[...members].filter(n=>n.kind!=='paper').sort((a,b)=>(b.members?.length||0)-(a.members?.length||0)||(b.degree||0)-(a.degree||0)||a.id.localeCompare(b.id))[0]||members[0];
+    const node={id:g.id,kind:'community',title:representative.title,representative:representative.id,members:g.members,color:g.color,local:members.some(n=>n.local),x:g.x,y:g.y,degree:0};nodes.push(node);for(const n of members)owner.set(n.id,g.id);
+   }
+   const combined=new Map(),sourceEdges=index.detail?[...model.edges.filter(e=>e.source!==index.detail.id&&e.target!==index.detail.id),...index.detail.relations]:model.edges;
+   for(const e of sourceEdges){const a=owner.get(e.source),b=owner.get(e.target);if(!a||!b||a===b)continue;const pair=[a,b].sort(),key=JSON.stringify(pair);if(!combined.has(key))combined.set(key,{source:pair[0],target:pair[1],kind:e.kind,kinds:new Set(),directions:[],signals:new Set()});const edge=combined.get(key);edge.kinds.add(e.kind);for(const proof of e.evidence||[])edge.signals.add(proof.paperID||JSON.stringify([proof.sourcePaper,proof.targetPaper].sort()));if(!e.evidence?.length)edge.signals.add(JSON.stringify([e.source,e.target].sort()));}
+   const edges=[...combined.values()].map(e=>({...e,kinds:[...e.kinds],count:e.signals.size}));for(const e of edges)delete e.signals;edges.sort((a,b)=>b.count-a.count||a.source.localeCompare(b.source));
+   projected={nodes,edges,owner,index:windowlessIndex(nodes,edges)};index.projections.set(key,projected);
+  }
+  const mappedSelected=projected.owner.get(selected)||selected,near=projected.index.adj.get(mappedSelected),nodes=focused&&near?projected.nodes.filter(n=>near.has(n.id)):projected.nodes,ids=focused&&near?new Set(nodes.map(n=>n.id)):null;
+  return {...projected,nodes,edges:ids?projected.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)):projected.edges,near,matches:[...new Set((model.matches||[]).map(id=>projected.owner.get(id)).filter(Boolean))],aggregate:!community,hidden:model.nodes.length-nodes.length};
+ }
+ function windowlessIndex(nodes,edges){return index({nodes,edges});}
+ function detail(index,id,relations){
+  const keys=new Set(relations.map(e=>JSON.stringify([e.source,e.target].sort()))),edges=(index.overview||[]).filter(e=>!keys.has(JSON.stringify([e.source,e.target].sort())));
+  for(const e of relations)edges.push({...e,kinds:['coauthor'],directions:[],count:e.evidence.length});
+  index.projections?.clear();index.detail={id,relations,edges,near:new Set([id,...relations.map(e=>e.target)])};
+ }
+ function emphasis(model,index,{selected='',hover=''}={}){
+  const searching=!!model.searchActive,roots=new Set(searching?(model.matches||[]):[selected||hover].filter(Boolean));
+  if(!searching&&!roots.size)return {roots,near:null,searching};const near=new Set(roots);if(searching&&model.searchGroups)return {roots,near,searching};for(const id of roots)for(const other of (index.detail?.id===id?index.detail.near:index.adj.get(id))||[])near.add(other);
+  return {roots,near,searching};
  }
  function lineWidth(count,active=false){return Math.min(3.2,.75+Math.log2(Math.max(1,count))*.55)+(active?.45:0);}
  function labels(candidates,width,height){
@@ -47,6 +77,6 @@ var CiteLensNetworkView=(()=>{
   for(const c of candidates.sort((a,b)=>b.priority-a.priority||a.id.localeCompare(b.id))){const r=c.rect;if(r.x<6||r.y<5||r.x+r.w>width-6||r.y+r.h>height-62)continue;const keys=cells(r),occupied=keys.flatMap(k=>grid.get(k)||[]);if(occupied.some(o=>r.x<o.x+o.w&&r.x+r.w>o.x&&r.y<o.y+o.h&&r.y+r.h>o.y))continue;accepted.push(c);for(const key of keys){if(!grid.has(key))grid.set(key,[]);grid.get(key).push(r);}}
   return accepted;
  }
- return{wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel};
+ return{wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,emphasis,detail};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkView;

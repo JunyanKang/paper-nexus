@@ -108,6 +108,7 @@
     "tests/semantic.test.cjs",
     "tests/services.test.cjs",
     "tests/themes.test.cjs",
+    "tests/toolbar.test.cjs",
     "tests/translation.test.cjs",
     "tests/updater.test.cjs"
   ]

@@ -18,3 +18,35 @@ test('author-contaminated bibliographies are cleaned before topic naming',()=>{c
 test('local topic names retain scientific noun phrases instead of title result clauses',()=>{for(const [title,expected] of [['Microbial-type rhodopsin restores visual responses','Microbial-type rhodopsin'],['Human chorioretinal layer thickness measured by optical coherence tomography','Human chorioretinal layer thickness'],['Interglial cell gap junctions increase during development','Interglial cell gap junctions'],['Retinal ganglion cells in human albinism','Retinal ganglion cells']]){const g=topic([paper('a',title)],[[1,0]]);assert.doesNotMatch(g.nodes[0].title,/restores|measured|increase|during/i);assert.equal(g.nodes[0].title,expected);}});
 
 test('shared generic single words do not displace supported research phrases',()=>{const g=topic([paper('a','Retinal ganglion cells in monkey retina'),paper('b','Retinal ganglion cells in human retina'),paper('c','Blood flow in the retina')],[[1,0],[1,0],[1,0]]);assert.equal(g.nodes[0].title,'Retinal ganglion cells');});
+
+test('related subtopics form a second semantic community without hiding their topic identities',()=>{
+ const nodes=[paper('a','Retinal cone differentiation'),paper('b','Retinal rod differentiation'),paper('c','Bacterial biofilm resistance')];
+ // Related title-only papers remain separate at .58; centroids relate them at .52.
+ const vectors=[[1,0,0],[.55,Math.sqrt(1-.55**2),0],[0,0,1]],g=M.layout(topic(nodes,vectors));
+ assert.equal(g.nodes.length,3);assert.ok(g.nodes.every(n=>n.kind==='topic'));
+ const a=g.nodes.find(n=>n.members.includes('1:a')),b=g.nodes.find(n=>n.members.includes('1:b')),c=g.nodes.find(n=>n.members.includes('1:c'));
+ assert.equal(a.community,b.community);assert.notEqual(a.community,c.community);
+ assert.equal(g.edges.length,1);assert.equal(g.edges[0].evidence[0].kind,'semantic-centroid');
+ assert.ok(Math.hypot(a.x-b.x,a.y-b.y)<Math.hypot(a.x-c.x,a.y-c.y));
+ const again=M.topics(M.build(input(nodes)),{vectors},g.semanticState);assert.equal(again.hierarchyIncremental.comparisons,0);
+});
+test('same authors or citation traffic never force unrelated scientific topics into one community',()=>{
+ const nodes=[paper('a','Retinal cone differentiation'),paper('b','Bacterial biofilm resistance')],edges=[{source:'1:a',target:'1:b',kind:'author',evidence:[{authorKey:'anita'}]},{source:'1:a',target:'1:b',kind:'cites',evidence:[{attachmentID:8}]}];
+ const g=M.layout(topic(nodes,[[1,0],[0,1]],{edges}));assert.equal(g.edges.length,1);assert.ok(g.edges[0].evidence.every(e=>e.kind==='cites'));assert.notEqual(g.nodes[0].community,g.nodes[1].community);
+});
+test('repeat coauthors cluster into teams despite a cross-team collaboration',()=>{
+ const nodes=[];for(let team=0;team<3;team++)for(let p=0;p<5;p++)nodes.push(paper(`${team}-${p}`,'Research',{creators:Array.from({length:5},(_,i)=>author('Person'+i,'Team'+team))}));
+ nodes.push(paper('bridge','Collaboration',{creators:[author('Person0','Team0'),author('Person0','Team1')]}));
+ const g=M.layout(M.build(input(nodes,{mode:'authors'})));assert.equal(g.nodes.length,15);assert.equal(g.communities.length,3);
+ for(let team=0;team<3;team++){const members=g.nodes.filter(n=>n.title.endsWith('Team'+team));assert.equal(new Set(members.map(n=>n.community)).size,1);}
+ assert.ok(g.nodes.every(n=>n.kind==='author'&&!n.year));
+});
+test('legacy keyword assignments cannot reintroduce dotted topic names',()=>{
+ const g=M.topics(M.build(input([paper('a','Uveal melanoma models')])),{vectors:[[1,0]],assignments:[{id:'1:a',topic:'uveal · melanoma · models'}]});assert.equal(g.nodes[0].title,'Uveal melanoma models');
+});
+test('large consortia remain bounded while repeated collaborators retain real paper evidence',()=>{
+ const creators=Array.from({length:240},(_,i)=>author('Person'+i,'Consortium')),nodes=[paper('large','Collaborative atlas',{creators})];
+ for(let i=0;i<4;i++)nodes.push(paper('team'+i,'Team study',{creators:creators.slice(0,3)}));
+ const g=M.build(input(nodes,{mode:'authors'}));assert.equal(g.nodes.length,240);assert.ok(g.edges.length<=240*12);assert.ok(g.nodes.every(n=>n.coauthorCount===239));
+ const leader=g.nodes.find(n=>n.title==='Person0 Consortium'),peer=g.nodes.find(n=>n.title==='Person1 Consortium'),e=g.edges.find(e=>[e.source,e.target].includes(leader.id)&&[e.source,e.target].includes(peer.id));assert.equal(e.evidence.length,5);assert.ok(e.strength>2);assert.ok(g.edges.every(e=>e.evidence.length>=1));
+});

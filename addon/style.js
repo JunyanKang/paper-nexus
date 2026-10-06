@@ -307,4 +307,12 @@ button[data-cite-lens]:is(:hover,:focus-visible){background:var(--cl-soft);color
 .pn-map-inspector .pn-member-paper{display:block;height:auto;max-height:none;min-height:24px;width:100%;white-space:normal;text-align:left;justify-content:flex-start;line-height:1.45;overflow-wrap:anywhere;padding:4px 2px;margin:2px 0}
 
 .pn-link-evidence{padding:2px 0 6px 8px}.pn-map-inspector .pn-link-evidence>button{display:block;height:auto;max-height:none;min-height:24px;text-align:left;white-space:normal;line-height:1.4;padding:4px 2px;width:100%}
+
+/* Feedback stays within existing rows. Password fields never offer reveal controls. */
+.cl-settings input::-moz-reveal{display:none!important;pointer-events:none!important}
+.cl-ncbi-row [data-ncbi-test]{flex:none;min-width:4.5em;white-space:nowrap}
+.pn-map-window .cl-dialog-footer{flex-wrap:nowrap;gap:10px}
+.pn-map-count{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pn-map-status{flex:1;min-width:0;margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;font-size:11px}
+.pn-ego-depth{display:flex;gap:2px;background:var(--cl-soft);border-radius:7px}.pn-ego-depth[hidden]{display:none}.pn-ego-depth button[aria-pressed=true]{background:var(--cl-bg);color:var(--cl-accent)}
 `;
