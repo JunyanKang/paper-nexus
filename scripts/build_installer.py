@@ -18,7 +18,7 @@ for profile in profiles:
  if pack.exists():
   assert pack.stat().st_size==profile['package']['bytes'] and hashlib.sha256(pack.read_bytes()).hexdigest()==profile['package']['sha256'], 'Rebuild installer model catalog'
  models.append({**profile,'manifest':m})
-config={'version':version,'plugin':asset(ROOT/'dist'/f'paper-nexus-{version}.xpi','v'+version),'models':models}
+config={'appearance':json.loads((ROOT/'installers/appearance.json').read_text(encoding='utf-8')),'version':version,'plugin':asset(ROOT/'dist'/f'paper-nexus-{version}.xpi','v'+version),'models':models}
 (out/'installer.json').write_text(json.dumps(config,ensure_ascii=False,indent=2),encoding='utf-8')
 if sys.platform=='darwin':
  try:

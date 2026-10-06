@@ -1,0 +1,16 @@
+{
+  "paper": "#faf9f5",
+  "card": "#fefdfc",
+  "ink": "#232323",
+  "muted": "#40403f",
+  "accent": "#13515a",
+  "button": "#e7e6e2",
+  "buttonHover": "#deddd8",
+  "quiet": "#eeede9",
+  "disabled": "#e4e4e0",
+  "disabledInk": "#777775",
+  "selected": "#007aff",
+  "unchecked": "#e7e7e3",
+  "success": "#1f7a5c",
+  "track": "#e8ece8"
+}
