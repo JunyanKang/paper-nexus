@@ -12,5 +12,6 @@
   "selected": "#007aff",
   "unchecked": "#e7e7e3",
   "success": "#1f7a5c",
-  "track": "#e8ece8"
+  "track": "#e8ece8",
+  "accentHover": "#205e67"
 }
