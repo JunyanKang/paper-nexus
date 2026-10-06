@@ -111,6 +111,7 @@
     "scripts/build_topic_lexicon.py",
     "scripts/check_syntax.py",
     "scripts/fetch_models.py",
+    "scripts/installer_fonts.py",
     "scripts/model-assets.json",
     "scripts/package_release.py",
     "scripts/public-files.json",

@@ -2,6 +2,8 @@
 from pathlib import Path
 import hashlib,json,os,plistlib,shutil,struct,subprocess,sys,zipfile
 ROOT=Path(__file__).resolve().parents[1]
+from installer_fonts import check as check_installer_fonts
+check_installer_fonts()
 version=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
 out=ROOT/'.build/installers';out.mkdir(parents=True,exist_ok=True)
 repo='https://kanglab.cool/paper-nexus/'
