@@ -1,6 +1,6 @@
 # Installer typeface
 
-Nexus Sans is a limited UI-character subset of Noto Sans SC, distributed under the SIL Open Font License 1.1 in `OFL.txt`. The derivative family is renamed Nexus Sans. Regular and SemiBold are static instances of weights 400 and 600. The subset is bundled solely for consistent installer typography, not installed into the operating system.
+Nexus Sans is a limited UI-character subset of Noto Sans SC, distributed under the SIL Open Font License 1.1 in `OFL.txt`. The derivative faces are renamed Nexus Sans Regular and Nexus Sans SemiBold. They are static instances of weights 400 and 600, registered as separate families to keep Windows from substituting weights during CJK shaping. The subset is bundled solely for consistent installer typography, not installed into the operating system.
 
 Source: https://github.com/google/fonts/tree/main/ofl/notosanssc
 
