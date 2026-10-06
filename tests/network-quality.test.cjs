@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),C=require('../addon/core.js'),SC=require('../addon/semantic-core.js');
-const ctx={CiteLensCore:C,CiteLensSemanticCore:SC};vm.createContext(ctx);for(const f of ['network-core.js','topic-lexicon.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+f),'utf8'),ctx);const N=ctx.CiteLensNetworkCore,M=ctx.CiteLensNetworkMap;
+const ctx={CiteLensCore:C,CiteLensSemanticCore:SC};vm.createContext(ctx);for(const f of ['network-core.js','topic-lexicon.js','vendor/compromise/compromise-two.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+f),'utf8'),ctx);const N=ctx.CiteLensNetworkCore,M=ctx.CiteLensNetworkMap;
 const person=(firstName,lastName,extra={})=>({firstName,lastName,...extra}),paper=(id,title,creators)=>({id,title,creators,local:true}),build=nodes=>M.build({nodes,edges:[],references:[],mode:'authors'});
 test('ORCID checksum, normalization and hard identity conflicts',()=>{
  const a='0000-0002-1825-0097',b='0000-0001-5109-3700';assert.equal(N.orcid('https://orcid.org/'+a),a);assert.equal(N.orcid(a.slice(0,-1)+'8'),'');assert.equal(N.orcid(b),b);
@@ -15,7 +15,7 @@ test('two supported homonym teams separate, while a researcher changing fields k
  const moved=build([...papers,paper('a3','Novel bacterial method',[wei,...a])]);assert.deepEqual(Array.from(moved.nodes.filter(n=>n.title==='Wei Li'),n=>n.members.length).sort(),[2,3]);
 });
 test('unknown signatures cannot transitively bridge conflicting verified identities',()=>{
- const a='0000-0002-1825-0097',b='0000-0001-5109-3700',co=[person('Alice','Jones'),person('Robert','Brown')],g=build([paper('a','Retinal development',[person('Wei','Li',{orcid:a}),...co]),paper('b','Retinal development',[person('Wei','Li'),...co]),paper('c','Retinal development',[person('Wei','Li',{orcid:b}),...co])]);assert.equal(g.nodes.filter(n=>n.title==='Wei Li').length,2);assert.ok(g.nodes.filter(n=>n.title==='Wei Li').every(n=>!(n.members.includes('a')&&n.members.includes('c'))));
+ const a='0000-0002-1825-0097',b='0000-0001-5109-3700',co=[person('Alice','Jones'),person('Robert','Brown')],g=build([paper('a','Retinal development',[person('Wei','Li',{orcid:a}),...co]),paper('b','Retinal development',[person('Wei','Li'),...co]),paper('c','Retinal development',[person('Wei','Li',{orcid:b}),...co])]);assert.equal(g.nodes.filter(n=>n.title==='Wei Li').length,3);assert.ok(g.nodes.filter(n=>n.title==='Wei Li').every(n=>!(n.members.includes('a')&&n.members.includes('c'))));assert.equal(g.nodes.find(n=>n.title==='Wei Li'&&n.members.includes('b')).identity,'unresolved');
 });
 test('missing identity evidence remains provisional rather than fabricating verified people',()=>{
  const g=build([paper('a','Photoreceptor development',[person('Wei','Li')]),paper('b','Bacterial resistance',[person('Wei','Li')])]);assert.equal(g.nodes[0].identity,'name');assert.equal(g.nodes[0].orcid,'');
@@ -38,3 +38,35 @@ test('shared disease or compound names outrank isolated generic phrases',()=>{
  const more=['Curcumin for osteoarthritis management','Curcumin and obesity','Curcumin effects on cognitive disorders'].map((title,i)=>paper('c'+i,title,[])),g=M.topics(M.build({nodes:more,edges:[],references:[],mode:'topics'}),{vectors:more.map(()=>[1,0])});assert.match(g.nodes[0].title,/curcumin/i);
 });
 test('scientific possessives stay readable in extracted topic phrases',()=>{const nodes=[paper('p1',"Cow's milk protein allergy",[]),paper('p2',"Cow's milk protein intolerance",[])],g=M.topics(M.build({nodes,edges:[],references:[],mode:'topics'}),{vectors:nodes.map(()=>[1,0])});assert.match(g.nodes[0].title,/Cow's milk protein/i);assert.doesNotMatch(g.nodes[0].title,/Cow s/i);});
+
+test('ambiguous evidence chains cannot inherit an arbitrary ORCID or depend on input order',()=>{
+ const co=[person('Alice','Jones'),person('Robert','Brown')],papers=[paper('a','Retinal development',[person('Wei','Li',{orcid:'0000-0002-1825-0097'}),...co]),paper('b','Retinal development',[person('Wei','Li'),...co]),paper('c','Retinal development',[person('Wei','Li'),...co]),paper('d','Retinal development',[person('Wei','Li',{orcid:'0000-0001-5109-3700'}),...co])];
+ const rows=g=>Array.from(g.nodes.filter(n=>n.title==='Wei Li'),n=>[n.identity,Array.from(n.members).sort()]).sort();const a=build(papers),b=build([...papers].reverse());assert.deepEqual(rows(a),rows(b));const unknown=a.nodes.find(n=>n.members.includes('b')&&n.title==='Wei Li');assert.equal(unknown.identity,'unresolved');assert.deepEqual(Array.from(unknown.members).sort(),['b','c']);
+});
+
+test('institution and coauthor evidence resolve competing anchors per paper, without chain contamination',()=>{
+ const a='0000-0002-1825-0097',b='0000-0001-5109-3700',co=[person('Alice','Jones'),person('Robert','Brown')];
+ const who=(affiliation,orcid)=>person('Wei','Li',{affiliation,orcid});
+ const papers=[paper('a','Retinal development',[who('University A Department of Retina',a),...co]),paper('b','Retinal development',[who('University B Department of Retina',b),...co]),paper('u1','Retinal development',[who('University A Department of Retina'),...co]),paper('u2','Retinal development',[who('University B Department of Retina'),...co])];
+ for(const input of [papers,[...papers].reverse()]){const graph=build(input),people=graph.nodes.filter(n=>n.title==='Wei Li');assert.equal(people.length,2);assert.deepEqual(Array.from(people.find(n=>n.orcid===a).members).sort(),['a','u1']);assert.deepEqual(Array.from(people.find(n=>n.orcid===b).members).sort(),['b','u2']);assert.equal(graph.identityMetrics.resolvedByEvidence,2);}
+});
+test('new affiliation evidence automatically resolves an earlier tie and is reversible',()=>{
+ const co=[person('Alice','Jones'),person('Robert','Brown')],a=person('Wei','Li',{orcid:'0000-0002-1825-0097',affiliation:'Example University Department A'}),b=person('Wei','Li',{orcid:'0000-0001-5109-3700',affiliation:'Example University Department B'}),unknown=person('Wei','Li'),papers=[paper('a','Retinal development',[a,...co]),paper('b','Retinal development',[b,...co]),paper('u','Retinal development',[unknown,...co])];
+ assert.equal(build(papers).nodes.filter(n=>n.title==='Wei Li').length,3);
+ unknown.affiliation=a.affiliation;assert.deepEqual(Array.from(build(papers).nodes.find(n=>n.orcid===a.orcid).members).sort(),['a','u']);
+ unknown.affiliation=b.affiliation;assert.deepEqual(Array.from(build(papers).nodes.find(n=>n.orcid===b.orcid).members).sort(),['b','u']);
+});
+test('two same-name people on one paper cannot both inherit the same ORCID',()=>{
+ const co=[person('Alice','Jones'),person('Robert','Brown')],papers=[paper('a','Retinal development',[person('Wei','Li',{orcid:'0000-0002-1825-0097'}),...co]),paper('u','Retinal development',[person('Wei','Li'),person('Wei','Li'),...co])],graph=build(papers);
+ assert.ok(!graph.nodes.find(n=>n.orcid==='0000-0002-1825-0097').members.includes('u'));
+ assert.equal(graph.nodes.filter(n=>n.title==='Wei Li'&&n.members.includes('u')).length,2);
+});
+test('topic similarity alone never links an unanchored signature to an ORCID',()=>{
+ const graph=build([paper('a','Retinal cone development and differentiation',[person('Wei','Li',{orcid:'0000-0002-1825-0097'})]),paper('u','Retinal cone development and differentiation',[person('Wei','Li')])]);assert.equal(graph.nodes.filter(n=>n.title==='Wei Li').length,2);
+});
+
+test('metadata alignment rejects duplicate same-name authors and conflicting identifiers',()=>{
+ const known=person('Jane','Smith',{ORCID:'0000-0002-1825-0097'}),other=person('Jane','Smith',{ORCID:'0000-0001-5109-3700'});assert.equal(N.enrichCreators([known],[other])[0].ORCID,known.ORCID);
+ const rows=N.enrichCreators([person('J.','Smith')],[known,person('John','Smith')]);assert.equal(rows[0].ORCID,undefined);assert.equal(rows[0].firstName,'J.');
+ const duplicate=N.enrichCreators([person('J.','Smith'),person('Jane','Smith')],[known]);assert.ok(duplicate.every(r=>!r.ORCID));
+});

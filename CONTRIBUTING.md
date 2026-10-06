@@ -18,6 +18,8 @@ npm run build
 
 生成的 XPI 位于 `dist/`。模型包按 [模型来源与构建说明](docs/LOCAL-MODELS.md) 独立构建。安装器构建使用 macOS 的 Swift 工具链或 Windows 的 .NET Framework 编译器，详见 [持续集成配置](.github/workflows/build.yml)。
 
+macOS 构建前，在构建环境中运行 `python3 -m pip install -r installers/macos/requirements.txt`。DMG 的中英文背景由原生字体生成，同时包含普通和 Retina 分辨率；这些构建依赖不会安装到用户电脑。
+
 ## 公开文件范围
 
 公开仓库保留产品源码、许可证、用户文档及其配图、构建脚本、持续集成和可独立运行的回归测试。开发日志、训练实验、内部评审、临时截图、桌面测试驱动及运行结果保留在本地。

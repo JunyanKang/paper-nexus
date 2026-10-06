@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Paper Nexus",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "在 Zotero 中识别引文、查看作者与期刊信息，关联阅读来源并整理待读文献。",
   "author": "Junyan Kang",
   "applications": {
@@ -9,7 +9,7 @@
       "id": "cite-lens@local.research",
       "strict_min_version": "10.0.5",
       "strict_max_version": "10.0.*",
-      "update_url": "https://junyankang.github.io/paper-nexus/updates.json"
+      "update_url": "https://kanglab.cool/paper-nexus/updates.json"
     }
   },
   "icons": {

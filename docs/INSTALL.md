@@ -14,6 +14,10 @@
 
 安装助手本身免安装；macOS 无需拖入“应用程序”，直接从磁盘映像运行，完成后推出即可。Windows 直接运行，完成后可以删除。插件和模型均从 GitHub 按需下载并校验，安装器不携带模型或 XPI。每个所选模型分别显示下载量、速度与进度，校验安装完成后变绿。无需另行安装 Python、Node.js 或后台服务。
 
+**macOS 首次打开提示无法验证开发者时**：确认安装器来自官方发布页，先尝试打开一次，再到 **系统设置 → 隐私与安全**，向下找到 Paper Nexus 的拦截提示，点击 **仍要打开**，然后确认“打开”并按提示验证身份。macOS 12 对应入口为 **系统偏好设置 → 安全性与隐私 → 通用**。DMG 窗口背景也提供中英文步骤。若提示文件已损坏或会损害电脑，请停止运行并重新从官方发布页获取，不要关闭系统安全保护。
+
+**If macOS cannot verify the developer**: confirm that the installer came from the official release page, try opening it once, then go to **System Settings → Privacy & Security**. Scroll to the Paper Nexus notice, click **Open Anyway**, confirm **Open**, and authenticate if asked. On macOS 12, use **System Preferences → Security & Privacy → General**. Do not use these steps for a damaged-app or known-malware warning; obtain a fresh copy from the official release page.
+
 ![安装器：自动推荐保存路径，支持自定义文件夹](images/installer.png)
 
 已有模型、只更新插件时，点击安装器中的 **下载插件**；完成后点击 **打开文件**，按 Zotero 的“从文件安装插件”操作更新。无需重新选择或下载模型。

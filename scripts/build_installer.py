@@ -4,7 +4,7 @@ import hashlib,json,os,plistlib,shutil,struct,subprocess,sys,zipfile
 ROOT=Path(__file__).resolve().parents[1]
 version=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
 out=ROOT/'.build/installers';out.mkdir(parents=True,exist_ok=True)
-repo='https://junyankang.github.io/paper-nexus/'
+repo='https://kanglab.cool/paper-nexus/'
 def asset(path,tag):
  return {'name':path.name,'url':repo+tag+'/'+path.name,'bytes':path.stat().st_size,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
 catalog=json.loads((ROOT/'model-catalog.json').read_text(encoding='utf-8'))
@@ -19,6 +19,12 @@ for profile in profiles:
 config={'version':version,'plugin':asset(ROOT/'dist'/f'paper-nexus-{version}.xpi','v'+version),'models':models}
 (out/'installer.json').write_text(json.dumps(config,ensure_ascii=False,indent=2),encoding='utf-8')
 if sys.platform=='darwin':
+ try:
+  import dmgbuild
+  from ds_store import DSStore
+  from mac_alias import Alias
+ except ImportError:
+  raise SystemExit('Install the macOS build tools: python -m pip install -r installers/macos/requirements.txt')
  app=out/'Paper Nexus Installer.app';resources=app/'Contents/Resources';binary=app/'Contents/MacOS/Paper Nexus Installer'
  resources.mkdir(parents=True,exist_ok=True);binary.parent.mkdir(parents=True,exist_ok=True)
  (resources/'plugin.xpi').unlink(missing_ok=True)
@@ -38,13 +44,35 @@ if sys.platform=='darwin':
   if source.suffix in ['.ttf','.txt']:shutil.copyfile(source,resources/source.name)
  info={'CFBundleIdentifier':'io.github.junyankang.paper-nexus.installer','CFBundleName':'Paper Nexus Installer','CFBundleDisplayName':'Paper Nexus 安装助手','CFBundleExecutable':binary.name,'CFBundleVersion':version,'CFBundleShortVersionString':version,'CFBundlePackageType':'APPL','CFBundleIconFile':'PaperNexus','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True}
  (app/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
+ renderer=out/'render-dmg-background'
+ subprocess.run(['xcrun','swiftc','-O','-module-cache-path',str(out/'swift-cache'),'-framework','Cocoa',str(ROOT/'installers/macos/DMGBackground.swift'),'-o',str(renderer)],check=True)
+ subprocess.run([str(renderer),str(out)],check=True)
+ background=resources/'dmg-background.tiff'
+ subprocess.run(['tiffutil','-cathidpicheck',str(out/'dmg-background.png'),str(out/'dmg-background@2x.png'),'-out',str(background)],check=True)
  subprocess.run(['codesign','--force','--sign','-',str(app)],check=True)
- image_root=out/'dmg-root';image_root.mkdir(exist_ok=True)
- image_app=image_root/app.name
- if image_app.exists():shutil.rmtree(image_app)
- shutil.copytree(app,image_app)
- target=ROOT/'dist'/f'Paper-Nexus-{version}-macOS.dmg'
- subprocess.run(['hdiutil','create','-ov','-format','UDZO','-volname','Paper Nexus','-srcfolder',str(image_root),str(target)],check=True)
+ # An override allows local previews without replacing a release artifact.
+ target=Path(os.environ.get('PAPER_NEXUS_DMG_OUTPUT',str(ROOT/'dist'/f'Paper-Nexus-{version}-macOS.dmg'))).resolve()
+ target.parent.mkdir(parents=True,exist_ok=True)
+ # Keep the background inside the signed app so even Finder's "show hidden
+ # files" mode cannot add a distracting background-file icon beside the app.
+ image_mount={}
+ def capture_mount(path,options):image_mount['path']=Path(path)
+ def configure_background(event):
+  if event.get('type')=='operation::finished' and event.get('operation')=='dsstore::create':
+   mount=image_mount['path']
+   with DSStore.open(str(mount/'.DS_Store'),'r+') as store:
+    icon_view=store['.']['icvp']
+    icon_view['backgroundType']=2
+    icon_view['backgroundImageAlias']=Alias.for_file(str(mount/app.name/'Contents/Resources/dmg-background.tiff')).to_bytes()
+    store['.']['icvp']=icon_view
+ dmgbuild.build_dmg(str(target),'Paper Nexus',callback=configure_background,settings={
+  'format':'UDZO','files':[str(app)],'create_hook':capture_mount,
+  'window_rect':((140,40),(760,700)),'icon_size':88,'text_size':14,
+  'icon_locations':{app.name:(380,150)},
+  'default_view':'icon-view','include_icon_view_settings':True,'include_list_view_settings':False,
+  'show_status_bar':False,'show_tab_view':False,'show_toolbar':False,
+  'show_pathbar':False,'show_sidebar':False,'arrange_by':None,
+ })
  subprocess.run(['hdiutil','verify',str(target)],check=True)
  print(target)
 elif sys.platform=='win32':

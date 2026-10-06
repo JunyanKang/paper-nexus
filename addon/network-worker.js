@@ -4,7 +4,7 @@ let searchIndex=null;
 onmessage=async event=>{
  const {action,payload}=event.data;
  try{
-  if(action==='semantic-map'||(action==='layout'&&payload.mode==='topics'))importScripts('topic-lexicon.js');
+  if(action==='semantic-map'||(action==='layout'&&payload.mode==='topics'))importScripts('topic-lexicon.js','vendor/compromise/compromise-two.js');
   if(action==='cache-encode'){postMessage({result:{text:JSON.stringify(payload.value,(_,v)=>v instanceof Map?{__pnMap:[...v]}:v instanceof Set?{__pnSet:[...v]}:v)}});}
   else if(action==='cache-decode'){postMessage({result:{value:JSON.parse(payload.text,(_,v)=>v&&typeof v==='object'&&Object.keys(v).length===1&&Array.isArray(v.__pnMap)?new Map(v.__pnMap):v&&typeof v==='object'&&Object.keys(v).length===1&&Array.isArray(v.__pnSet)?new Set(v.__pnSet):v)}});}
   else if(action==='search-init'){searchIndex=CiteLensNetworkCore.searchIndex(payload);postMessage({ready:true});}

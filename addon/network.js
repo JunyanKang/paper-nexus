@@ -17,10 +17,16 @@ var CiteLensNetwork = {
   },
   async readRecord(item){
     if(!item||typeof item.isRegularItem!=='function'||!item.isRegularItem()||item.deleted)return null;
-    const creators=item.getCreators().filter(a=>Zotero.CreatorTypes.getName(a.creatorTypeID)==='author'),attachments=[];
+    let creators=item.getCreators().filter(a=>Zotero.CreatorTypes.getName(a.creatorTypeID)==='author');const attachments=[],doi=CiteLensCore.doi(item.getField('DOI'));
+    // Reuse identity evidence already fetched while reading; graph construction
+    // does not send a library or a new batch of requests to metadata services.
+    if(doi){const authors=CiteLensServices.state?.authorCache?.['doi:'+doi]?.value,lookup=CiteLensServices.state?.cache?.['doi:'+doi]?.value,record=lookup?.status==='matched'?lookup.ranked?.[0]?.record:null;
+      for(const source of [record&&CiteLensCore.recordDOI(record)===doi?record.creators:null,authors&&CiteLensCore.doi(authors.DOI)===doi?authors.authors:null])if(Array.isArray(source))creators=CiteLensNetworkCore.enrichCreators(creators,source);
+    }
     for(const a of await Zotero.Items.getAsync(item.getAttachments()))if(!a.deleted&&['application/pdf','application/epub+zip'].includes(a.attachmentContentType))attachments.push({id:a.id,key:a.key,type:a.attachmentContentType,dateModified:a.dateModified});
     return {id:CiteLensNetworkCore.id(item.libraryID,item.key),itemID:item.id,key:item.key,libraryID:item.libraryID,type:Zotero.ItemTypes.getName(item.itemTypeID),title:CiteLensCore.plainTitle(item.getField('title')),DOI:CiteLensCore.doi(item.getField('DOI')),year:String(item.getField('date')).match(/\b(?:1[6-9]|20)\d{2}\b/)?.[0]||'',journal:item.getField('publicationTitle')||item.getField('bookTitle')||item.getField('publisher'),abstract:CiteLensCore.plainTitle(item.getField('abstractNote')),creators,collections:item.getCollections(),relatedKeys:item.relatedItems,attachments};
   },
+  authorMetadataChanged(doi){if(this.dead||!doi)return;const ids=[];for(const row of this.records?.values()||[])if(row.DOI===doi)ids.push(row.itemID);if(ids.length)this.invalidate('modify','item',ids);},
   compute(action,payload,{progress=()=>{},signal=null}={}){
     const win=Zotero.getMainWindow();return new Promise((resolve,reject)=>{
       if(this.dead||signal?.aborted){reject(Error('已取消'));return;}let worker,timer;const cancel=()=>finish(Error('已取消'));
@@ -58,7 +64,7 @@ var CiteLensNetwork = {
   async map(payload,options={}){
     const {signal,progress=()=>{}}=options;
     const {positions,...content}=payload,model=typeof CiteLensModels!=='undefined'?CiteLensModels.installed.get(CiteLensModels.selected()):null;
-    const key=await this.cacheKey(['local-network-2026-2',content,model?.id,model?.version,model?.files]);if(signal?.aborted)throw Error('已取消');
+    const key=await this.cacheKey(['local-network-2026-3',content,model?.id,model?.version,model?.files]);if(signal?.aborted)throw Error('已取消');
     const stored=await this.readCache('graph',key);if(signal?.aborted)throw Error('已取消');
     if(stored&&Array.isArray(stored.nodes)&&Array.isArray(stored.communities)&&stored.stats){const saved=new Map((positions||[]).map(p=>[p.id,p]));for(const n of stored.nodes){const p=saved.get(n.id);if(p)Object.assign(n,p);}stored.cache={hit:true};progress({phase:'layout',completed:1,total:1});return stored;}
     const result=await this.buildMap(payload,options);if(signal?.aborted)throw Error('已取消');await this.writeCache('graph',key,result);return result;

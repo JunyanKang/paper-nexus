@@ -1,0 +1,5 @@
+compromise 14.18.0, two-stage browser build (tokenization and part-of-speech tagging).
+Source: https://github.com/spencermountain/compromise
+Package: https://registry.npmjs.org/compromise/-/compromise-14.18.0.tgz
+Used only in the background topic worker to reject incomplete or verbal label fragments.
+No remote requests or additional model weights. Original MIT license retained.

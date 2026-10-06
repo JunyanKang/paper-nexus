@@ -27,3 +27,11 @@ test('cache eviction bounds persistent resource use and API failures are not cac
  const s=await cacheService();for(let i=0;i<66;i++)await s.N.writeCache('author',String(i).padStart(64,'0'),[{members:['a']}]);assert.ok(s.files.size<=64);
  let calls=0;s.N.buildMap=async()=>{calls++;return{nodes:[],groupingError:'timeout'};};const p={mode:'authors',nodes:[]};await s.N.map(p);await s.N.map(p);assert.equal(calls,2);
 });
+
+test('network reuses cached author identity evidence without metadata requests or library edits',async()=>{
+ const {N,items}=await setup(),item=items.get(1),local=[{firstName:'J.',lastName:'Smith',creatorTypeID:1}],oid='0000-0002-1825-0097';item.getCreators=()=>local;const field=item.getField;item.getField=k=>k==='DOI'?'10.1234/example':field(k);
+ // Exercise the actual record reader with an isolated service cache.
+ const ctx=vm.createContext({CiteLensCore:C,CiteLensServices:{state:{authorCache:{'doi:10.1234/example':{value:{DOI:'10.1234/example',authors:[{firstName:'Jane',lastName:'Smith',ORCID:oid,affiliations:['Example University Department of Retina']}]}}}}},Zotero:{CreatorTypes:{getName:()=> 'author'},ItemTypes:{getName:()=> 'journalArticle'},Items:{getAsync:async()=>[]}}});for(const f of ['network-core.js','network.js'])vm.runInContext(fs.readFileSync('addon/'+f,'utf8'),ctx);
+ const result=await ctx.CiteLensNetwork.readRecord(item);assert.equal(result.creators[0].ORCID,oid);assert.equal(result.creators[0].firstName,'Jane');assert.equal(local[0].firstName,'J.');assert.equal(local[0].ORCID,undefined);
+ await N.snapshot();N.authorMetadataChanged('10.1234/example');assert.deepEqual([...N.dirtyItems],[1]);
+});

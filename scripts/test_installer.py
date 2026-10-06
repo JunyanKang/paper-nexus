@@ -1,10 +1,32 @@
 """Exercise native installers against disposable data directories, never a user profile."""
 from pathlib import Path
-import json,subprocess,sys,tempfile,hashlib,shutil,argparse
+import json,subprocess,sys,tempfile,hashlib,shutil,argparse,plistlib,os
 ROOT=Path(__file__).resolve().parents[1];parser=argparse.ArgumentParser();parser.add_argument('--online',action='store_true');parser.add_argument('--published',action='store_true');args=parser.parse_args()
 base=ROOT/'.build/installers';config=json.loads((base/'installer.json').read_text(encoding='utf-8'))
 exe=base/'Paper Nexus Installer.app/Contents/MacOS/Paper Nexus Installer' if sys.platform=='darwin' else base/'Paper Nexus Setup.exe'
 checks=[]
+if sys.platform=='darwin':
+ from ds_store import DSStore
+ from mac_alias import Alias
+ image=Path(os.environ.get('PAPER_NEXUS_DMG_OUTPUT',str(ROOT/'dist'/f"Paper-Nexus-{config['version']}-macOS.dmg")))
+ mounted=plistlib.loads(subprocess.check_output(['hdiutil','attach','-readonly','-nobrowse','-plist',str(image)]))
+ mount=Path(next(row['mount-point'] for row in mounted['system-entities'] if 'mount-point' in row))
+ try:
+  app=mount/'Paper Nexus Installer.app'
+  assert [p.name for p in mount.iterdir() if not p.name.startswith('.')]==[app.name]
+  assert not (mount/'.background.tiff').exists()
+  with DSStore.open(str(mount/'.DS_Store'),'r') as store:
+   view=store['.']['icvp'];alias=Alias.from_bytes(view['backgroundImageAlias'])
+   assert view['backgroundType']==2 and alias.target.filename=='dmg-background.tiff'
+   assert str(alias.target.posix_path).endswith('/Contents/Resources/dmg-background.tiff')
+   assert store[app.name]['Iloc']==(380,150) and store['.']['icvl']==(b'type',b'icnv')
+  subprocess.run(['codesign','--verify','--deep','--strict',str(app)],check=True)
+  checks.append('DMG has one visible app, a valid signature and an embedded Finder help background')
+  with tempfile.TemporaryDirectory(prefix='nexus-mounted-') as scratch:
+   subprocess.run([str(app/'Contents/MacOS/Paper Nexus Installer'),'--quiet','--plugin-only','--download-dir',scratch,'--plugin-dir',str(ROOT/'dist')],check=True,capture_output=True,timeout=120)
+   assert hashlib.sha256((Path(scratch)/config['plugin']['name']).read_bytes()).hexdigest()==config['plugin']['sha256']
+  checks.append('installer runs directly from read-only DMG and prepares the exact XPI')
+ finally:subprocess.run(['hdiutil','detach',str(mount)],check=True,stdout=subprocess.DEVNULL)
 with tempfile.TemporaryDirectory(prefix='nexus-installer-') as scratch:
  root=Path(scratch);data=root/'data';data.mkdir();(data/'zotero.sqlite').write_text('installer test marker, not a real library');downloads=root/'plugins'
  def run(ids='minilm',success=True,extra=None,directory=data,online=False):

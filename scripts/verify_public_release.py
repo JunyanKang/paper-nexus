@@ -46,7 +46,7 @@ def verify_model(data, model):
 
 
 xpi_name = f'paper-nexus-{version}.xpi'
-base='https://junyankang.github.io/paper-nexus/'
+base='https://kanglab.cool/paper-nexus/'
 installer_names=[f'Paper-Nexus-{version}-macOS.dmg',f'Paper-Nexus-{version}-Windows.exe']
 checks=download('v'+version,installer_names)
 xpi=urllib.request.urlopen(base+'v'+version+'/'+xpi_name,timeout=60).read()

@@ -17,7 +17,7 @@ var CiteLensAuthors = (() => {
     const r=hits[0];if(!r||!C.compatibility(input,{title:r.title,year:r.pubYear,DOI:r.doi,creators:fromPMC(r)}).eligible)return null;return r;
   }
   function fromPMC(r) {
-    return (r.authorList?.author||[]).map(a=>({firstName:clean(a.firstName),lastName:clean(a.lastName||(!a.firstName&&a.fullName)||a.collectiveName),creatorType:'author'}));
+    return (r.authorList?.author||[]).map(a=>({firstName:clean(a.firstName),lastName:clean(a.lastName||(!a.firstName&&a.fullName)||a.collectiveName),creatorType:'author',...(a.authorId?.type==='ORCID'?{ORCID:clean(a.authorId.value)}:{}),...(a.authorAffiliationDetailsList?.authorAffiliation?.length?{affiliations:a.authorAffiliationDetailsList.authorAffiliation.map(x=>clean(x.affiliation)).filter(Boolean)}:{})}));
   }
   function visible(authors) {
     const indices=authors.length>6?[0,1,2,authors.length-3,authors.length-2,authors.length-1]:authors.map((_,i)=>i);
@@ -79,6 +79,7 @@ var CiteLensAuthors = (() => {
         if(result.DOI)S.state.authorCache['doi:'+result.DOI]=entry;
         for(const stale of Object.keys(S.state.authorCache).sort((a,b)=>S.state.authorCache[b].expires-S.state.authorCache[a].expires).slice(500))delete S.state.authorCache[stale];
         await S.persist();
+        if(JSON.stringify(prior?.authors)!==JSON.stringify(result.authors)&&typeof CiteLensNetwork!=='undefined')CiteLensNetwork.authorMetadataChanged?.(result.DOI);
       }
       return result;
     }finally{S.authorFlight.delete(k);}

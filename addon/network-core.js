@@ -14,43 +14,82 @@ var CiteLensNetworkCore=(()=>{
     let sum=0;for(const digit of raw.slice(0,15))sum=(sum+Number(digit))*2;const check=(12-sum%11)%11;
     return raw.at(-1)===(check===10?'X':String(check))?raw.match(/.{4}/g).join('-'):'';
   }
+  function enrichCreators(creators,evidence){
+    const compatible=(a,b)=>{if(a.fieldMode||b.fieldMode||!a.firstName||!b.firstName||C.norm(a.lastName)!==C.norm(b.lastName))return false;const x=C.norm(a.firstName).split(' '),y=C.norm(b.firstName).split(' ');return x.every((part,i)=>!y[i]||part===y[i]||part[0]===y[i][0]&&(part.length===1||y[i].length===1))&&y.every((part,i)=>!x[i]||part===x[i]||part[0]===x[i][0]&&(part.length===1||x[i].length===1));};
+    return creators.map(a=>{const matches=evidence.filter(b=>compatible(a,b));if(matches.length!==1||creators.filter(b=>compatible(b,matches[0])).length!==1)return {...a};const b=matches[0],own=orcid(a.ORCID||a.orcid),remote=orcid(b.ORCID||b.orcid);if(own&&remote&&own!==remote)return {...a};
+      return {...a,...(C.clean(b.firstName).length>C.clean(a.firstName).length?{firstName:b.firstName}:{}),...(remote?{ORCID:remote}:{}),affiliations:[...new Set([...(a.affiliations||[]),a.affiliation,...(b.affiliations||[]),b.affiliation].filter(x=>typeof x==='string'&&x.trim()))]};
+    });
+  }
   // Bounded same-name evidence blocks; these are conservative local hypotheses,
-  // not a substitute for an authoritative author registry (see docs/RESEARCH.md).
+  // not a substitute for an authoritative author registry.
   function authorIdentities(papers){
-    const blocks=new Map(),contexts=new Map(),assignments=new Map(),metrics={blocks:0,comparisons:0,splitNames:0,orcidRecords:0,capped:0};
+    const blocks=new Map(),contexts=new Map(),knownNames=new Map(),assignments=new Map(),metrics={blocks:0,comparisons:0,splitNames:0,orcidRecords:0,capped:0,resolvedByEvidence:0,ambiguousSignatures:0};
     const normalizedName=a=>authorKey(a),put=(map,key,row)=>{if(!map.has(key))map.set(key,[]);map.get(key).push(row);};
-    for(const paper of papers){const names=new Set((paper.creators||[]).map(normalizedName).filter(Boolean));contexts.set(paper.id,{paper,names,words:null});
+    for(const paper of papers){const names=new Set((paper.creators||[]).map(normalizedName).filter(Boolean));contexts.set(paper.id,{paper,names,oids:new Set((paper.creators||[]).map(a=>orcid(a.ORCID||a.orcid)).filter(Boolean)),words:null});
       (paper.creators||[]).forEach((a,position)=>{const oid=orcid(a.ORCID||a.orcid),name=normalizedName(a);if(!name&&!oid)return;
         const signature=JSON.stringify([paper.id,position]),affiliations=(Array.isArray(a.affiliations)?a.affiliations:[a.affiliation]).filter(x=>typeof x==='string').map(C.norm).filter(x=>x.length>=12);
-        const row={signature,paperID:paper.id,name:name||'orcid:'+oid,oid,affiliations,title:C.clean([a.firstName,a.lastName].filter(Boolean).join(' '))};put(blocks,row.name,row);if(oid)metrics.orcidRecords++;
+        const email=String(a.email||'').trim().toLowerCase(),row={signature,paperID:paper.id,name:name||'orcid:'+oid,oid,affiliations,email:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:'',title:C.clean([a.firstName,a.lastName].filter(Boolean).join(' '))};put(blocks,row.name,row);if(oid){metrics.orcidRecords++;if(!knownNames.has(row.name))knownNames.set(row.name,new Set());knownNames.get(row.name).add(oid);}
       });
     }
-    const evidence=(a,b)=>{const ca=contexts.get(a.paperID),cb=contexts.get(b.paperID);if(a.paperID===b.paperID)return false;
-      if(a.oid&&b.oid)return a.oid===b.oid;
+    const evidence=(a,b)=>{const ca=contexts.get(a.paperID),cb=contexts.get(b.paperID);if(a.paperID===b.paperID)return 0;
+      if(a.oid&&b.oid)return a.oid===b.oid?100:0;
       if(!ca.words)ca.words=new Set(terms(C.researchTitle(ca.paper)+' '+String(ca.paper.abstract||'').slice(0,1200)));
       if(!cb.words)cb.words=new Set(terms(C.researchTitle(cb.paper)+' '+String(cb.paper.abstract||'').slice(0,1200)));
-      let shared=0;if(ca.names.size<=64&&cb.names.size<=64)for(const name of ca.names)if(name!==a.name&&cb.names.has(name))shared++;
+      let shared=0;if(ca.names.size<=64&&cb.names.size<=64)for(const name of ca.names)if(name!==a.name&&cb.names.has(name)&&(knownNames.get(name)?.size||0)<=1)shared++;
       let overlap=0;for(const word of ca.words)if(cb.words.has(word))overlap++;const similarity=overlap/Math.max(1,Math.min(ca.words.size,cb.words.size));
-      const affiliation=a.affiliations.some(x=>b.affiliations.includes(x));return shared>=2||shared>=1&&similarity>=.18||affiliation&&similarity>=.3;
+      let verifiedShared=0;for(const oid of ca.oids)if(oid!==a.oid&&oid!==b.oid&&cb.oids.has(oid))verifiedShared++;
+      const affiliation=a.affiliations.some(x=>b.affiliations.includes(x)),email=!!a.email&&a.email===b.email;
+      if(!email&&!(verifiedShared>=1&&similarity>=.18||shared>=2||shared>=1&&similarity>=.18||affiliation&&similarity>=.3))return 0;
+      // Content can corroborate a team or institution, but cannot identify a person alone.
+      return Number(email)*20+Number(affiliation)*5+Math.min(verifiedShared,3)*3+Math.min(shared,6)*2+Math.min(similarity,1);
     };
-    for(const [name,raw] of blocks){metrics.blocks++;if(raw.length===1){const row=raw[0];assignments.set(row.signature,{id:row.oid?'author:orcid:'+row.oid:'author:'+name,title:row.title,identity:row.oid?'orcid':'name',orcid:row.oid||'',nameKey:name,disambiguated:false});continue;}const rows=raw.sort((a,b)=>a.signature.localeCompare(b.signature)),parent=rows.map((_,i)=>i),ids=rows.map(r=>r.oid),root=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
-      const join=(a,b)=>{a=root(a);b=root(b);if(a===b)return;if(ids[a]&&ids[b]&&ids[a]!==ids[b])return;const keep=Math.min(a,b),drop=Math.max(a,b);parent[drop]=keep;ids[keep]=ids[a]||ids[b];};
+    for(const [name,raw] of blocks){metrics.blocks++;if(raw.length===1){const row=raw[0];assignments.set(row.signature,{id:row.oid?'author:orcid:'+row.oid:'author:'+name,title:row.title,identity:row.oid?'orcid':'name',orcid:row.oid||'',nameKey:name,disambiguated:false});continue;}const rows=raw.sort((a,b)=>a.signature.localeCompare(b.signature)),parent=rows.map((_,i)=>i),paperSets=rows.map(r=>new Set([r.paperID])),ids=rows.map(r=>r.oid),root=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
+      const join=(a,b)=>{a=root(a);b=root(b);if(a===b)return;if(ids[a]&&ids[b]&&ids[a]!==ids[b])return;if(!(ids[a]&&ids[a]===ids[b]))for(const paperID of paperSets[a])if(paperSets[b].has(paperID))return;const keep=Math.min(a,b),drop=Math.max(a,b);parent[drop]=keep;ids[keep]=ids[a]||ids[b];for(const paperID of paperSets[drop])paperSets[keep].add(paperID);};
       const byORCID=new Map(),postings=new Map();rows.forEach((r,i)=>{if(r.oid){if(byORCID.has(r.oid))join(i,byORCID.get(r.oid));else byORCID.set(r.oid,i);}const context=contexts.get(r.paperID);
         if(context.names.size<=64)for(const coauthor of context.names)if(coauthor!==name)put(postings,'c:'+coauthor,i);
-        for(const affiliation of r.affiliations)put(postings,'a:'+affiliation,i);
+        for(const oid of context.oids)if(oid!==r.oid)put(postings,'o:'+oid,i);for(const affiliation of r.affiliations)put(postings,'a:'+affiliation,i);if(r.email)put(postings,'e:'+r.email,i);
       });
       const candidates=rows.map(()=>new Set());for(const posting of postings.values())for(let i=0;i<posting.length;i++)for(let j=i+1;j<Math.min(posting.length,i+17);j++){
         const a=posting[i],b=posting[j];if(candidates[a].size<64&&candidates[b].size<64){candidates[a].add(b);candidates[b].add(a);}else metrics.capped++;
       }
-      for(let i=0;i<rows.length;i++)for(const j of candidates[i])if(j>i){metrics.comparisons++;if(evidence(rows[i],rows[j]))join(i,j);}
-      const components=new Map();rows.forEach((r,i)=>put(components,root(i),r));
-      const supported=[...components.values()].filter(g=>g.length>=2),split=byORCID.size>1||supported.length>=2;
+      // Include identifier anchors even when they are far apart in a large posting.
+      // A truncated anchor set must never masquerade as an unambiguous match.
+      const incomplete=new Set();for(const posting of postings.values()){
+        const anchored=[...new Map(posting.filter(i=>rows[i].oid).map(i=>[rows[i].oid,i])).values()];
+        for(const i of posting){if(anchored.length>32)incomplete.add(i);for(const j of anchored.slice(0,32))if(i!==j){if(candidates[i].has(j)||candidates[i].size<96){candidates[i].add(j);candidates[j].add(i);}else incomplete.add(i);}}
+      }
+      const supportedEdges=[],adj=rows.map(()=>[]);for(let i=0;i<rows.length;i++)for(const j of candidates[i])if(j>i){metrics.comparisons++;const score=evidence(rows[i],rows[j]);if(score){supportedEdges.push([i,j,score]);adj[i].push([j,score]);adj[j].push([i,score]);}}
+      const known=rows.map(r=>r.oid),resolved=[...known],direct=rows.map(()=>new Map()),winning=rows.map(()=>null);
+      const rank=(i,labels)=>{const scores=new Map();for(const [j,score] of adj[i])if(labels[j]){const oid=labels[j];if(!scores.has(oid)||scores.get(oid).score<score)scores.set(oid,{oid,score,paperID:rows[j].paperID});}return [...scores.values()].sort((a,b)=>b.score-a.score||a.oid.localeCompare(b.oid));};
+      rows.forEach((row,i)=>{if(!row.oid)direct[i]=new Map(rank(i,known).map(r=>[r.oid,r]));});
+      // Decide per paper signature before unioning. Otherwise one ambiguous paper
+      // can contaminate an entire chain, even when each endpoint has clear evidence.
+      for(let pass=0;pass<3;pass++){const next=[...resolved];let changes=0;
+        for(let i=0;i<rows.length;i++){if(resolved[i]||incomplete.has(i))continue;const choices=rank(i,resolved),best=choices[0],runner=choices[1];
+          if(!best||contexts.get(rows[i].paperID).oids.has(best.oid))continue;
+          // Require a material evidence margin; these scores are not probabilities.
+          if(runner&&(best.score<6||best.score-runner.score<3||best.score<runner.score*1.4))continue;
+          // A directly conflicting anchor cannot be bypassed by weak transitive support.
+          const competitor=[...direct[i].values()].filter(r=>r.oid!==best.oid).sort((a,b)=>b.score-a.score)[0];
+          if(competitor&&(best.score-competitor.score<3||best.score<competitor.score*1.4))continue;
+          next[i]=best.oid;winning[i]=best;changes++;
+        }
+        const perPaper=new Map();for(let i=0;i<rows.length;i++)if(next[i]){const key=rows[i].paperID+'|'+next[i];put(perPaper,key,i);}for(const peers of perPaper.values())if(peers.length>1)for(const i of peers)if(!known[i]){next[i]='';winning[i]=null;}
+        for(let i=0;i<rows.length;i++)resolved[i]=next[i];if(!changes)break;
+      }
+      rows.forEach((row,i)=>{if(!row.oid&&resolved[i]){ids[i]=resolved[i];join(i,byORCID.get(resolved[i]));metrics.resolvedByEvidence++;}});
+      for(const [i,j] of supportedEdges)if(!resolved[i]&&!resolved[j])join(i,j);
+      const anchors=new Map();for(let i=0;i<rows.length;i++)if(!resolved[i]){const key=root(i);if(!anchors.has(key))anchors.set(key,new Set());for(const row of rank(i,resolved))anchors.get(key).add(row.oid);}
+      const ambiguous=new Set();for(const [key,choices] of anchors)if(choices.size>1)ambiguous.add(root(key));
+      for(let i=0;i<rows.length;i++)if(!resolved[i]&&(ambiguous.has(root(i))||incomplete.has(i)))metrics.ambiguousSignatures++;
+      const rowIndex=new Map(rows.map((r,i)=>[r.signature,i])),components=new Map();rows.forEach((r,i)=>put(components,root(i),r));
+      const supported=[...components.values()].filter(g=>g.length>=2),split=byORCID.size>1||supported.length>=2||new Set(rows.map(r=>r.paperID)).size<rows.length;
       if(split)metrics.splitNames++;
       for(const [key,group] of components){const oid=ids[root(key)];for(const row of group){
         // An unanchored signature cannot bridge two different verified ORCIDs.
-        const identity=oid?'orcid':split?(group.length>=2?'coauthor-evidence':'unresolved'):'name';
+        const identity=oid?'orcid':ambiguous.has(root(key))?'unresolved':split?(group.length>=2?'coauthor-evidence':'unresolved'):'name';
         const id=oid?'author:orcid:'+oid:split||byORCID.size?'author:'+name+'#'+encodeURIComponent(group[0].signature):'author:'+name;
-        assignments.set(row.signature,{id,title:row.title,identity,orcid:oid||'',nameKey:name,disambiguated:split});
+        const support=winning[rowIndex.get(row.signature)];assignments.set(row.signature,{id,title:row.title,identity,orcid:oid||'',nameKey:name,disambiguated:split,...(support?{linkEvidence:{paperID:support.paperID,score:support.score}}:{})});
       }}
     }
     return {assignments,metrics};
@@ -153,6 +192,6 @@ var CiteLensNetworkCore=(()=>{
     const links=new Map();for(const d of docs){const candidates=new Set(),features=[...d.vector].sort((a,b)=>b[1]-a[1]).slice(0,32);for(const [t] of features){const list=index.get(t),stride=Math.max(1,Math.ceil(list.length/256));for(let i=0;i<list.length;i+=stride)candidates.add(list[i]);}const ranked=[];for(const other of candidates){if(other===d)continue;let dot=0;for(const [t,w] of d.vector)dot+=w*(other.vector.get(t)||0);if(dot>=.24)ranked.push({other,dot});}ranked.sort((a,b)=>b.dot-a.dot||a.other.node.id.localeCompare(b.other.node.id));for(const {other,dot} of ranked.slice(0,8)){const pair=[d.node.id,other.node.id].sort(),key=JSON.stringify(pair);links.set(key,{source:pair[0],target:pair[1],weight:dot*dot});}}
     const byID=new Map(docs.map(d=>[d.node.id,d]));return communities(docs.map(d=>d.node.id),[...links.values()],1.1).filter(g=>g.length>1).map(ids=>{const members=ids.map(id=>byID.get(id)),weights=new Map();for(const d of members)for(const [t,w] of d.vector)weights.set(t,(weights.get(t)||0)+w);const keywords=[...weights].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,3).map(x=>x[0]);return {id:ids[0],keywords,nodes:members.map(d=>d.node),abstracts:members.filter(d=>!!d.node.abstract).length,links:[...links.values()].filter(e=>ids.includes(e.source)||ids.includes(e.target))};});
   }
-  return {id,authorKey,orcid,authorIdentities,build,neighbors,search,consolidate,workspace,topics,communities,terms,searchIndex,queryIndex,authorConnections,authorNeighborhood};
+  return {id,authorKey,orcid,enrichCreators,authorIdentities,build,neighbors,search,consolidate,workspace,topics,communities,terms,searchIndex,queryIndex,authorConnections,authorNeighborhood};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkCore;
