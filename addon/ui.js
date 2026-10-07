@@ -446,7 +446,7 @@ var CiteLensUI = {
     if(!wrap&&(next<0||next>=focus.length))return;
     e.preventDefault();e.stopPropagation();focus[(next+focus.length)%focus.length]?.focus();
   },
-  dialog(doc,title,{onClose=null,className='',header=true}={}) {
+  dialog(doc,title,{onClose=null,className='',header=true,keepParentVisible=false}={}) {
     this.style(doc);
     const previous=doc.activeElement,parent=[...doc.querySelectorAll('.cl-overlay,.cl-root')].reverse().find(x=>!x.hidden),overlay=this.el(doc,'div',null,'cl-overlay'),frame=this.el(doc,'section',null,'cl-dialog '+className),head=this.el(doc,'header',null,'cl-dialog-header'),root=this.el(doc,'div',null,'cl-dialog-body'),footer=this.el(doc,'footer',null,'cl-dialog-footer');
     const heading=this.el(doc,'h2',title);heading.id='cl-dialog-title-'+(++this.sequence);
@@ -454,13 +454,13 @@ var CiteLensUI = {
     let closed=false,busy=false;const win=doc.defaultView;
     doc._clAbstract?.close(true);doc.querySelector('.cl-menu')?._close?.();
     const rect=parent?.classList.contains('cl-root')?parent.getBoundingClientRect():null;
-    if(parent){parent.hidden=true;parent.inert=true;}
+    if(parent){if(!keepParentVisible)parent.hidden=true;parent.inert=true;}
     if(rect&&className==='cl-settings'){overlay.classList.add('cl-context-page');overlay.style.setProperty('--cl-context-right',Math.max(8,win.innerWidth-rect.right)+'px');overlay.style.setProperty('--cl-context-top',rect.top+'px');}
     const release=()=>{if(closed)return;closed=true;try{removed.disconnect();win.removeEventListener('pagehide',release);}catch(_){}if(parent?.isConnected){parent.hidden=false;parent.inert=false;}onClose?.();};
     const removed=new win.MutationObserver(()=>{try{if(!overlay.isConnected||parent&&!parent.isConnected){overlay.remove();release();}}catch(_){release();}});removed.observe(doc.body||doc.documentElement,{childList:true,subtree:true});win.addEventListener('pagehide',release);
     const close=()=>{if(closed||busy)return;overlay.remove();release();try{if(previous?.isConnected)previous.focus();}catch(_){}};
     const dismiss=this.quiet(doc,'×',close);dismiss.classList.add('cl-dismiss');dismiss.setAttribute('aria-label','关闭'+title);
-    if(title.startsWith('Paper Nexus')){heading.classList.add('pn-brand-heading');heading.prepend(this.logo(doc,24));}if(parent){const back=this.quiet(doc,'‹',close);back.classList.add('cl-dismiss','cl-back');back.setAttribute('aria-label','返回上一页');head.append(back);}head.append(heading,dismiss);if(header)frame.append(head);frame.append(root,footer);overlay.append(frame);(doc.body||doc.documentElement).append(overlay);
+    if(title.startsWith('Paper Nexus')){heading.classList.add('pn-brand-heading');heading.prepend(this.logo(doc,24));}if(parent&&!keepParentVisible){const back=this.quiet(doc,'‹',close);back.classList.add('cl-dismiss','cl-back');back.setAttribute('aria-label','返回上一页');head.append(back);}head.append(heading,dismiss);if(header)frame.append(head);frame.append(root,footer);overlay.append(frame);(doc.body||doc.documentElement).append(overlay);
     overlay.addEventListener('keydown',e=>{
       if(e.key==='Escape'){e.stopPropagation();e.preventDefault();close();return;}
       this.tab(frame,e);

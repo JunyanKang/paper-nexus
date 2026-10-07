@@ -1,5 +1,5 @@
 var CiteLensServices = {
-  state:{schema:1,queue:[],metrics:[],cache:{},settings:{autoLookup:true,autoAuthors:true,networkConsent:true,metricYear:''}},
+  state:{schema:1,queue:[],metrics:[],cache:{},settings:{autoLookup:true,autoAuthors:true,networkConsent:true,networkEnhanceEnabled:false,metricYear:''}},
   inFlight:new Map(), locks:new Map(), active:0, waiting:[], dead:false,
   async init() {
     this.path=PathUtils.join(Zotero.DataDirectory.dir,'cite-lens','state.json');
@@ -10,6 +10,7 @@ var CiteLensServices = {
     }
     // Current-item enrichment is automatic, including installations with older opt-out switches.
     Object.assign(this.state.settings,{autoLookup:true,autoAuthors:true,networkConsent:true,preferInstalledMetrics:true,easyPubMedEnabled:true,metricYear:''});
+    this.state.settings.networkEnhanceEnabled=this.state.settings.networkEnhanceEnabled===true;
     delete this.state.settings.themeArtwork;
     this.dead=false;
     this.state.authorCache||={};this.authorGeneration=(this.authorGeneration||0)+1;

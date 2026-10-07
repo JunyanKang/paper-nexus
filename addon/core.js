@@ -48,6 +48,9 @@ var CiteLensCore = (() => {
     const chapter=/\bIn:\s*.+?\(Eds?\.?\)/i.test(tail);
     const book=/\b(?:University[^.]*Press|Press|Verlag|Publishers?|Publishing|Lippincott|Springer)\b/i.test(tail)&&!doi(raw);
     let journal=!book&&!chapter && parts.length>1?parts.slice(1).join('. ').replace(/\s+\d.*$/,'').replace(/[.,]+$/,''):'';
+    // A question/exclamation mark can terminate a title without a following period.
+    // Require a journal + volume + page tail, so internal questions stay in the title.
+    if(!book&&!chapter){const end=tail.match(/^(.{12,}[?!])\s+([\p{Lu}][\p{L}\s.&’'–-]{1,100}?)\s+(\d+)(?:\s*\([^)]*\))?[,;:]\s*\d+(?:[-–]\d+)?[.]?$/u);if(end&&!journal){title=end[1];journal=clean(end[2]).replace(/[.,]+$/,'');}}
     const creators=[];
     const rx=/([\p{L}][\p{L}'’\- ]+),\s*((?:[A-Z]\.\s*){1,5})/gu;
     const authorMatches=[...creatorText.matchAll(rx)];

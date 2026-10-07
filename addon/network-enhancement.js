@@ -1,7 +1,7 @@
 /* One-hop reference enrichment. Only local papers are roots; never write Zotero items. */
 var CiteLensEnhancement={
  state:{schema:1,sources:{},records:{}},dead:true,listeners:new Set(),requests:new Set(),running:null,write:Promise.resolve(),epoch:0,
- get config(){const s=CiteLensServices.state.settings;return {enabled:!!s.networkEnhanceEnabled,paused:!!s.networkEnhancePaused,limit:[0,250,500,1000].includes(s.networkEnhanceLimit)?s.networkEnhanceLimit:500,foregroundOnly:s.networkEnhancePace==='foreground'};},
+ get config(){const s=CiteLensServices.state.settings;return {enabled:s.networkEnhanceEnabled===true,paused:!!s.networkEnhancePaused,limit:[0,250,500,1000].includes(s.networkEnhanceLimit)?s.networkEnhanceLimit:500,foregroundOnly:s.networkEnhancePace==='foreground'};},
  async start(network){this.network=network;this.dead=false;this.epoch++;this.requests=new Set();this.running=null;this.path=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-enhancement.json');try{if(await IOUtils.exists(this.path)){const v=JSON.parse(await IOUtils.readUTF8(this.path));if(v.schema===1&&v.sources&&v.records)this.state=v;}}catch(e){Zotero.logError(e);}this.status={phase:'idle',completed:0,total:0,papers:Object.keys(this.state.records).length};},
  async cancelBuild(){await this.configure({networkEnhancePaused:true});for(const job of this.network.graphJobs.values())if(job.enhanced&&!job.value)job.controller.abort();this.status={...this.status,phase:'cancelled',message:'增强构建已取消，已取得的资料保留'};this.emit();},
  async configure(value){Object.assign(CiteLensServices.state.settings,value);await CiteLensServices.persist();if(!this.config.enabled||this.config.paused)this.cancel();this.emit();},
@@ -71,13 +71,13 @@ var CiteLensEnhancement={
   return {nodes:[...byID.values()],edges:[...links.values()]};
  },
  dialog(doc,onChange){
-  const U=CiteLensUI,d=U.dialog(doc,'网络增强',{className:'pn-enhancement',onClose:()=>unsubscribe()}),{root,footer}=d;root.append(U.el(doc,'p','将本地论文直接引用的文献纳入主题与朋友圈。','cl-muted'));
+  const U=CiteLensUI,d=U.dialog(doc,'网络增强',{className:'pn-enhancement',keepParentVisible:true,onClose:()=>unsubscribe()}),{root,footer}=d;root.append(U.el(doc,'p','将本地论文直接引用的文献纳入主题与朋友圈。','cl-muted'));
   const row=(label,control)=>{const r=U.el(doc,'label',null,'pn-enhancement-row');r.append(U.el(doc,'span',label),control);root.append(r);};
   const enabled=U.el(doc,'input');enabled.type='checkbox';enabled.checked=this.config.enabled;row('纳入引用文献',enabled);
   const limit=U.el(doc,'select');for(const n of [250,500,1000,0]){const o=U.el(doc,'option',n?String(n):'不设限制');o.value=n;limit.append(o);}limit.value=String(this.config.limit);row('新增论文上限',limit);
   const pace=U.el(doc,'select');for(const [id,label] of [['background','后台低速准备'],['foreground','仅查看网络时准备']]){const o=U.el(doc,'option',label);o.value=id;pace.append(o);}pace.value=this.config.foregroundOnly?'foreground':'background';row('准备方式',pace);
   const progress=U.el(doc,'progress'),message=U.el(doc,'p','','cl-muted');progress.max=1;root.append(progress,message,U.el(doc,'p','上限按单次新增计，不限制已有网络。只扩展一层引文，不自动添加到 Zotero 文献库。','cl-muted'));
-  const pause=U.button(doc,'',async()=>{if(this.config.paused)await this.configure({networkEnhancePaused:false});else await this.cancelBuild();onChange();render();});footer.append(pause);const render=()=>{const s=this.status||{};pause.textContent=this.config.paused?'继续准备':'取消增强构建';pause.disabled=!this.config.enabled;progress.value=s.total?s.completed/s.total:0;message.textContent=(s.phase==='limited'?'已达到本次新增上限；点击更新网络可继续。':s.message||'')+(s.total?s.completed+' / '+s.total+' 篇来源论文 · ':'')+(s.papers||0)+' 篇引用文献';};const unsubscribe=this.subscribe(render);
+  const pause=U.button(doc,'',async()=>{if(this.config.paused)await this.configure({networkEnhancePaused:false});else await this.cancelBuild();onChange();render();});footer.append(pause);const render=()=>{const s=this.status||{};pause.textContent=this.config.paused?'继续准备':'取消增强构建';pause.disabled=!this.config.enabled;progress.hidden=!this.config.enabled||!s.total||['idle','ready','cancelled'].includes(s.phase);progress.value=s.total?s.completed/s.total:0;message.textContent=(s.phase==='limited'?'已达到本次新增上限；点击更新网络可继续。':s.message||'')+(s.total?s.completed+' / '+s.total+' 篇来源论文 · ':'')+(s.papers||0)+' 篇引用文献';};const unsubscribe=this.subscribe(render);
   pause.dataset.cancelEnhancement='true';for(const control of [enabled,limit,pace])control.addEventListener('change',async()=>{await this.configure({networkEnhanceEnabled:enabled.checked,networkEnhanceLimit:Number(limit.value),networkEnhancePace:pace.value,networkEnhancePaused:false});onChange();render();});render();return d.frame;
  }
 };

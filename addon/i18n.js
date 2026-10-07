@@ -44,7 +44,7 @@ var CiteLensI18n = {
     "公开引文服务暂不可用，请稍后重试": "Reference services are unavailable. Please retry later",
     "引文增强已暂停": "Reference enrichment paused",
     "更新网络": "Update network",
-    "检查与补全摘要": "Check and retrieve abstracts",
+    "补全摘要": "Check and retrieve abstracts",
     "正在更新，当前显示上次完成的网络": "Updating; showing the last completed network",
     "正在更新，完成后可继续探索": "Updating; exploration resumes when ready",
     "摘要服务暂不可用，保留已有网络，请稍后重试": "Abstract services are unavailable. Your existing network is preserved; please retry later",

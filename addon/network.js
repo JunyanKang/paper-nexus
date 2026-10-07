@@ -177,7 +177,7 @@ var CiteLensNetwork = {
   },
   async referenceKey(reader,pdf){
     const item=await Zotero.Items.getAsync(reader.itemID);if(!item?.getFilePathAsync)return null;const file=await item.getFilePathAsync();if(!file)return null;const stat=await IOUtils.stat(file);
-    return this.cacheKey(['references-v2',item.libraryID,item.key,item.dateModified,stat.size,stat.lastModified,pdf.fingerprints||pdf.fingerprint||'',pdf.numPages]);
+    return this.cacheKey(['references-v3-title-boundaries',item.libraryID,item.key,item.dateModified,stat.size,stat.lastModified,pdf.fingerprints||pdf.fingerprint||'',pdf.numPages]);
   },
   // Keep one job per unchanged snapshot/scope/mode, including jobs still running.
   // Changing the visible tab never cancels or restarts inference.

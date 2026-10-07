@@ -41,3 +41,9 @@ test('publication line includes available journal year volume issue and pages wi
  assert.equal(C.publicationLine({journal:'Birth Defects Research',year:'2017',volume:'109',pages:'1540–1567'}),'Birth Defects Research. 2017; 109: 1540–1567');
  assert.equal(C.publicationLine({title:'No metadata'}),'');assert.equal(C.publicationLine({journal:'Cell',year:'2018'}),'Cell. 2018');
 });
+test('question-terminated titles do not swallow the journal volume and pages',()=>{
+ const title='Structural grading of foveal hypoplasia using spectral-domain optical coherence tomography a predictor of visual acuity?';
+ const r=C.parse('Thomas, M.G., Kumar, A., Mohammad, S., Chan, W.M., Thomas, S., Gottlob, I., 2011. '+title+' Ophthalmology 118, 1653–1660.');
+ assert.equal(r.title,title);assert.equal(r.journal,'Ophthalmology');assert.equal(r.volume,'118');assert.equal(r.pages,'1653–1660');assert.equal(r.creators.length,6);
+ const internal=C.parse('Smith, A., 2020. What changes? Retinal development after birth. Nature 10, 10–20.');assert.equal(internal.title,'What changes? Retinal development after birth');assert.equal(internal.journal,'Nature');
+});
