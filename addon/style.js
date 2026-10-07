@@ -387,4 +387,5 @@ button[data-cite-lens]:is(:hover,:focus-visible){background:var(--cl-soft);color
 @keyframes pn-author-pan{0%,15%{transform:translateX(0)}85%,100%{transform:translateX(var(--pn-author-distance,0px))}}
 @media(prefers-reduced-motion:reduce){.pn-author-track{animation:none!important}}
 @media(max-width:700px){.pn-map-controls{grid-template-columns:minmax(55px,.5fr) minmax(60px,.55fr) minmax(100px,2fr)}.pn-map-inspector{width:290px;padding:10px 12px 24px}}
+.cl-menu:popover-open{align-items:center}.cl-card .cl-menu>.cl-icon-button{margin:0;flex:none;justify-content:center}
 `;

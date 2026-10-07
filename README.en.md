@@ -28,7 +28,7 @@ Group and name topics and explore coauthors entirely on your computer, without a
 
 **Author networks show who works together.** Find an author, explore direct or second-degree collaborators, and open the shared papers behind each connection.
 
-As your collection grows, the network updates in the background, connecting familiar work with papers still to discover.
+Networks prepare quietly at startup and update as your collection grows, connecting familiar work with papers still to discover.
 
 <p align="center"><img src="docs/images/topics.png" width="960" alt="Research-topic network with papers available on selection"></p>
 <p align="center"><img src="docs/images/network.png" width="960" alt="Author network connected by shared papers"></p>
