@@ -72,7 +72,8 @@ var CiteLensCore = (() => {
   // Shared scientific record for local embeddings and research content.
   // Identity/creator evidence for author graphs is carried separately by coauthor edges.
   function researchRecord(record) {
-    const title=researchTitle(record),abstract=plainTitle(record.abstract||record.abstractNote||'');
+    let title=researchTitle(record);const abstract=plainTitle(record.abstract||record.abstractNote||''),container=plainTitle(record.containerTitle||record.bookTitle||(record.type==='bookSection'?record.journal:''));
+    if(container&&/^(?:data analysis|introduction|methods?|results?|discussion|conclusions?|preface|appendix)$/i.test(title))title=container+' '+title.toLowerCase();
     return {schema:'nexus-paper/1',id:record.id,title,abstract,evidence:abstract?'provided-abstract':'title-only'};
   }
   const identity = r => recordDOI(r)?'doi:'+recordDOI(r):r.raw||r.title?'text:'+norm(r.raw||r.title)+'|'+(r.year||''):'number:'+r.number;

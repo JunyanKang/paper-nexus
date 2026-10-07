@@ -16,7 +16,7 @@ Open the DOI, return to a citation, save for later or add the paper to a Zotero 
 
 ## Read the abstract before going deeper
 
-Hover over a title to open its abstract alongside the card. Switch between **original, translated and bilingual** views, with sentence pairs that keep terminology and meaning close to the source. Move, resize or dock the window to suit your reading space.
+Hover over a title to open its abstract alongside the card. Missing abstracts are retrieved from available public sources. Switch between **original, translated and bilingual** views, with sentence pairs that keep terminology and meaning close to the source. Move, resize or dock the window to suit your reading space.
 
 <p align="center"><img src="docs/images/translation.png" width="850" alt="A journal article card beside its bilingual abstract"></p>
 

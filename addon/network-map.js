@@ -6,16 +6,38 @@ var CiteLensNetworkMap=(()=>{
   const matches=query?NC.search(nodes,query):[],priority=new Set([selected,...matches.map(n=>n.id)]),ordered=[...nodes.filter(n=>priority.has(n.id)),...nodes.filter(n=>!priority.has(n.id))],visible=ordered.slice(0,limit),papers=new Map(visible.map(n=>[n.id,{...n,kind:'paper',local:true}])),links=[],linkKeys=new Set();
   for(const e of edges){if(!papers.has(e.source)||!papers.has(e.target)||e.source===e.target)continue;const key=JSON.stringify([e.source,e.target,e.kind]);if(linkKeys.has(key))continue;linkKeys.add(key);links.push({...e});}
   const groups=[],allPapers=[...papers.values()].sort((a,b)=>a.id.localeCompare(b.id));let authorsCount=0;
-  const saved=new Map(positions.map(n=>[n.id,n]));for(const n of allPapers){const p=saved.get(n.id);n.topicTitle=C.researchTitle(n);n.color=6;if(p){n.x=p.x;n.y=p.y;n.pinned=p.pinned||false;}}
+  const saved=new Map(positions.map(n=>[n.id,n]));for(const n of allPapers){const p=saved.get(n.id);n.topicTitle=C.researchRecord(n).title;n.color=6;if(p){n.x=p.x;n.y=p.y;n.pinned=p.pinned||false;}}
   const graph={mode,selected,positions,openEntities,nodes:allPapers,edges:links,groups,matches:matches.filter(n=>papers.has(n.id)).map(n=>n.id),stats:{total:nodes.length,local:allPapers.filter(n=>n.local).length,authors:authorsCount,topics:0,abstracts:allPapers.filter(n=>n.abstract).length,hidden:Math.max(0,nodes.length-visible.length)}};return mode==='authors'?authors(graph):graph;
  }
  // Topic representation is independent of clustering: bounded document support,
  // class-level contrast and representative-document support rank complete phrases.
  // Inspired by c-TF-IDF/KeyBERT representation; no additional encoder is loaded.
  const labelStop=new Set(('potential risk factor contributing contributes contribute causes cause modulates modulate modulated reduces reduce reduced rises rise improves improve improving ameliorates ameliorate attenuates attenuate declines decline protects protect prevents prevent promotes promote improves improve beneficial effectiveness vitro vivo situ et al but yet than then not only also both either neither although however despite versus vs among across toward against including reduced reducing low high higher lower less more most much very such no does did do been being will would should must whose which who where when why because therefore significantly associated dependent independent randomized controlled meta-analysis systematic trial trials meta analyses results conclusion conclusions background objective objectives purpose methods patients subjects participants healthy elderly male female the a an and or of in on for to by with from as at is are was were this that these those its their our using use study studies analysis review role effect effects new novel evidence reveals reveal based during within between through into under after before via how whether can could may might has have had shows show showed demonstrates demonstrate suggests suggest initiates initiate inactivates inactivate visualizing linking tracking mapping regulating inhibit inhibits inhibited enhance enhances enhanced suppress suppresses suppressed activate activates activated disrupt disrupts disrupted promote promotes regulate regulates restore restores restored increase increases increased decrease decreases decreased measured measure measuring induces induce induced mediates mediated controls control determine determines requires required identifies identified identification characterization characterisation contribution contributions compared comparison associated associates predicts predict underlying').split(' ')),labelHeads=new Set(('cell cells retina retinas fovea foveas foveae photoreceptor photoreceptors neuron neurons progenitor progenitors receptor receptors protein proteins gene genes genome genomes transcript transcripts rna dna chromatin epigenome epigenomes mutation mutations disease diseases disorder disorders syndrome syndromes cancer cancers tumor tumors tumour tumours tissue tissues organ organs organoid organoids embryo embryos synapse synapses junction junctions channel channels pigment pigments rhodopsin opsin opsins biofilm biofilms bacterium bacteria virus viruses microbiome microbiomes immunity inflammation metabolism apoptosis autophagy angiogenesis neurogenesis development maturation differentiation proliferation survival death repair regeneration signaling signalling expression regulation transcription translation splicing resistance response responses therapy therapies treatment treatments imaging microscopy tomography thickness sequencing structure structures function functions physiology anatomy detachment hole holes albinism hypoplasia degeneration dystrophy infection infections fiber fibre gas toxin toxins phosphate phosphates practice epidemiology production odor oxalate vitamins vitamin nanoparticles nanomaterials models model constipation homocysteine obesity diabetes nutrition diet diets intake supplementation consumption exposure cognition memory dementia stroke ischemia ischaemia infarction hypertension osteoporosis arthritis osteoarthritis vasodilation lipid lipids acid acids acidification methylation acetylation phosphorylation plasticity connectivity behavior behaviour learning pain sleep toxicity carcinogenesis mutagenesis carcinogen carcinogens biomarker biomarkers metabolite metabolites biogenesis endocytosis exocytosis transport trafficking migration adhesion fibrosis amyloid amyloidosis insulin glucose cholesterol glycemia glycaemia caffeine adenovirus probiotics microbiota feces faeces stool milk meat fish depression anxiety stress exercise ventilation respiration circulation perfusion absorption intolerance allergy allergies deficiency deficiencies disability disabilities impairment impairments activity activities fate homeostasis pathway pathways cycle cycles dynamics architecture assembly complex complexes dynamics pattern patterns autophagosome autophagosomes').split(' '));
+ const conceptCache=new Map();
+ function conceptProfile(n){
+  const title=C.researchRecord(n).title,abstract=C.plainTitle(n.abstract||n.abstractNote||''),signature=JSON.stringify([title,abstract]),cached=conceptCache.get(n.id);if(cached?.signature===signature)return cached.rows;
+  if(typeof CiteLensTopicConcepts==='undefined')return [];
+  const concepts=new Map();
+  for(const [text,field] of [[title.slice(0,900),'title'],[abstract.length<6000?abstract:abstract.slice(0,3600)+'\n'+abstract.slice(-2400),'abstract']]){
+   const adjectives=new Set(typeof nlp==='function'?nlp(text).match('#Adjective').out('array').map(x=>x.toLowerCase()):[]);
+   const words=[...text.matchAll(/[\p{L}\p{M}0-9]+(?:[-‐‑’'][\p{L}\p{M}0-9]+)*/gu)];
+   for(let i=0;i<words.length;i++)for(let size=Math.min(7,words.length-i);size>0;size--){const end=words[i+size-1].index+words[i+size-1][0].length,raw=text.slice(words[i].index,end);if(/[.;:!?()\n]/.test(raw)||raw.length>80)continue;
+    // Acronyms need an unambiguous descriptor and the source's original case.
+    if(size===1&&adjectives.has(raw.toLowerCase()))continue;
+    if(size===1&&raw.length<=3&&!/^[A-Z0-9]{2,3}$/.test(raw))continue;
+    const candidates=CiteLensTopicConcepts.lookup(raw);if(candidates.length!==1)continue;const c=candidates[0],depth=Math.max(...c.trees.map(t=>t.split('.').length));
+    if(!concepts.has(c.id))concepts.set(c.id,{id:c.id,text:c.title,trees:c.trees,depth,mentions:[],inTitle:false});const row=concepts.get(c.id);row.inTitle ||= field==='title';if(row.mentions.length<8)row.mentions.push({field,start:words[i].index,end,text:raw});
+    // Longest match prevents a disease being replaced by its generic head noun.
+    i+=size-1;break;
+   }
+  }
+  const rows=[...concepts.values()].sort((a,b)=>Number(b.inTitle)-Number(a.inTitle)||b.depth-a.depth).slice(0,48);conceptCache.set(n.id,{signature,rows});while(conceptCache.size>2000)conceptCache.delete(conceptCache.keys().next().value);return rows;
+ }
+ const backgroundLabel=/^(?:(?:old|young|aged|adult|male|female|healthy|wild-type|laboratory|human|experimental)\s+)*(?:mice|rats|humans?|subjects?|participants?|patients?|animals?|edition|induction|data analysis|alternative method|versatile method|method|methods|research|study|studies|protocols?|results?)$/i;
+ function namingConcept(c){return !backgroundLabel.test(c.text)&&!c.trees.every(t=>t.startsWith('B'))&&!(c.depth<=2||/^(?:neoplasms|eye|brain|metabolism|mutation|mutations|gene expression|cells|cellular structures)$/i.test(c.text));}
  const phraseCache=new Map();
  function phraseCandidates(n){
-  const title=C.researchTitle(n),abstract=C.plainTitle(n.abstract||n.abstractNote||''),signature=JSON.stringify([title,abstract,n.creators]);
+  const title=C.researchRecord(n).title,abstract=C.plainTitle(n.abstract||n.abstractNote||''),signature=JSON.stringify([title,abstract,n.creators]);
   const cached=phraseCache.get(n.id);if(cached?.signature===signature)return cached.phrases;
   const lexicon=typeof CiteLensTopicLexicon==='undefined'?{has:()=>false}:CiteLensTopicLexicon,phrases=new Map(),authorWords=new Set((n.creators||[]).flatMap(a=>[a.firstName,a.lastName,a.name].filter(Boolean).flatMap(x=>x.toLowerCase().match(/[\p{L}\p{M}]{3,}/gu)||[])));
   const sources=[[title.slice(0,768),true],[abstract.length<=2000?abstract:abstract.slice(0,1100)+'\n'+abstract.slice(-900),false]];
@@ -33,41 +55,74 @@ var CiteLensNetworkMap=(()=>{
     const previous=phrases.get(key);if(!previous||isTitle&&!previous.inTitle)phrases.set(key,{key,text:part.join(' '),size,exact,inTitle:isTitle});
    }
   }
+  // Canonical identities unite synonyms without asking a generative model to invent names.
+  const concepts=conceptProfile(n).filter(namingConcept);
+  if(typeof nlp==='function')for(const raw of nlp(title.replace(/[:;]/g,'. ')).match('(#Adjective|#Noun)+').out('array')){
+   const text=raw.replace(/^(?:the|a|an)\s+/i,'').replace(/[.]+$/,'').trim(),words=text.split(/\s+/);if(words.length<2||words.length>6||text.length>64||/[.,:;!?]/.test(text)||words.some(w=>labelStop.has(w.toLowerCase()))||backgroundLabel.test(text))continue;
+   const anchors=concepts.filter(c=>c.mentions.some(m=>m.field==='title'&&text.toLowerCase().includes(m.text.toLowerCase())));if(!anchors.length)continue;
+   const key=text.toLowerCase();if(!phrases.has(key))phrases.set(key,{key,text,size:words.length,exact:false,inTitle:true,anchors:anchors.map(c=>c.id),depth:Math.max(...anchors.map(c=>c.depth)),evidence:[{field:'title',text}]});
+  }
+  if(typeof nlp==='function')for(const raw of nlp(title).match('(#Adjective|#Noun)+ of (#Adjective|#Noun)+').out('array')){
+   const text=raw.replace(/^(?:the|a|an)\s+/i,'').replace(/[.]+$/,'').trim(),words=text.split(/\s+/);if(words.length>7||text.length>64||backgroundLabel.test(text.split(/\s+of\s+/i)[1]||'')||words.filter(w=>w.toLowerCase()!=='of').some(w=>labelStop.has(w.toLowerCase()))||/^(?:induction|effect|role|use|history|lack|loss|level|reduction|increase|deletion|accumulation)s? of /i.test(text))continue;
+   const anchors=concepts.filter(c=>c.mentions.some(m=>m.field==='title'&&text.toLowerCase().includes(m.text.toLowerCase())));if(anchors.length)phrases.set(text.toLowerCase(),{key:text.toLowerCase(),text,size:words.length,exact:false,inTitle:true,anchors:anchors.map(c=>c.id),depth:Math.max(...anchors.map(c=>c.depth)),evidence:[{field:'title',text}]});
+  }
+  // A title's explicit research purpose is a supported concept, even for new tools
+  // absent from a controlled vocabulary (e.g. 'for interpreting omics data').
+  const nominal={interpreting:'interpretation',profiling:'profiling',sequencing:'sequencing',mapping:'mapping',analyzing:'analysis',analysing:'analysis',visualizing:'visualization',visualising:'visualisation',measuring:'measurement',predicting:'prediction',detecting:'detection',modeling:'modeling',modelling:'modelling'};
+  for(const m of title.matchAll(/\bfor (interpreting|profiling|sequencing|mapping|analyzing|analysing|visualizing|visualising|measuring|predicting|detecting|modeling|modelling) ([^.;:!?]+)/gi)){
+   const object=m[2].split(/\b(?:in|using|by|with|and)\b/)[0].trim().replace(/^(?:the|a|an)\s+/i,''),words=object.split(/\s+/);if(words.length<1||words.length>4||words.some(w=>labelStop.has(w.toLowerCase())))continue;const text=object+' '+nominal[m[1].toLowerCase()],key='purpose:'+text.toLowerCase();phrases.set(key,{key,text,size:words.length+1,exact:false,inTitle:true,depth:4,purpose:true,evidence:[{field:'title',text:m[0]}]});
+  }
+  for(const c of concepts){const key='mesh:'+c.id,words=c.text.split(/\s+/);phrases.set(key,{key,text:c.text,size:words.length,exact:true,inTitle:c.inTitle,conceptID:c.id,trees:c.trees,depth:c.depth,evidence:c.mentions});}
+  for(const [key,p] of phrases){if(backgroundLabel.test(p.text)){phrases.delete(key);continue;}if(!p.conceptID){const matches=concepts.filter(c=>c.mentions.some(m=>m.text.length>3&&(' '+p.text.toLowerCase().replace(/[-’']/g,' ')+' ').includes(' '+m.text.toLowerCase().replace(/[-’']/g,' ')+' ')));p.anchors=matches.map(c=>c.id);p.trees=[...new Set(matches.flatMap(c=>c.trees))];p.titleContext=matches.some(c=>c.inTitle);p.depth=matches.length?Math.max(...matches.map(c=>c.depth)):0;}}
+  for(const p of phrases.values()){const main=title.split(/\b(?:measured|using|assessed|detected|visualized)\b/i)[0].toLowerCase();p.primary=p.inTitle&&(main.includes(p.text.toLowerCase())||p.evidence?.some(e=>e.field==='title'&&main.includes(e.text.toLowerCase())));}
   const priority=p=>Number(p.inTitle)*100+Number(p.exact)*8+Math.min(p.size,4);const bounded=new Map([...phrases].sort((a,b)=>priority(b[1])-priority(a[1])||a[0].localeCompare(b[0])).slice(0,128));phraseCache.set(n.id,{signature,phrases:bounded});while(phraseCache.size>2000)phraseCache.delete(phraseCache.keys().next().value);return bounded;
  }
  function conceptCandidates(n){
   const rows=[...phraseCandidates(n).values()],lexicon=typeof CiteLensTopicLexicon==='undefined'?{has:()=>false}:CiteLensTopicLexicon;
-  for(const span of C.researchTitle(n).split(/[.!?:;,()\[\]\n]/)){const words=span.toLowerCase().match(/[\p{L}][\p{L}\p{M}0-9-]*/gu)||[];for(let size=2;size<=5;size++)for(let at=0;at+size<=words.length;at++){const text=words.slice(at,at+size).join(' ');if(lexicon.has(text)||lexicon.has(text+'s'))rows.push({text,key:text.replace(/s$/,''),size,inTitle:true});}}
+  for(const span of C.researchRecord(n).title.split(/[.!?:;,()\[\]\n]/)){const words=span.toLowerCase().match(/[\p{L}][\p{L}\p{M}0-9-]*/gu)||[];for(let size=2;size<=5;size++)for(let at=0;at+size<=words.length;at++){const text=words.slice(at,at+size).join(' ');if(lexicon.has(text)||lexicon.has(text+'s'))rows.push({text,key:text.replace(/s$/,''),size,inTitle:true});}}
   return [...new Map(rows.map(p=>[p.key,p])).values()];
  }
  function labelIndex(all,groups=null,vectors=null,needed=null,progress=()=>{}){
   const global=new Map(),terms=new Map(),phrases=new Map(),classWords=new Map();let done=0;
-  for(const n of all){const words=new Set(NC.terms(C.researchTitle(n)));terms.set(n.id,words);for(const t of words)global.set(t,(global.get(t)||0)+1);if(!needed||needed.has(n.id)){phrases.set(n.id,phraseCandidates(n));if(++done%12===0)progress({phase:'naming',completed:done,total:needed?.size||all.length});}}
+  for(const n of all){const words=new Set(NC.terms(C.researchRecord(n).title));terms.set(n.id,words);for(const t of words)global.set(t,(global.get(t)||0)+1);if(!needed||needed.has(n.id)){phrases.set(n.id,phraseCandidates(n));if(++done%12===0)progress({phase:'naming',completed:done,total:needed?.size||all.length});}}
   const classes=groups||[all.map(n=>n.id)];classes.forEach((ids,i)=>{for(const word of new Set(ids.flatMap(id=>[...(terms.get(id)||[])]))){if(!classWords.has(word))classWords.set(word,new Set());classWords.get(word).add(i);}});
-  const classFrequency=new Map();for(const rows of phrases.values())for(const p of rows.values())if(!classFrequency.has(p.key)){const words=NC.terms(p.text),sets=words.map(w=>classWords.get(w)||new Set()).sort((a,b)=>a.size-b.size);classFrequency.set(p.key,sets.length?[...sets[0]].filter(id=>sets.every(set=>set.has(id))).length:1);}
+  const classPhrases=new Map();classes.forEach((ids,i)=>{for(const id of ids)for(const key of (phrases.get(id)||new Map()).keys()){if(!classPhrases.has(key))classPhrases.set(key,new Set());classPhrases.get(key).add(i);}});
+  const classFrequency=new Map();for(const rows of phrases.values())for(const p of rows.values())if(!classFrequency.has(p.key)){const words=NC.terms(p.text),sets=words.map(w=>classWords.get(w)||new Set()).sort((a,b)=>a.size-b.size);classFrequency.set(p.key,p.conceptID?classPhrases.get(p.key)?.size||1:sets.length?[...sets[0]].filter(id=>sets.every(set=>set.has(id))).length:1);}
   return{global,terms,phrases,classFrequency,classCount:classes.length,vectors:vectors?new Map(all.map((n,i)=>[n.id,vectors[i]])):null};
  }
  function label(members,all,stats,excluded=new Set()){
-  if(members.every(n=>/^(?:biography|obituary|in memoriam)\b/i.test(C.researchTitle(n))))return 'Scientific biographies';
-  if(members.every(n=>/^(?:series page|contents|editorial board|front matter|copyright|index)\b/i.test(C.researchTitle(n))))return 'Publication information';
+  if(!excluded.has(C.norm('Scientific biographies'))&&members.every(n=>/^(?:biography|obituary|in memoriam)\b/i.test(C.researchRecord(n).title)))return 'Scientific biographies';
+  if(!excluded.has(C.norm('Publication information'))&&members.every(n=>/^(?:series page|contents|editorial board|front matter|copyright|index)\b/i.test(C.researchRecord(n).title)))return 'Publication information';
   stats ||= labelIndex(all);const phrases=new Map(),vectors=members.map(n=>stats.vectors?.get(n.id)).filter(v=>Array.isArray(v)&&v.length),centroid=vectors.length?CiteLensSemanticCore.normalize(vectors[0].map((_,i)=>vectors.reduce((sum,v)=>sum+v[i],0)/vectors.length)):null;
   for(const n of members){const v=stats.vectors?.get(n.id),central=centroid&&v?Math.max(0,CiteLensSemanticCore.dot(v,centroid)):1;
-   for(const p of stats.phrases.get(n.id)||phraseCandidates(n)){const [key,row]=p;if(!phrases.has(key))phrases.set(key,{...row,count:0,titles:0,central:0});const item=phrases.get(key);item.count++;item.titles+=Number(row.inTitle);item.central+=central;}
+   for(const p of stats.phrases.get(n.id)||phraseCandidates(n)){const [key,row]=p;if(!phrases.has(key))phrases.set(key,{...row,count:0,titles:0,central:0,primaryCount:0,contextCount:0});const item=phrases.get(key);item.count++;item.titles+=Number(row.inTitle);item.primaryCount+=Number(!!row.primary);item.contextCount+=Number(!!row.titleContext);item.central+=central;}
   }
-  const generic=/^(?:light|cells?|genes?|assembly|disruption|plasticity|development|regulation|expression|translation|transcription|proteins?|structure|function|research|signaling|signalling|dna|rna|retina|chromatin|aging|maturation|proliferation|synthesis|alignment|ribosome|single cells|tissues?|genomes?|embryos?|syndromes?|complex|complexes|structures?|enzymes?|methods?|mechanisms?|performance improvement|upward motion)$/i;
-  const options=[...phrases.values()].filter(p=>!excluded.has(C.norm(p.text))&&!generic.test(p.text)),distinct=options.filter(p=>stats.classCount<3||(stats.classFrequency.get(p.key)||1)<stats.classCount*.8),eligible=distinct.length?distinct:options,repeated=eligible.filter(p=>p.count>=2&&p.count/members.length>=.3),supported=repeated.length?repeated:eligible;
+  const generic=/^(?:cancer|cancers|eye|brain|metabolism|mutation|mutations|induction|edition|data analysis|light|cells?|genes?|assembly|disruption|plasticity|development|regulation|expression|translation|transcription|proteins?|structure|function|research|signaling|signalling|dna|rna|retina|chromatin|aging|maturation|proliferation|synthesis|alignment|ribosome|single cells|tissues?|genomes?|embryos?|syndromes?|complex|complexes|structures?|enzymes?|methods?|mechanisms?|performance improvement|upward motion)$/i;
+  const options=[...phrases.values()].filter(p=>!excluded.has(C.norm(p.text))&&!generic.test(p.text)&&!backgroundLabel.test(p.text)),distinct=options.filter(p=>stats.classCount<3||(stats.classFrequency.get(p.key)||1)<stats.classCount*.8),eligible=distinct.length?distinct:options,repeated=eligible.filter(p=>p.count>=2&&p.count/members.length>=.3),supported=repeated.length?repeated:eligible;
   const extensions=new Map();for(const q of supported)if(q.size>1){const prefix=q.key.split(' ').slice(0,-1).join(' ');if(!extensions.has(prefix))extensions.set(prefix,[]);extensions.get(prefix).push(q);}const complete=supported.filter(p=>!(extensions.get(p.key)||[]).some(q=>q.count>=p.count*.8&&q.titles>=p.titles*.8));
   const score=p=>{const words=NC.terms(p.text),contrast=words.length?Math.max(...words.map(w=>Math.log1p(all.length/Math.max(1,stats.global.get(w)||1)))):1;
-   const coverage=p.count/members.length,classContrast=Math.log1p(stats.classCount/Math.max(1,stats.classFrequency.get(p.key)||1)),fieldSupport=(p.titles+.35*(p.count-p.titles))/members.length,representative=.8+.2*p.central/p.count;
-   return coverage**.5*fieldSupport*Math.sqrt(Math.min(4,p.size))*contrast**.7*classContrast*representative*(p.exact?1.1:1)*(p.size===1?.7:1)/(1+Math.max(0,p.size-4)*.25);};
-  const ranked=complete.map(p=>({...p,score:score(p)})).sort((a,b)=>b.score-a.score||a.text.localeCompare(b.text));const best=ranked[0];return best?best.text.charAt(0).toUpperCase()+best.text.slice(1):fallbackLabel(members,excluded);
+   const coverage=p.count/members.length,classContrast=Math.log1p(stats.classCount/Math.max(1,stats.classFrequency.get(p.key)||1)),fieldSupport=(p.titles+.65*(p.count-p.titles))/members.length,representative=.8+.2*p.central/p.count;
+   const ontology=p.purpose?1.25:(p.conceptID||p.anchors?.length)?1.12:1,depth=1+Math.min(7,p.depth||0)*.015;const subject=.65+.75*p.primaryCount/p.count+.55*p.contextCount/p.count;return subject*ontology*depth*coverage**.5*fieldSupport*Math.sqrt(Math.min(4,p.size))*contrast**.7*classContrast*representative*(p.exact?1.1:1)*(p.size===1?.7:1)/(1+Math.max(0,p.size-4)*.25);};
+  const ranked=complete.map(p=>({...p,score:score(p)})).sort((a,b)=>b.score-a.score||a.text.localeCompare(b.text));let best=ranked[0];
+  // A supported subtype is more informative than its broad parent; tree paths
+  // establish the relation without guessing from similar word spellings.
+  if(best?.size===1&&best.trees?.length){const parent=best,child=ranked.find(p=>p.conceptID&&p.count>=parent.count*.85&&p.trees?.some(t=>parent.trees.some(root=>t.startsWith(root+'.'))));if(child)best=child;}
+  // Refine a lone entity with a complete, observed scientific phrase only when
+  // it retains that entity, adds another grounded concept and has comparable support.
+  if(best?.size===1){const ids=new Set([best.conceptID,...(best.anchors||[])].filter(Boolean)),context=ranked.find(p=>p.size>=2&&p.size<=5&&(p.anchors?.length||0)>=2&&p.anchors.some(id=>ids.has(id))&&p.count>=best.count*.7&&p.score>=best.score*.45);if(context)best=context;}
+  return best?best.text.charAt(0).toUpperCase()+best.text.slice(1):fallbackLabel(members,excluded);
  }
 
  function fallbackLabel(members,excluded=new Set()){
-  // Preserve a real title when NLP lacks a supported concept; never manufacture a scientific label.
-  for(const n of [...members].sort((a,b)=>String(a.id).localeCompare(String(b.id)))){
-   const title=C.researchTitle(n);if(title&&!excluded.has(C.norm(title)))return title;
-  }return '';
+  const candidates=[];
+  for(const n of members){
+   const title=C.researchRecord(n).title.replace(/\b(?:first|second|third|fourth|fifth|\d+(?:st|nd|rd|th)) edition\b/ig,'').replace(/^.*?\d+\.\d+\s*:\s*/,'');
+   // Preserve a concise noun phrase with its source span, never an entire result sentence.
+   const chunks=typeof nlp==='function'?nlp(title).match('(#Adjective|#Noun)+').out('array'):title.split(/[:;,.]|\b(?:of|for|in|with|and)\b/);
+   for(const raw of chunks){const text=raw.replace(/^(?:the|a|an|early|universal|novel|new)\s+/ig,'').trim(),words=text.split(/\s+/);if(words.length<2||words.length>7||text.length>62||backgroundLabel.test(text)||excluded.has(C.norm(text))||/^(?:early history|new zealand|fourth edition)$/i.test(text))continue;candidates.push({text,score:words.filter(w=>labelHeads.has(w.toLowerCase())).length*3+Math.min(4,words.length)});}
+   for(const c of conceptProfile(n).filter(namingConcept))if(!excluded.has(C.norm(c.text)))candidates.push({text:c.text,score:5+Number(c.inTitle)});
+  }
+  candidates.sort((a,b)=>b.score-a.score||a.text.localeCompare(b.text));return candidates[0]?.text||C.researchTitle(members[0]||{}).split(/[.:;]/)[0].slice(0,62);
  }
  function uniqueLabels(groups,papers,vectors=null,progress=()=>{}){
   const byID=new Map(papers.map(n=>[n.id,n])),stats=labelIndex(papers,groups.map(g=>g.members),vectors,null,progress),used=new Set();
@@ -102,30 +157,33 @@ var CiteLensNetworkMap=(()=>{
   graph.edges.push(...result.links.map(e=>({source:e.source,target:e.target,kind:'similarity',evidence:[{score:e.score}]})));
   // Reinforce sparse semantic neighborhoods only with specific shared concepts.
   // Generic methods and very frequent phrases never create a scientific relation.
-  const conceptRows=new Map(),pairs=new Map(),vectorIDs=new Map(papers.map((p,i)=>[p.id,i]));
+  const conceptRows=new Map(),conceptInfo=new Map(),conceptSurfaces=new Map(),pairs=new Map(),vectorIDs=new Map(papers.map((p,i)=>[p.id,i]));
   for(const p of papers)for(const candidate of conceptCandidates(p))if(candidate.size>=2&&candidate.inTitle&&!/^(?:single cell sequencing|gene expression|protein expression|cell culture|research article|systematic review)$/i.test(candidate.text)){
-   if(!conceptRows.has(candidate.key))conceptRows.set(candidate.key,[]);conceptRows.get(candidate.key).push(p.id);
+   if(!conceptRows.has(candidate.key))conceptRows.set(candidate.key,[]);conceptInfo.set(candidate.key,{id:candidate.conceptID||'',title:candidate.text,depth:candidate.depth||0});conceptRows.get(candidate.key).push(p.id);if(candidate.conceptID)conceptSurfaces.set(candidate.key+'\0'+p.id,C.norm(candidate.evidence?.find(e=>e.field==='title')?.text||candidate.text));
   }
   for(const [concept,ids] of conceptRows)if(ids.length>=2&&ids.length<=Math.min(24,Math.max(4,papers.length*.08)))for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
+   // Ontology adds synonym bridges, not more edges for repeated broad single words.
+   if(concept.startsWith('mesh:')&&(conceptInfo.get(concept).depth<4||conceptSurfaces.get(concept+'\0'+ids[i])===conceptSurfaces.get(concept+'\0'+ids[j])))continue;
    const score=CiteLensSemanticCore.dot(semantic.vectors[vectorIDs.get(ids[i])],semantic.vectors[vectorIDs.get(ids[j])]);if(score<.46)continue;
-   const pair=[ids[i],ids[j]].sort(),key=JSON.stringify(pair);if(!pairs.has(key))pairs.set(key,{source:pair[0],target:pair[1],score,weight:score*score,concept});
+   const pair=[ids[i],ids[j]].sort(),key=JSON.stringify(pair);if(!pairs.has(key))pairs.set(key,{source:pair[0],target:pair[1],score,weight:score*score,concept:conceptInfo.get(concept)?.title||concept,conceptID:conceptInfo.get(concept)?.id||''});
   }
   const degrees=new Map(),known=new Set(result.links.map(e=>JSON.stringify([e.source,e.target].sort()))),support=[];
   for(const [key,e] of [...pairs].sort((a,b)=>b[1].score-a[1].score||a[0].localeCompare(b[0])))if(!known.has(key)&&(degrees.get(e.source)||0)<3&&(degrees.get(e.target)||0)<3){support.push(e);for(const id of [e.source,e.target])degrees.set(id,(degrees.get(id)||0)+1);}
-  graph.edges.push(...support.map(e=>({source:e.source,target:e.target,kind:'similarity',evidence:[{score:e.score,concept:e.concept}]})));
-  const decided=support.length?NC.communities(papers.map(n=>n.id),[...result.links,...support],1.05):result.groups,covered=new Set(decided.flat()),groups=[...decided,...papers.filter(n=>!covered.has(n.id)).map(n=>[n.id])],used=new Set(),prior=previous?.groups||[],signatures=new Map(papers.map((n,i)=>[n.id,semantic.signatures?.[i]||[C.researchTitle(n),n.abstract||'']]));
+  graph.edges.push(...support.map(e=>({source:e.source,target:e.target,kind:'similarity',evidence:[{score:e.score,concept:e.concept,conceptID:e.conceptID,relation:'shared-concept'}]})));
+  const decided=support.length?NC.communities(papers.map(n=>n.id),[...result.links,...support],1.05):result.groups,covered=new Set(decided.flat()),groups=[...decided,...papers.filter(n=>!covered.has(n.id)).map(n=>[n.id])],used=new Set(),prior=previous?.groups||[],signatures=new Map(papers.map((n,i)=>[n.id,semantic.signatures?.[i]||[C.researchRecord(n).title,n.abstract||'']]));
+  graph.knowledge={version:'mesh-concept-1',concepts:[...conceptRows.keys()].filter(k=>k.startsWith('mesh:')).length,groundedLinks:support.filter(e=>e.conceptID).length};
   graph.groups=groups.map(ids=>{const members=new Set(ids);const match=prior.filter(g=>!used.has(g.id)).map(g=>({g,overlap:g.members.filter(id=>members.has(id)).length})).filter(x=>x.overlap/Math.max(ids.length,x.g.members.length)>=.5).sort((a,b)=>b.overlap-a.overlap||a.g.id.localeCompare(b.g.id))[0]?.g;
-   const id=match?.id||'topic:'+hash(ids.join('\0')).toString(36);used.add(id);const labelKey=JSON.stringify(['concept-contrast-4',...ids.map(id=>[id,signatures.get(id)])]),title=match?.labelKey===labelKey?match.title:'';
+   const id=match?.id||'topic:'+hash(ids.join('\0')).toString(36);used.add(id);const labelKey=JSON.stringify(['concept-identity-5',...ids.map(id=>[id,signatures.get(id)])]),title=match?.labelKey===labelKey?match.title:'';
    return {id,title,labelKey,members:ids,kind:'topic',local:ids.some(id=>byID.get(id).local),color:hash(id)%6};
   });
   // Stable names are reused for unchanged groups; only changed scientific content
   // incurs part-of-speech analysis. The cache stores names/signatures, not NLP state.
   // Repair names at the sibling level, including collisions introduced by incremental updates.
   uniqueLabels(graph.groups,papers,semantic.vectors,progress);
-  // Identical content can produce identical singleton names. Consolidate those only;
-  // different scientific content is assigned its next evidence-backed phrase above.
-  const canonical=new Map();for(const g of graph.groups){const key=C.norm(g.title)||JSON.stringify(g.members.map(id=>C.researchTitle(byID.get(id))));if(!canonical.has(key))canonical.set(key,g);else canonical.get(key).members.push(...g.members);}
-  graph.groups=[...canonical.values()];progress({phase:'naming',completed:papers.length,total:papers.length});
+  for(const g of graph.groups){g.namingEvidence=[];for(const id of g.members){const n=byID.get(id),candidate=[...phraseCandidates(n).values()].find(p=>C.norm(p.text)===C.norm(g.title));if(candidate)g.namingEvidence.push({paperID:id,conceptID:candidate.conceptID||'',anchors:candidate.anchors||[],source:candidate.evidence?.[0]||{field:candidate.inTitle?'title':'abstract',text:candidate.text}});if(g.namingEvidence.length>=16)break;}}
+
+  // Names never merge clusters: a shared heading is not identity evidence.
+  progress({phase:'naming',completed:papers.length,total:papers.length});
   const owner=new Map(graph.groups.flatMap(g=>g.members.map(id=>[id,g.id]))),links=new Map();for(const edge of graph.edges){if(!['similarity','cites','related'].includes(edge.kind))continue;const a=owner.get(edge.source),b=owner.get(edge.target);if(!a||!b||a===b)continue;const pair=[a,b].sort(),key=JSON.stringify(pair);if(!links.has(key))links.set(key,{source:pair[0],target:pair[1],kind:'topic-relation',evidence:[]});const list=links.get(key).evidence;if(!list.some(e=>e.sourcePaper===edge.source&&e.targetPaper===edge.target&&e.kind===edge.kind))list.push({sourcePaper:edge.source,targetPaper:edge.target,kind:edge.kind,...(edge.evidence?.[0]||{})});}
   // A second semantic graph relates subtopics, independent of authors and citations.
   // Content-keyed centroids reuse unchanged neighbours when the library grows.

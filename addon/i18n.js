@@ -2,6 +2,24 @@
 var CiteLensI18n = {
  catalogs:{
   "en": {
+    "网络暂未就绪":"Network not ready yet",
+    "可重试，或先继续阅读论文":"Retry, or continue reading for now",
+    "准备已暂停":"Preparation paused",
+    "点击重试继续构建网络":"Retry to continue building your network",
+    "从文献开始连接":"Connections begin with papers",
+    "选择有论文的文献库或文献夹":"Choose a library or collection containing papers",
+    "整理本篇参考文献": "Organizing references",
+    "定位引文与对应的论文": "Connecting citations to their papers",
+    "留给下一次阅读": "Keep a thought for later",
+    "本篇尚无参考文献": "No references here yet",
+    "试试作者、年份或更短的题名": "Try an author, year, or shorter title",
+    "点击文献卡片上的书签，收藏想继续读的论文": "Bookmark a paper to return to it here",
+    "打开论文后，在这里查看文中引用": "Open a paper to explore its references",
+    "研究线索正在汇聚": "Research threads are coming together",
+    "合作关系正在连接": "Collaborations are taking shape",
+    "从论文中发现共同的科学主题": "Finding shared scientific themes across papers",
+    "让共同署名的研究者彼此相连": "Connecting researchers through their shared papers",
+
     "返回上一级": "Back",
     "适应当前视图": "Fit view",
     "打开 DOI": "Open DOI",

@@ -8,7 +8,7 @@ Paper Nexus 在 Zotero 内运行。使用独立安装的本地模型在本机构
 
 | 操作 | 发送内容或下载内容 | 使用目的 |
 |---|---|---|
-| 补全文献信息／摘要 | 当前条目的 DOI、PMID、题名或检索词，必要时用作者／年份核对 | PubMed／PMC、Europe PMC、Crossref 的文献查询 |
+| 补全文献信息／摘要 | 条目的 DOI、PMID、题名或检索词，必要时用作者／年份核对 | PubMed／PMC、Europe PMC、Crossref、OpenAlex、Semantic Scholar 的文献查询；缺少摘要的论文也会在后台逐批查询 |
 | 摘要翻译 | 当前摘要、目标语言及所选服务需要的配置 | 用户选择的免费通道、已安装翻译插件或自配模型服务 |
 | 引文格式 | 所选 CSL 样式及其依赖的标识 | 从官方 CSL 仓库下载格式文件，优先使用已安装格式 |
 | 期刊指标准备 | 下载可用的离线数据文件 | 本机按刊名／ISSN 匹配，不上传整库 |
@@ -17,6 +17,8 @@ Paper Nexus 在 Zotero 内运行。使用独立安装的本地模型在本机构
 | 检查／安装更新 | GitHub 发布信息、更新清单与 XPI | 查询新版本，交由 Zotero 验证并安装 |
 
 选择“原文”不触发摘要翻译。每次打开摘要默认显示原文。第三方服务有各自的数据政策和可用性限制；机构敏感内容宜使用获准的服务或本机模型。
+
+摘要补取保留来源，仅补充插件中的阅读和网络信息，不改写 Zotero 原始条目。相关来源：[NCBI 使用说明](https://www.ncbi.nlm.nih.gov/About/disclaimer.html)、[OpenAlex 数据说明](https://help.openalex.org/)。
 
 ## 本地保存
 

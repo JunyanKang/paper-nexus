@@ -1,4 +1,4 @@
-const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),C=require('../addon/core.js');const ctx={CiteLensCore:C,CiteLensSemanticCore:require('../addon/semantic-core.js')};vm.createContext(ctx);for(const file of ['network-core.js','topic-lexicon.js','vendor/compromise/compromise-two.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+file),'utf8'),ctx);const M=ctx.CiteLensNetworkMap;
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),C=require('../addon/core.js');const ctx={CiteLensCore:C,CiteLensSemanticCore:require('../addon/semantic-core.js')};vm.createContext(ctx);for(const file of ['network-core.js','topic-lexicon.js','topic-concepts.js','vendor/compromise/compromise-two.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+file),'utf8'),ctx);const M=ctx.CiteLensNetworkMap;
 const author=(firstName,lastName)=>({firstName,lastName}),paper=(key,title='Retinal cone photoreceptor development',extra={})=>({id:'1:'+key,title,year:'2020',DOI:'10.1234/'+key,libraryID:1,creators:[author('Anita','Hendrickson')],attachments:[],collections:[],...extra});
 const input=(nodes,extra={})=>({nodes,edges:[],references:[],mode:'topics',...extra});
 const topic=(nodes,vectors,extra={})=>M.topics(M.build(input(nodes,extra)),{vectors});
@@ -69,4 +69,33 @@ test('medical phrases and acronyms remain intact while author text does not beco
 test('uninformative titles use bounded abstract evidence without inventing an unsupported topic',()=>{
  assert.equal(topic([paper('a','A new perspective',{abstract:'Retinal ganglion cell regeneration restores vision.'})],[[1,0]]).groups[0].title,'Retinal ganglion cell regeneration');
  assert.equal(topic([paper('a','A new perspective')],[[1,0]]).groups[0].title,'A new perspective');
+});
+
+test('concept identities preserve narrower meanings and normalize real synonyms',()=>{
+ const K=ctx.CiteLensTopicConcepts;
+ assert.equal(K.lookup('heart attack')[0].id,K.lookup('myocardial infarction')[0].id);
+ assert.equal(K.lookup('cardiac surgery')[0].title,'Heart Surgery');
+ assert.notEqual(K.lookup('cancer')[0].id,K.lookup('neoplasms')[0].id);
+});
+test('source contexts distinguish scientific concepts from population and publishing words',()=>{
+ const cases=[
+  ['Protocols for neural cell culture: Fourth edition',{},/neural cell culture/i],
+  ['The neuroscience of cancer',{},/neuroscience of cancer/i],
+  ['A toolkit for interpreting metabolomics data',{},/metabolomics data interpretation/i],
+  ['Microglial hemoxygenase-1 deletion reduces inflammation in the retina of old mice with tauopathy',{abstract:'Microglia and tauopathy-induced neuroinflammation were examined in the retina. Reduction of microglial HO-1 could prevent tauopathy-induced neuroinflammation.'},/tauopathy|microglia|neuroinflammation/i],
+ ];
+ for(const [title,extra,wanted] of cases){const g=topic([paper('a',title,extra)],[[1,0]]);assert.match(g.nodes[0].title,wanted);assert.doesNotMatch(g.nodes[0].title,/^(?:old mice|edition|cancer|retinaldehyde)$/i);}
+});
+test('book-chapter context feeds the same input to naming and embeddings without editing the original title',()=>{
+ const p=paper('a','Data analysis',{type:'bookSection',bookTitle:'ggplot2'});assert.equal(C.researchRecord(p).title,'ggplot2 data analysis');assert.equal(p.title,'Data analysis');
+ const g=topic([p],[[1,0]]);assert.match(g.nodes[0].title,/ggplot2/i);assert.notEqual(g.nodes[0].title.toLowerCase(),'data analysis');
+});
+test('retinal adjective cannot create a retinaldehyde chemical relation',()=>{
+ const g=topic([paper('a','Retinal microglia and inflammatory responses')],[[1,0]]);
+ assert.ok(g.nodes[0].namingEvidence.every(e=>e.conceptID!=='M0018957'&&!e.anchors.includes('M0018957')));
+});
+test('sparse concept links join true synonyms only with independent semantic support',()=>{
+ const nodes=[paper('a','Myocardial infarction and cardiac repair'),paper('b','Heart attack and cardiac regeneration'),paper('c','Heart attack in a fictional memoir')],vectors=[[1,0,0],[.48,Math.sqrt(1-.48**2),0],[0,0,1]],g=topic(nodes,vectors);
+ assert.ok(g.groups.some(x=>x.members.includes('1:a')&&x.members.includes('1:b')));assert.ok(!g.groups.some(x=>x.members.includes('1:a')&&x.members.includes('1:c')));
+ assert.ok(g.paperEdges.some(e=>e.evidence?.some(v=>v.conceptID==='M0014340')));
 });

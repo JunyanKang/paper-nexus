@@ -64,3 +64,6 @@ playwright-report/
 
 # Retired network API settings capture
 docs/images/model-settings.png
+
+# Private generated design prompts and storyboards
+output/imagegen/

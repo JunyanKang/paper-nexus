@@ -8,6 +8,40 @@ var CiteLensUI = {
     if(className&&/(?:^| )(?:cl-root|cl-dialog|cl-card)(?: |$)/.test(className))e.setAttribute('contenteditable','false');
     return e;
   },
+  // Independent vector parts, not an animated bitmap. No animation timer owns data work.
+  stateScene(doc,{kind='queue',title='',detail='',busy=false}={}) {
+    const root=this.el(doc,'div',null,'pn-state-scene');root.dataset.kind=kind;root.dataset.busy=String(busy);
+    const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 240 170');svg.setAttribute('aria-hidden','true');svg.classList.add('pn-state-art');
+    const add=(tag,attrs,parent=svg)=>{const e=doc.createElementNS(svg.namespaceURI,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));parent.append(e);return e;};
+    const path=(d,cls,parent=svg)=>add('path',{d,class:cls||''},parent),paper=(x,y,cls,parent=svg)=>{const g=add('g',{class:cls,style:`--dx:${x}px;--dy:${y}px`},parent);path('M-17-24 H9 L17-16 V24 H-17 Z','pn-art-paper',g);path('M9-24 V-16 H17 M-10-7 H9 M-10 0 H10 M-10 7 H6','pn-art-rule',g);if(/fragment|slip/.test(cls))for(const c of g.children)c.setAttribute('transform','scale(.6)');return g;};
+    if(kind==='queue'){
+      path('M54 70 Q54 62 63 62 H177 Q186 62 186 70 V137 H54 Z','pn-art-soft');
+      paper(101,82,'pn-art-queued pn-art-queued-a');paper(142,72,'pn-art-queued pn-art-queued-b');
+      path('M54 83 Q54 76 63 80 L104 100 Q120 119 136 100 L177 80 Q186 76 186 85 V131 Q186 142 174 142 H66 Q54 142 54 131 Z','pn-art-pocket');
+      path('M151 69 H168 V122 L159.5 116 L151 122 Z','pn-art-bookmark');path('M184 50 L194 43 M191 63 H203 M174 41 V30','pn-art-glint');
+    }else if(kind==='references'||kind==='search'){
+      paper(93,84,'pn-art-source');for(let i=0;i<3;i++)paper(160,63+i*30,'pn-art-slip pn-art-slip-'+i);
+      path('M105 68 Q130 50 144 63 M105 84 H142 M105 99 Q130 116 144 123','pn-art-index-links');
+      const lens=add('g',{class:'pn-art-lens'});add('circle',{cx:100,cy:78,r:24,class:'pn-art-glass'},lens);path('M117 95 L130 109','pn-art-handle',lens);path('M84 74 H116 M84 82 H107','pn-art-scan',lens);
+    }else if(kind==='authors'){
+      const pts=[[65,55],[45,109],[102,104],[174,56],[144,112],[195,107]];
+      path('M65 55 L45 109 L102 104 Z M174 56 L144 112 L195 107 Z M102 104 Q123 67 144 112','pn-art-network-links');
+      pts.forEach(([x,y],i)=>{const g=add('g',{class:'pn-art-person',style:`--i:${i};--dx:${x}px;--dy:${y}px`});add('circle',{r:20,class:'pn-art-medallion'},g);add('circle',{cy:-5,r:6,class:'pn-art-face'},g);path('M-11 11 C-11-1 11-1 11 11','pn-art-face',g);});
+      const dot=add('g',{class:'pn-art-evidence'});add('circle',{r:3},dot);
+    }else{
+      const centers=[[75,106],[123,49],[177,106]];
+      path('M75 106 Q67 61 123 49 Q182 46 177 106 Q125 153 75 106','pn-art-network-links');
+      centers.forEach(([x,y],i)=>{add('ellipse',{cx:x,cy:y,rx:35,ry:28,class:'pn-art-cluster',style:`--i:${i}`});paper(x-10,y-2,'pn-art-fragment pn-art-fragment-'+(i*2));paper(x+11,y+3,'pn-art-fragment pn-art-fragment-'+(i*2+1));});
+    }
+    root.append(svg,this.el(doc,'strong',title,'pn-state-title'),this.el(doc,'p',detail,'pn-state-detail'));
+    if(!busy){root._pnDispose=()=>{};return root;}root.setAttribute('role','status');
+    // Observers pause offscreen/hidden animations and disconnect on removal.
+    const win=doc.defaultView;let visible=false,connected=false,disposed=false,mountCheck;
+    const sync=()=>{root.dataset.play=String(!disposed&&busy&&visible&&!doc.hidden);},io=new win.IntersectionObserver(entries=>{visible=entries.some(e=>e.isIntersecting);sync();});io.observe(root);
+    const cleanup=()=>{if(disposed)return;disposed=true;root.dataset.play='false';win.clearTimeout(mountCheck);io.disconnect();mo.disconnect();doc.removeEventListener('visibilitychange',sync);};
+    const mo=new win.MutationObserver(()=>{if(root.isConnected)connected=true;else if(connected)cleanup();});mo.observe(doc.body||doc.documentElement,{childList:true,subtree:true});doc.addEventListener('visibilitychange',sync);root._pnDispose=cleanup;mountCheck=win.setTimeout(()=>{connected=root.isConnected;if(!connected)cleanup();},0);
+    return root;
+  },
   waitFor(task,win,ms,message){return new Promise((resolve,reject)=>{const timer=win.setTimeout(()=>reject(Error(message)),ms);Promise.resolve(task).then(resolve,reject).finally(()=>win.clearTimeout(timer));});},
   logo(doc,size=26) {CiteLens.ensureAssets();const img=this.el(doc,'img',null,'pn-logo');img.src=CiteLens.assetURI+'nexus.png';img.alt='';img.width=size;img.height=size;return img;},
   title(doc,record,tag='div') {
@@ -553,7 +587,7 @@ var CiteLensUI = {
       if(view==='queue')rows=CiteLensServices.state.queue.filter(x=>x.status!=='saved');
       else{
         const cached=CiteLens.readers.get(reader)?.referenceList;
-        if(!cached){const loading=this.el(doc,'div','正在读取…','cl-panel-loading');loading.setAttribute('role','status');body.append(loading);await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}
+        if(!cached){const loading=this.stateScene(doc,{kind:'references',title:'整理本篇参考文献',detail:'定位引文与对应的论文',busy:true});loading.classList.add('cl-panel-loading');body.append(loading);await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}
         try{const refs=cached||await this.waitFor(CiteLens.references(reader),win,30000,'文献仍在读取，请稍后重试'),context=this.context(reader);rows=[];for(let i=0;i<refs.length;i++){rows.push({record:this.resolved(refs[i]),context});if(!cached&&i%12===0){await new Promise(resolve=>win.setTimeout(resolve,0));if(disposed||ticket!==generation)return;}}}
         catch(e){if(ticket===generation&&root.isConnected){body.replaceChildren(this.el(doc,'p',e.message,'cl-empty'),this.quiet(doc,'重试',()=>render()));body.setAttribute('aria-busy','false');}return;}
       }
@@ -563,9 +597,9 @@ var CiteLensUI = {
       const bar=this.el(doc,'div',null,'cl-listbar'),tools=this.el(doc,'div',null,'cl-actions');
       bar.append(this.el(doc,'span',q?`${rows.length} / ${total} 条`:`${total} 条${view==='queue'?'待阅读':'参考文献'}`,'cl-muted'));
       const exp=this.quiet(doc,'导出 RIS',()=>CiteLens.exportRIS(rows.map(x=>x.record)));exp.disabled=!rows.length;tools.append(exp);
-      if(view==='queue'&&rows.length)tools.append(this.quiet(doc,'批量保存',()=>this.batchDialog(doc,rows,render)));bar.append(tools);body.append(bar);
+      if(view==='queue'&&rows.length)tools.append(this.quiet(doc,'批量保存',()=>this.batchDialog(doc,rows,render)));bar.append(tools);if(total||q)body.append(bar);
       if(!rows.length){
-        const empty=this.el(doc,'div',null,'cl-empty');empty.append(this.el(doc,'strong',q?'没有匹配结果':view==='queue'?'把想读的文献留在这里':'暂未读取到参考文献'),...(q||view==='queue'?[this.el(doc,'p',q?'尝试作者姓氏、年份或更短的题名。':'悬浮卡片中点击「稍后读」，稍后集中核对、保存和导出。')]:[]));
+        const empty=this.stateScene(doc,{kind:q?'search':view==='queue'?'queue':'references',title:q?'没有匹配结果':view==='queue'?'留给下一次阅读':'本篇尚无参考文献',detail:q?'试试作者、年份或更短的题名':view==='queue'?'点击文献卡片上的书签，收藏想继续读的论文':'打开论文后，在这里查看文中引用'});
         if(q)empty.append(this.button(doc,'清除搜索',()=>{search.value='';queries[view]='';render();}));body.append(empty);
       }
       let count=0;const limit=60;

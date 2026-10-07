@@ -7,4 +7,4 @@ present in document titles or abstracts.
 Source: https://nlmpubs.nlm.nih.gov/projects/mesh/MESH_FILES/xmlmesh/desc2026.gz
 Source SHA256: ccd4d0d33bebfd4c836a59e7dd0c635b1d4e20c4f5a6abc55e2eb0ba4c8716dd
 Terms: https://www.nlm.nih.gov/databases/download/terms_and_conditions_mesh.html
-Reproduce with scripts/build_topic_lexicon.py and the source above.
+Reproduce with scripts/build_topic_lexicon.py or scripts/build_topic_concepts.py and the source above.

@@ -1,6 +1,6 @@
 /* Published abstracts, fetched on demand. Credentials never enter shared state or URLs. */
 var CiteLensAbstracts = (() => {
-  const C=CiteLensCore,A=CiteLensAuthors,clock=()=>Zotero.getMainWindow(),pending=new Map();let nextNCBI=0;
+  const C=CiteLensCore,A=CiteLensAuthors,clock=()=>Zotero.getMainWindow(),pending=new Map(),cooldowns=new Map();let nextNCBI=0;
   const text=value=>String(value||'').replace(/<(?:\/?(?:jats:)?(?:p|title|sec|h[1-6])\b)[^>]*>/gi,'\n\n').split(/\n\s*\n/).map(C.plainTitle).filter(Boolean).join('\n\n').slice(0,30000);
   const later=(fn,ms)=>clock().setTimeout(fn,ms),clear=id=>clock().clearTimeout(id);
   function deadline(work,ms){let id;return Promise.race([work,new Promise((_,reject)=>{id=later(()=>reject(Error('timeout')),Math.max(1,ms));})]).finally(()=>clear(id));}
@@ -66,9 +66,54 @@ var CiteLensAbstracts = (() => {
     const a=n.querySelector('MedlineCitation > Article'),get=s=>content(a,s),id=type=>content(n,'PubmedData > ArticleIdList > ArticleId[IdType="'+type+'"]');
     return {title:get('ArticleTitle'),PMID:content(n,'MedlineCitation > PMID'),DOI:C.doi(id('doi')||get('ELocationID[EIdType="doi"]')),PMCID:id('pmc'),year:(get('Journal > JournalIssue > PubDate > Year')||get('ArticleDate > Year')||get('Journal > JournalIssue > PubDate > MedlineDate')).slice(0,4),journal:get('Journal > Title'),creators:[...a.querySelectorAll('AuthorList > Author')].map(x=>({firstName:content(x,'ForeName')||content(x,'Initials'),lastName:content(x,'LastName')||content(x,'CollectiveName'),creatorType:'author'})),abstract:[...a.querySelectorAll('Abstract > AbstractText')].map(x=>[x.getAttribute('Label')==='UNLABELLED'?'':x.getAttribute('Label'),text(x.innerHTML)].filter(Boolean).join('\n')).join('\n\n'),keywords:[...n.querySelectorAll('MedlineCitation > KeywordList > Keyword')].map(x=>C.clean(x.textContent)),publicationTypes:[...a.querySelectorAll('PublicationTypeList > PublicationType')].map(x=>C.clean(x.textContent))};
   });}
-  function pmcRecords(value){return [...xml(value).querySelectorAll('article')].map(n=>{const a=n.querySelector(':scope > front > article-meta');if(!a)return null;const id=type=>content(a,'article-id[pub-id-type="'+type+'"]');return {title:content(a,'title-group > article-title'),DOI:C.doi(id('doi')),PMCID:A.ids({PMCID:(id('pmc')||id('pmcid')).replace(/^(\d)/,'PMC$1')}).PMCID,PMID:id('pmid'),year:content(a,'pub-date > year'),journal:content(n,'front > journal-meta > journal-title-group > journal-title'),creators:[...a.querySelectorAll('contrib-group > contrib[contrib-type="author"]')].map(x=>({firstName:content(x,'name > given-names'),lastName:content(x,'name > surname')||content(x,'collab'),creatorType:'author'})),abstract:text(a.querySelector(':scope > abstract:not([abstract-type="graphical"])')?.innerHTML),keywords:[...a.querySelectorAll('kwd-group > kwd')].map(x=>C.clean(x.textContent)),publicationTypes:[]};}).filter(Boolean);}
-  function select(input,records){const identifiable=Object.values(A.ids(input)).some(Boolean),eligible=records.filter(r=>C.compatibility(input,r).eligible&&(!identifiable||A.matches(input,r)));if(identifiable)return eligible.length===1?eligible[0]:null;const result=C.decide(input,eligible);return result.status==='matched'?result.ranked[0].record:null;}
-  async function request(ctx,url,body){if(ctx.stopped())throw Error('cancelled');return deadline(api.transport(url,{body,timeout:Math.min(7000,Math.max(1,ctx.until-Date.now())),signal:ctx.abort}),ctx.until-Date.now());}
+  function pmcAbstract(meta){
+    const nodes=[...meta.querySelectorAll(':scope > abstract')],standard=nodes.find(n=>!n.getAttribute('abstract-type'))||nodes.find(n=>/^(abstract|summary)$/i.test(n.getAttribute('abstract-type')||''));
+    return text(standard?.innerHTML);
+  }
+  function pmcRecords(value){return [...xml(value).querySelectorAll('article')].map(n=>{const a=n.querySelector(':scope > front > article-meta');if(!a)return null;const id=type=>content(a,'article-id[pub-id-type="'+type+'"]');return {title:content(a,'title-group > article-title'),DOI:C.doi(id('doi')),PMCID:A.ids({PMCID:(id('pmc')||id('pmcid')).replace(/^(\d)/,'PMC$1')}).PMCID,PMID:id('pmid'),year:content(a,'pub-date > year'),journal:content(n,'front > journal-meta > journal-title-group > journal-title'),creators:[...a.querySelectorAll('contrib-group > contrib[contrib-type="author"]')].map(x=>({firstName:content(x,'name > given-names'),lastName:content(x,'name > surname')||content(x,'collab'),creatorType:'author'})),abstract:pmcAbstract(a),keywords:[...a.querySelectorAll('kwd-group > kwd')].map(x=>C.clean(x.textContent)),publicationTypes:[]};}).filter(Boolean);}
+  function select(input,records){
+    const identifiable=Object.values(A.ids(input)).some(Boolean),eligible=records.filter(r=>r&&C.compatibility(input,r).eligible&&(!identifiable||A.matches(input,r)));
+    if(identifiable)return eligible.length===1?eligible[0]:null;
+    const result=C.decide(input,eligible);if(result.status==='matched')return result.ranked[0].record;
+    // A complete, distinctive title can identify an abstract even with no author/year.
+    // Keep word order; similar titles and separate editions remain ambiguous.
+    const title=C.norm(input.title),words=title.split(' ').filter(Boolean),informative=words.filter(w=>w.length>2&&!/^(the|and|for|with|from|are|was|were|has|have|into|that|this|their|using|study|review|analysis|research|data)$/.test(w));
+    if(title.length<24||words.length<4||new Set(informative).size<3)return null;
+    const exact=eligible.filter(r=>C.norm(r.title)===title),identities=new Set(exact.map(r=>A.key(r)));
+    if(!exact.length||identities.size!==1||eligible.some(r=>C.norm(r.title)!==title&&C.similarity(input.title,r.title)>=.88))return null;
+    return exact[0];
+  }
+  function invertedAbstract(index){
+    if(!index||typeof index!=='object'||Array.isArray(index))return '';
+    const words=[];let count=0;
+    for(const [word,positions] of Object.entries(index)){
+      if(!Array.isArray(positions)||++count>10000)return '';
+      for(const pos of positions){if(!Number.isInteger(pos)||pos<0||pos>=10000||words[pos]!==undefined&&words[pos]!==word)return '';words[pos]=word;}
+    }
+    // Missing or conflicting positions are not a complete published abstract.
+    if(!words.length||Array.from(words).some(w=>w===undefined))return '';
+    return text(words.join(' '));
+  }
+  async function openalex(ctx,input){
+    const doi=C.recordDOI(input),title=C.plainTitle(input.title);if(!doi&&title.length<24)return null;
+    const url='https://api.openalex.org/works'+(doi?'/https://doi.org/'+encodeURIComponent(doi):'?search='+encodeURIComponent(title)+'&per-page=5');
+    const data=JSON.parse(await request(ctx,url)),rows=doi?[data]:data.results||[];
+    const records=rows.map(r=>({title:r.display_name||r.title,DOI:C.doi(r.doi),year:String(r.publication_year||''),creators:(r.authorships||[]).map(a=>{const name=C.clean(a.author?.display_name),parts=name.split(/\s+/);return {firstName:parts.slice(0,-1).join(' '),lastName:parts.at(-1)||'',creatorType:'author'};}),abstract:invertedAbstract(r.abstract_inverted_index),url:r.id}));
+    const r=select(input,records);return r?.abstract?found(r,'OpenAlex',r.url):null;
+  }
+  async function semanticScholar(ctx,input){
+    const ids=A.ids(input),title=C.plainTitle(input.title),identifier=ids.DOI?'DOI:'+ids.DOI:ids.PMID?'PMID:'+ids.PMID:'';
+    if(!identifier&&title.length<24)return null;
+    const fields='title,abstract,year,externalIds,authors,url',url='https://api.semanticscholar.org/graph/v1/paper/'+(identifier?encodeURIComponent(identifier)+'?fields='+fields:'search?query='+encodeURIComponent(title)+'&limit=5&fields='+fields);
+    const data=JSON.parse(await request(ctx,url)),records=(identifier?[data]:data.data||[]).map(r=>({title:r.title,abstract:r.abstract,year:String(r.year||''),...A.ids({DOI:r.externalIds?.DOI,PMID:r.externalIds?.PubMed,PMCID:r.externalIds?.PubMedCentral}),creators:(r.authors||[]).map(a=>{const parts=C.clean(a.name).split(/\s+/);return {firstName:parts.slice(0,-1).join(' '),lastName:parts.at(-1)||'',creatorType:'author'};}),url:r.url}));
+    const r=select(input,records);return r?.abstract?found(r,'Semantic Scholar',r.url):null;
+  }
+  async function request(ctx,url,body){
+    if(ctx.stopped())throw Error('cancelled');const provider=url.match(/^https:\/\/([^/]+)/)?.[1]||url;
+    if((cooldowns.get(provider)||0)>Date.now())throw Error('busy');
+    try{return await deadline(api.transport(url,{body,timeout:Math.min(7000,Math.max(1,ctx.until-Date.now())),signal:ctx.abort}),ctx.until-Date.now());}
+    catch(e){if(e.message==='busy')cooldowns.set(provider,Date.now()+60000);throw e;}
+  }
   async function ncbi(ctx,method,params){
     const key=apiKey(),wait=Math.max(0,nextNCBI-Date.now());nextNCBI=Date.now()+wait+(key?120:380);
     if(wait)await deadline(new Promise(resolve=>later(resolve,wait)),ctx.until-Date.now());if(ctx.stopped())throw Error('cancelled');
@@ -106,26 +151,44 @@ var CiteLensAbstracts = (() => {
     const r=identified?A.selectPMC(input,data):select(input,candidates)?.original;
     if(!r?.abstractText)return null;return found({title:r.title,year:r.pubYear,creators:A.fromPMC(r),abstract:r.abstractText,...A.ids({DOI:r.doi,PMID:r.pmid||(r.source==='MED'?r.id:''),PMCID:r.pmcid}),keywords:r.keywordList?.keyword||[],publicationTypes:r.pubTypeList?.pubType||[]},'Europe PMC',r.pmcid?'https://europepmc.org/articles/'+r.pmcid:r.source==='MED'?'https://europepmc.org/article/MED/'+r.id:'https://doi.org/'+C.doi(r.doi));
   }
-  async function crossref(ctx,input){const doi=C.doi(input.DOI);if(!doi&&C.plainTitle(input.title).length<12)return null;const url=doi?'https://api.crossref.org/works/'+encodeURIComponent(doi):'https://api.crossref.org/works?rows=3&query.bibliographic='+encodeURIComponent((input.raw||C.citation(input)).slice(0,1200));const data=JSON.parse(await request(ctx,url)).message,r=select(input,doi?[C.fromCrossref(data)]:(data?.items||[]).map(C.fromCrossref));if(r?.abstract)return found(r,'Crossref','https://doi.org/'+C.doi(r.DOI));if(r?.DOI&&!doi&&!ctx.stopped())return europe(ctx,r);return null;}
+  async function crossref(ctx,input){const doi=C.doi(input.DOI);if(!doi&&C.plainTitle(input.title).length<12)return null;const url=doi?'https://api.crossref.org/works/'+encodeURIComponent(doi):'https://api.crossref.org/works?rows=3&query.bibliographic='+encodeURIComponent((input.raw||C.citation(input)).slice(0,1200));const data=JSON.parse(await request(ctx,url)).message,r=select(input,doi?[C.fromCrossref(data)]:(data?.items||[]).map(C.fromCrossref));if(r?.abstract)return found(r,'Crossref','https://doi.org/'+C.doi(r.DOI));return null;}
+  // One stored abstract, multiple verified bibliographic entry points. The derived
+  // index is rebuilt lazily after writes, and is never persisted as duplicate text.
+  const cacheIndexes=new WeakMap();
+  function identityKeys(r){const ids=A.ids(r),keys=Object.entries(ids).filter(([,v])=>v).map(([k,v])=>k.toLowerCase()+':'+v);const title=C.norm(r.title);if(title)keys.push('title:'+title);return keys;}
+  function cached(S,input){
+    const cache=S.state.abstractCache;if(!cache)return null;const direct=cache[A.key(input)],valid=e=>e&&[3,4].includes(e.version)&&e.expires>Date.now()&&e.value?.status==='available'&&select(input,[e.value.record]);
+    if(valid(direct))return direct.value;
+    let index=cacheIndexes.get(cache);if(!index){index=new Map();for(const entry of Object.values(cache)){if(entry?.value?.status!=='available'||![3,4].includes(entry.version))continue;for(const key of identityKeys(entry.value.record||{})){if(!index.has(key))index.set(key,new Set());index.get(key).add(entry);}}cacheIndexes.set(cache,index);}
+    const candidates=new Set();for(const key of identityKeys(input))for(const e of index.get(key)||[])if(valid(e))candidates.add(e);
+    const rows=[...new Map([...candidates].sort((a,b)=>b.expires-a.expires).map(e=>[A.key(e.value.record),e])).values()];if(rows.length){const record=select(input,rows.map(e=>e.value.record));if(record)return rows.find(e=>e.value.record===record)?.value||null;}
+    if(direct?.version===4&&direct.expires>Date.now()&&direct.value?.status!=='available')return direct.value;return null;
+  }
   async function lookup(S,input,{force=false,budget=12000}={}){
     if(S.dead)return {status:'offline'};
     if(text(input.abstract))return found(input,input.source||'文献记录',C.doi(input.DOI)?'https://doi.org/'+C.doi(input.DOI):'');
-    const key=A.key(input),cached=S.state.abstractCache?.[key];if(!force&&cached?.version===3&&cached.expires>Date.now()&&(cached.value.status!=='available'||C.compatibility(input,cached.value.record||{}).eligible&&(!Object.values(A.ids(input)).some(Boolean)||A.matches(input,cached.value.record||{}))))return cached.value;
-    if(pending.has(key))return pending.get(key);
+    const key=A.key(input),hit=!force&&cached(S,input);if(hit)return hit;
+    const flightKey=JSON.stringify([key,C.norm(input.title),input.year||'',input.creators||[],input.author||'']);
+    if(pending.has(flightKey))return pending.get(flightKey);
     const ctx={until:Date.now()+budget,abort:new Set(),done:false,stopped(){return this.done||S.dead||Date.now()>=this.until;}};
     const work=(async()=>{let transient=false;
       // Local lookup has a short budget; it must not block a slow or busy library indefinitely.
       try{const local=await deadline(S.locate(input),Math.min(700,budget)),values=[...new Set(local.map(x=>text(x.item.getField('abstractNote'))).filter(Boolean))];if(values.length===1)return found({...input,abstract:values[0]},'本地文献库','');}catch(_){}
-      const attempt=fn=>fn(ctx,input).then(value=>{if(value?.text)return value;throw Error('missing');}).catch(e=>{if(e.message!=='missing')transient=true;throw e;});
+      const stage=async(fns,ms)=>{
+        const child={until:Math.min(ctx.until,Date.now()+ms),abort:new Set(),done:false,stopped(){return this.done||ctx.stopped()||Date.now()>=this.until;}},cancel=()=>{child.done=true;for(const abort of child.abort)abort();};ctx.abort.add(cancel);
+        const attempt=fn=>fn(child,input).then(value=>{if(value?.text)return value;throw Error('missing');}).catch(e=>{if(e.message!=='missing')transient=true;throw e;});
+        try{return await deadline(Promise.any(fns.map(attempt)),child.until-Date.now());}finally{cancel();ctx.abort.delete(cancel);}
+      };
       // Two independent providers race; author/metadata background queues cannot hold up the preview.
-      try{return await deadline(Promise.any([attempt(pubmed),attempt(europe)]),ctx.until-Date.now());}catch(_){}
-      if(!ctx.stopped())try{const value=await crossref(ctx,input);if(value)return value;}catch(_){transient=true;}
+      try{return await stage([pubmed,europe],Math.max(1,budget*.4));}catch(_){}
+      if(!ctx.stopped())try{return await stage([crossref,openalex],Math.max(1,budget*.4));}catch(_){ }
+      if(!ctx.stopped())try{return await stage([semanticScholar],ctx.until-Date.now());}catch(_){}
       return {status:transient||ctx.stopped()?'offline':'missing'};
     })();
     const bounded=deadline(work,budget).catch(()=>({status:'offline'})).then(result=>{
-      if(!S.dead){S.state.abstractCache||={};S.state.abstractCache[key]={version:3,value:result,expires:Date.now()+(result.status==='available'?30*86400000:result.status==='offline'?15000:3600000)};for(const stale of Object.keys(S.state.abstractCache).sort((a,b)=>S.state.abstractCache[b].expires-S.state.abstractCache[a].expires).slice(500))delete S.state.abstractCache[stale];S.persist().catch(()=>{});}return result;
-    }).finally(()=>{ctx.done=true;for(const abort of ctx.abort)abort();pending.delete(key);});pending.set(key,bounded);return bounded;
+      if(!S.dead){S.state.abstractCache||={};cacheIndexes.delete(S.state.abstractCache);S.state.abstractCache[key]={version:4,value:result,expires:Date.now()+(result.status==='available'?30*86400000:result.status==='offline'?15000:3600000)};for(const stale of Object.keys(S.state.abstractCache).sort((a,b)=>S.state.abstractCache[b].expires-S.state.abstractCache[a].expires).slice(500))delete S.state.abstractCache[stale];S.persist().catch(()=>{});}return result;
+    }).finally(()=>{ctx.done=true;for(const abort of ctx.abort)abort();pending.delete(flightKey);});pending.set(flightKey,bounded);return bounded;
   }
-  const api={text,placement,dragPlacement,resizePlacement,apiKey,testConnection,transport,pubmedRecords,pmcRecords,select,lookup};return api;
+  const api={text,placement,dragPlacement,resizePlacement,apiKey,testConnection,transport,invertedAbstract,pubmedRecords,pmcRecords,select,cached,lookup};return api;
 })();
 if(typeof module!=='undefined')module.exports=CiteLensAbstracts;

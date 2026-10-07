@@ -73,3 +73,29 @@ test('repeated topic drilldowns cannot evict or recompute either base network',a
  for(let i=0;i<12;i++)await s.N.graphJob(snapshot,{...p,selected:'topic'+i,openEntities:['topic'+i]}).promise;
  assert.equal(builds,2);assert.equal(expansions,12);assert.equal(s.N.graphJob(snapshot,p),topic);assert.equal(s.N.graphJob(snapshot,{...p,mode:'authors'}),author);assert.equal(topic.controller.signal.aborted,false);assert.equal(author.controller.signal.aborted,false);assert.ok(s.N.graphJobs.size<=8);
 });
+
+function abstractService(){
+ const ctx=vm.createContext({CiteLensCore:C,CiteLensServices:{state:{}},Zotero:{Promise:{delay:async()=>{}},getMainWindow:()=>({clearTimeout:()=>{},setTimeout:()=>0}),logError:()=>{}}});
+ for(const f of ['authors','abstracts','network'])vm.runInContext(fs.readFileSync('addon/'+f+'.js','utf8'),ctx);
+ const N=ctx.CiteLensNetwork;N.dead=false;N.abstractEpoch=1;N.abstracts=new Map();const requests=[],changes=[],schedules=[];
+ const paper=i=>({id:'1:K'+i,itemID:i,type:'journalArticle',title:'A reliable retinal study with a complete title '+i,DOI:'10.1234/paper'+i,year:'2020',creators:[]});
+ ctx.CiteLensAbstracts.lookup=async(_,n)=>{requests.push(n.id);return{status:'available',text:'Published abstract about retinal neural development. '.repeat(3),source:'PubMed',record:{...n}};};
+ N.invalidate=(...args)=>changes.push(args);N.scheduleAbstracts=(...args)=>schedules.push(args);return{ctx,N,requests,changes,schedules,paper};
+}
+test('abstract enrichment is bounded, cached, non-mutating and commits one incremental batch',async()=>{
+ const {N,requests,changes,paper}=abstractService(),nodes=Array.from({length:15},(_,i)=>paper(i+1)),before=JSON.stringify(nodes);
+ const result=await N.fillAbstracts({nodes});assert.equal(result.updated,12);assert.equal(requests.length,12);assert.equal(changes.length,1);assert.equal(changes[0][2].length,12);assert.equal(JSON.stringify(nodes),before);
+ assert.equal(N.applyAbstract(nodes[0]).abstractSource,'PubMed');assert.equal(N.applyAbstract({...nodes[0],title:'Unrelated geological study of volcanoes'}).abstract,undefined);
+ assert.equal(N.applyAbstract({...nodes[0],abstract:'Original user abstract. '.repeat(5)}).abstract,'Original user abstract. '.repeat(5));
+ await N.fillAbstracts({nodes});assert.equal(requests.length,15);assert.equal(changes.length,2);
+});
+test('background enrichment skips books and uses backoff for missing and offline records',async()=>{
+ const {N,ctx,requests,schedules,paper}=abstractService();ctx.CiteLensAbstracts.lookup=async(_,n)=>{requests.push(n.id);return{status:'missing'};};
+ const nodes=[paper(1),{...paper(2),type:'bookSection'}];await N.fillAbstracts({nodes});await N.fillAbstracts({nodes});assert.equal(requests.length,1);
+ ctx.CiteLensAbstracts.lookup=async()=>({status:'offline'});const r=await N.fillAbstracts({nodes:Array.from({length:6},(_,i)=>paper(i+10))});assert.equal(r.fetched,3);assert.equal(schedules.at(-1)[1],180000);
+});
+test('an old abstract request cannot mutate or invalidate a restarted network',async()=>{
+ const {N,ctx,changes,paper}=abstractService();let release;ctx.CiteLensAbstracts.lookup=()=>new Promise(r=>release=r);
+ const n=paper(1),job=N.fillAbstracts({nodes:[n]});N.abstractEpoch++;const replacement={epoch:N.abstractEpoch};N.abstractFlight=replacement;
+ release({status:'available',text:'Verified abstract. '.repeat(20),record:n});await job;assert.equal(N.abstracts.size,0);assert.equal(changes.length,0);assert.equal(N.abstractFlight,replacement);
+});

@@ -16,7 +16,7 @@ test('abstract side placement is joined, bounded and nonoverlapping',()=>{const 
 test('cached abstract is rechecked against a changed title or year sharing the DOI',async()=>{const {A,S}=setup();assert.equal((await A.lookup(S,record)).status,'available');A.transport=async url=>JSON.stringify(url.includes('esearch')?{esearchresult:{idlist:[]}}:url.includes('europepmc')?{resultList:{result:[]}}:{message:{DOI:record.DOI,title:[record.title],abstract:'Old abstract',published:{'date-parts':[[2020]]},author:[{family:'Smith'}]}});assert.equal((await A.lookup(S,{...record,title:'Completely different geological and volcanic findings',year:'1990'})).status,'missing');});
 test('title-only abstract lookup reaches Europe PMC and revalidates title author and year',async()=>{const queries=[],{A,S}=setup(async(url)=>{queries.push(url);return JSON.stringify(url.includes('europepmc')?{resultList:{result:[article]}}:{esearchresult:{idlist:[]}});});const r=await A.lookup(S,{title:record.title,year:'2020',author:'Smith'});assert.equal(r.status,'available');assert.equal(r.record.PMID,'123');assert.ok(queries.some(url=>decodeURIComponent(url).includes('TITLE:"'+record.title+'"')));assert.ok(r.url.endsWith('/MED/123'));});
 test('NCBI title clauses preserve phrases rather than ANDing unindexed stopwords',async()=>{const calls=[],{A,S}=setup(async(url,opts)=>{calls.push([url,opts]);return JSON.stringify(url.includes('europepmc')?{resultList:{result:[]}}:url.includes('esearch')?{esearchresult:{idlist:[]}}:{message:{items:[]}});});await A.lookup(S,{title:'Causes and consequences of RNA polymerase II stalling during transcript elongation',year:'2021',author:'Noe Gonzalez'});const terms=calls.filter(([u])=>u.includes('esearch')).map(([,o])=>new URLSearchParams(o.body).get('term'));assert.equal(terms.length,2);assert.ok(terms[0].startsWith('"Causes'));assert.ok(terms.every(t=>!t.includes('during[Title]'))&&terms[1].includes(' AND '));});
-test('negative caches from the old query strategy are bypassed after the query fix',async()=>{const {A,S}=setup();S.state.abstractCache={['doi:'+record.DOI]:{version:2,expires:Date.now()+86400000,value:{status:'missing'}}};assert.equal((await A.lookup(S,record)).status,'available');assert.equal(S.state.abstractCache['doi:'+record.DOI].version,3);});
+test('negative caches from the old query strategy are bypassed after the query fix',async()=>{const {A,S}=setup();S.state.abstractCache={['doi:'+record.DOI]:{version:2,expires:Date.now()+86400000,value:{status:'missing'}}};assert.equal((await A.lookup(S,record)).status,'available');assert.equal(S.state.abstractCache['doi:'+record.DOI].version,4);});
 
 test('E-utilities connection test supports no key and sends configured credentials only via POST',async()=>{const calls=[],{A}=setup(async(u,o)=>{calls.push([u,o]);return JSON.stringify({einforesult:{dbinfo:[{dbname:'pubmed'}]}});});assert.equal((await A.testConnection()).ok,true);assert.ok(!calls[0][1].body.includes('api_key'));A.apiKey('synthetic-test-key-12345678');assert.equal((await A.testConnection()).ok,true);assert.ok(calls[1][1].body.includes('api_key=synthetic'));assert.ok(!calls[1][0].includes('synthetic'));});
 test('E-utilities test rejects error payloads and unexpected data without disclosing credentials',async()=>{for(const response of [{error:'API key invalid synthetic-test-key-12345678'},{einforesult:{}},{einforesult:{dbinfo:[{dbname:'gene'}]}}]){const {A}=setup(async()=>JSON.stringify(response));await assert.rejects(A.testConnection(),e=>!e.message.includes('synthetic')&&/NCBI/.test(e.message));}});
@@ -28,3 +28,69 @@ test('dragging remains reachable on small viewports and can detach from either e
 test('overlap docks to the longest crossed edge, including top and bottom',()=>{const {A}=setup(),anchor={left:450,right:850,top:300,bottom:500},viewport={width:1400,height:900},size={width:440,height:220};for(const [point,side] of [[{left:450,top:160},'top'],[{left:450,top:420},'bottom'],[{left:40,top:310},'left'],[{left:825,top:310},'right']]){const p=A.dragPlacement(anchor,viewport,size,point);assert.equal(p.side,side);assert.ok(p.left+p.width<=anchor.left||p.left>=anchor.right||p.top+Math.min(size.height,p.maxHeight)<=anchor.top||p.top>=anchor.bottom);}});
 test('a window with no usable exterior space uses inline placement instead of hiding the article',()=>{const {A}=setup();assert.equal(A.dragPlacement({left:8,right:312,top:8,bottom:472},{width:320,height:480},{width:304,height:320},{left:8,top:70}).side,'inline');});
 test('resizing keeps opposite edges fixed and respects the viewport and minimum reading size',()=>{const {A}=setup(),box={left:100,top:100,right:540,bottom:400},v={width:1000,height:700};for(const edge of ['n','e','s','w','ne','nw','se','sw']){const p=A.resizePlacement(box,v,edge,40,30);assert.ok(p.width>=240&&p.height>=120);assert.ok(p.left>=8&&p.top>=8&&p.left+p.width<=992&&p.top+p.height<=692);}const p=A.resizePlacement(box,v,'nw',-999,-999);assert.equal(p.left,8);assert.equal(p.top,8);assert.equal(p.left+p.width,540);assert.equal(p.top+p.height,400);});
+
+test('a distinctive complete title alone can retrieve an abstract without inventing authors or year',async()=>{
+ const {A,S}=setup(),input={title:record.title};assert.equal(A.select(input,[record])?.DOI,record.DOI);
+ const r=await A.lookup(S,input);assert.equal(r.status,'available');assert.equal(input.DOI,undefined);assert.equal(input.year,undefined);
+ assert.equal(A.select({title:'Data analysis'},[{title:'Data analysis',DOI:'10.1234/x'}]),null);
+ assert.equal(A.select(input,[{...record,title:'A reliable retinal study with a nearly complete title'}]),null);
+ assert.equal(A.select(input,[record,{...record,DOI:'10.1234/reprint'}]),null);
+ assert.equal(A.select(input,[record,{...record,DOI:'10.1234/similar',title:record.title+' revisited'}]),null);
+ assert.equal(A.select({...input,year:'1980'},[record]),null);
+});
+test('OpenAlex restores complete abstract word order and rejects damaged indexes',()=>{
+ const {A}=setup();assert.equal(A.invertedAbstract({cells:[1,3],Retinal:[0],and:[2]}),'Retinal cells and cells');
+ for(const bad of [{cells:[1]},{one:[0],two:[0]},{cells:[10000]},{cells:[-1]},null])assert.equal(A.invertedAbstract(bad),'');
+});
+test('cross-disciplinary abstract fallback reaches OpenAlex and retains source identity',async()=>{
+ const {A,S}=setup(async url=>JSON.stringify(url.includes('openalex')?{display_name:record.title,doi:'https://doi.org/'+record.DOI,publication_year:2020,authorships:[{author:{display_name:'Jane Smith'}}],abstract_inverted_index:{The:[0],published:[1],abstract:[2]},id:'https://openalex.org/W123'}:url.includes('esearch')?{esearchresult:{idlist:[]}}:url.includes('europepmc')?{resultList:{result:[]}}:{message:{items:[]}}));
+ const r=await A.lookup(S,record);assert.equal(r.source,'OpenAlex');assert.equal(r.text,'The published abstract');assert.equal(r.record.DOI,record.DOI);
+});
+test('a slow biomedical provider cannot consume the entire cross-disciplinary fallback budget',async()=>{
+ const {A,S}=setup(url=>url.includes('ncbi')?new Promise(()=>{}):Promise.resolve(JSON.stringify(url.includes('openalex')?{display_name:record.title,doi:record.DOI,abstract_inverted_index:{Valid:[0],abstract:[1]}}:{resultList:{result:[]},message:{items:[]}})));
+ const start=Date.now(),r=await A.lookup(S,record,{budget:200});assert.equal(r.source,'OpenAlex');assert.ok(Date.now()-start<400);
+});
+test('provider throttling cools down across different papers rather than hammering the API',async()=>{
+ let calls=0;const {A,S}=setup(async url=>{if(url.includes('openalex')){calls++;throw Error('busy');}return JSON.stringify(url.includes('europepmc')?{resultList:{result:[]}}:url.includes('esearch')?{esearchresult:{idlist:[]}}:{message:{items:[]}});});
+ await A.lookup(S,record);await A.lookup(S,{...record,DOI:'10.1234/different'});assert.equal(calls,1);
+});
+
+test('first verified abstract aborts in-flight providers and prevents fallback requests',async()=>{
+ let cancelled=0,cross=0;const {A,S}=setup((url,options)=>{
+  if(url.includes('ncbi'))return new Promise((resolve,reject)=>{options.signal.add(()=>{cancelled++;reject(Error('cancelled'));});});
+  if(url.includes('europepmc'))return Promise.resolve(JSON.stringify({resultList:{result:[article]}}));
+  cross++;throw Error('Fallback must not start');
+ });
+ const r=await A.lookup(S,record);assert.equal(r.source,'Europe PMC');assert.equal(cancelled,1);assert.equal(cross,0);
+ await new Promise(r=>setTimeout(r,20));assert.equal(S.state.abstractCache['doi:'+record.DOI].value.source,'Europe PMC');
+});
+test('invalid fast candidate cannot cancel the matching slower provider',async()=>{
+ const {A,S}=setup(async url=>{
+  if(url.includes('europepmc'))return JSON.stringify({resultList:{result:[{...article,title:'Wrong unrelated geological article'}]}});
+  if(url.includes('ncbi'))return JSON.stringify({esearchresult:{idlist:[]}});
+  if(url.includes('crossref'))return JSON.stringify({message:{DOI:record.DOI,title:[record.title],abstract:'Verified published abstract',published:{'date-parts':[[2020]]},author:[{family:'Smith'}]}});
+  return new Promise(()=>{});
+ });
+ assert.equal((await A.lookup(S,record)).source,'Crossref');
+});
+test('same DOI with conflicting metadata does not share another pending result',async()=>{
+ const {A,S}=setup();const [good,bad]=await Promise.all([A.lookup(S,record),A.lookup(S,{...record,title:'Completely different geological and volcanic findings',year:'1990'})]);
+ assert.equal(good.status,'available');assert.notEqual(bad.status,'available');
+});
+
+test('anonymous Semantic Scholar is a validated final fallback',async()=>{
+ const calls=[],{A,S}=setup(async(url,opts)=>{calls.push([url,opts]);return JSON.stringify(url.includes('semanticscholar')?{title:record.title,year:2020,externalIds:{DOI:record.DOI},authors:[{name:'Jane Smith'}],abstract:'A verified cross-disciplinary abstract.',url:'https://www.semanticscholar.org/paper/example'}:url.includes('esearch')?{esearchresult:{idlist:[]}}:{resultList:{result:[]},message:{items:[]},results:[]});});
+ const r=await A.lookup(S,record);assert.equal(r.source,'Semantic Scholar');assert.equal(r.text,'A verified cross-disciplinary abstract.');assert.ok(calls.at(-1)[0].includes('DOI%3A'));assert.ok(!JSON.stringify(calls).includes('x-api-key'));
+});
+test('Semantic Scholar rejects conflicting bibliographic candidates',async()=>{
+ const {A,S}=setup(async url=>JSON.stringify(url.includes('semanticscholar')?{title:'An unrelated geology paper',year:1990,externalIds:{DOI:record.DOI},authors:[{name:'Jane Smith'}],abstract:'Wrong abstract'}:url.includes('esearch')?{esearchresult:{idlist:[]}}:{resultList:{result:[]},message:{items:[]},results:[]}));assert.equal((await A.lookup(S,record)).status,'missing');
+});
+
+test('DOI PMID and exact bibliographic aliases reuse one persisted abstract across consumers',async()=>{
+ let calls=0;const {A,S}=setup(async url=>{calls++;return JSON.stringify(url.includes('europepmc')?{resultList:{result:[{...article,pmcid:'PMC456'}]}}:{esearchresult:{idlist:[]}});});
+ const first=await A.lookup(S,record),before=calls;
+ for(const input of [{PMID:'123'},{PMCID:'PMC456'},{title:record.title,year:'2020',author:'Smith'}])assert.equal((await A.lookup(S,input)).text,first.text);
+ assert.equal(calls,before);assert.equal(Object.keys(S.state.abstractCache).length,1);
+ const restored=setup(async()=>{throw Error('cache should survive restart');});restored.S.state.abstractCache=JSON.parse(JSON.stringify(S.state.abstractCache));assert.equal((await restored.A.lookup(restored.S,{PMID:'123'})).text,first.text);
+ assert.equal(A.cached(S,{PMID:'123',title:'Completely unrelated geological findings',year:'1990'}),null);
+});
