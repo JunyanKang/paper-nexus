@@ -9,7 +9,7 @@
 1. 安装并打开一次 Zotero。
 2. 从[发布页](https://github.com/JunyanKang/paper-nexus/releases/latest)下载安装器：macOS 打开 `.dmg` 后双击其中的应用，Windows 直接运行 `.exe`。
 3. 勾选至少一种主题分析方案，保留推荐保存位置，或点击 **选择文件夹** 自定义。
-4. 点击 **下载插件与模型**，按提示选择 Zotero 配置；如 Zotero 正在运行，正常退出后继续。
+4. 点击 **下载并安装**，按提示选择 Zotero 配置；如 Zotero 正在运行，正常退出后继续。
 5. 点击 **打开 Zotero**。如提示“待启用”，到 **工具 → 插件** 中启用 Paper Nexus。
 6. 打开 PDF，开始阅读。
 
