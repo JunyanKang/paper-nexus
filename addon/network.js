@@ -102,7 +102,7 @@ var CiteLensNetwork = {
     const {signal,progress=()=>{}}=options;
     if(payload.mode==='topics'&&typeof CiteLensModels!=='undefined')await CiteLensModels.prepare?.();
     const {positions,...content}=payload,model=typeof CiteLensModels!=='undefined'?CiteLensModels.installed.get(CiteLensModels.selected()):null;
-    const key=await this.cacheKey(['local-network-2026-6',content,model?.id,model?.version,model?.files]);if(signal?.aborted)throw Error('已取消');
+    const key=await this.cacheKey(['local-network-2026-7',content,model?.id,model?.version,model?.files]);if(signal?.aborted)throw Error('已取消');
     const stored=await this.readCache('graph',key);if(signal?.aborted)throw Error('已取消');
     if(stored&&Array.isArray(stored.nodes)&&Array.isArray(stored.communities)&&stored.stats){const saved=new Map((positions||[]).map(p=>[p.id,p]));for(const n of stored.nodes){const p=saved.get(n.id);if(p)Object.assign(n,p);}stored.cache={hit:true};progress({phase:'layout',completed:1,total:1});return stored;}
     const result=await this.buildMap(payload,options);if(signal?.aborted)throw Error('已取消');await this.writeCache('graph',key,result);return result;

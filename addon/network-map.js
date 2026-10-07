@@ -54,7 +54,7 @@ var CiteLensNetworkMap=(()=>{
   for(const n of members){const v=stats.vectors?.get(n.id),central=centroid&&v?Math.max(0,CiteLensSemanticCore.dot(v,centroid)):1;
    for(const p of stats.phrases.get(n.id)||phraseCandidates(n)){const [key,row]=p;if(!phrases.has(key))phrases.set(key,{...row,count:0,titles:0,central:0});const item=phrases.get(key);item.count++;item.titles+=Number(row.inTitle);item.central+=central;}
   }
-  const generic=/^(?:light|cells?|genes?|assembly|disruption|plasticity|development|regulation|expression|translation|transcription|proteins?|structure|function|research|signaling|signalling|dna|rna|retina|chromatin|aging|maturation|proliferation|synthesis|alignment|ribosome|single cells)$/i;
+  const generic=/^(?:light|cells?|genes?|assembly|disruption|plasticity|development|regulation|expression|translation|transcription|proteins?|structure|function|research|signaling|signalling|dna|rna|retina|chromatin|aging|maturation|proliferation|synthesis|alignment|ribosome|single cells|tissues?|genomes?|embryos?|syndromes?|complex|complexes|structures?|enzymes?|methods?|mechanisms?|performance improvement|upward motion)$/i;
   const options=[...phrases.values()].filter(p=>!excluded.has(C.norm(p.text))&&!generic.test(p.text)),distinct=options.filter(p=>stats.classCount<3||(stats.classFrequency.get(p.key)||1)<stats.classCount*.8),eligible=distinct.length?distinct:options,repeated=eligible.filter(p=>p.count>=2&&p.count/members.length>=.3),supported=repeated.length?repeated:eligible;
   const extensions=new Map();for(const q of supported)if(q.size>1){const prefix=q.key.split(' ').slice(0,-1).join(' ');if(!extensions.has(prefix))extensions.set(prefix,[]);extensions.get(prefix).push(q);}const complete=supported.filter(p=>!(extensions.get(p.key)||[]).some(q=>q.count>=p.count*.8&&q.titles>=p.titles*.8));
   const score=p=>{const words=NC.terms(p.text),contrast=words.length?Math.max(...words.map(w=>Math.log1p(all.length/Math.max(1,stats.global.get(w)||1)))):1;
@@ -115,7 +115,7 @@ var CiteLensNetworkMap=(()=>{
   graph.edges.push(...support.map(e=>({source:e.source,target:e.target,kind:'similarity',evidence:[{score:e.score,concept:e.concept}]})));
   const decided=support.length?NC.communities(papers.map(n=>n.id),[...result.links,...support],1.05):result.groups,covered=new Set(decided.flat()),groups=[...decided,...papers.filter(n=>!covered.has(n.id)).map(n=>[n.id])],used=new Set(),prior=previous?.groups||[],signatures=new Map(papers.map((n,i)=>[n.id,semantic.signatures?.[i]||[C.researchTitle(n),n.abstract||'']]));
   graph.groups=groups.map(ids=>{const members=new Set(ids);const match=prior.filter(g=>!used.has(g.id)).map(g=>({g,overlap:g.members.filter(id=>members.has(id)).length})).filter(x=>x.overlap/Math.max(ids.length,x.g.members.length)>=.5).sort((a,b)=>b.overlap-a.overlap||a.g.id.localeCompare(b.g.id))[0]?.g;
-   const id=match?.id||'topic:'+hash(ids.join('\0')).toString(36);used.add(id);const labelKey=JSON.stringify(['concept-contrast-3',...ids.map(id=>[id,signatures.get(id)])]),title=match?.labelKey===labelKey?match.title:'';
+   const id=match?.id||'topic:'+hash(ids.join('\0')).toString(36);used.add(id);const labelKey=JSON.stringify(['concept-contrast-4',...ids.map(id=>[id,signatures.get(id)])]),title=match?.labelKey===labelKey?match.title:'';
    return {id,title,labelKey,members:ids,kind:'topic',local:ids.some(id=>byID.get(id).local),color:hash(id)%6};
   });
   // Stable names are reused for unchanged groups; only changed scientific content

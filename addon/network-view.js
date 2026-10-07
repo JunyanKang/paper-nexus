@@ -90,7 +90,7 @@ var CiteLensNetworkView=(()=>{
   const grid=new Map(),accepted=[],cell=48;
   const cells=r=>{const out=[];for(let x=Math.floor(r.x/cell);x<=Math.floor((r.x+r.w)/cell);x++)for(let y=Math.floor(r.y/cell);y<=Math.floor((r.y+r.h)/cell);y++)out.push(x+','+y);return out;};
   for(const c of candidates.sort((a,b)=>b.priority-a.priority||a.id.localeCompare(b.id))){
-   const placements=[[0,0],[0,-c.rect.h-2*(c.r||5)-8],[c.rect.w/2+12,-12],[-c.rect.w/2-12,-12],[0,23],[0,-48],[0,46],[0,-71],[c.rect.w/2+12,20],[-c.rect.w/2-12,20]];
+   const placements=[c.preferred||[0,0],[0,-c.rect.h-2*(c.r||5)-8],[c.rect.w/2+12,-12],[-c.rect.w/2-12,-12],[0,23],[0,-48],[0,46],[0,-71],[c.rect.w/2+12,20],[-c.rect.w/2-12,20]];
    for(const [dx,dy] of placements){const r={...c.rect,x:c.rect.x+dx,y:c.rect.y+dy};if(r.x<6||r.y<5||r.x+r.w>width-6||r.y+r.h>height-35)continue;const keys=cells(r),occupied=keys.flatMap(k=>grid.get(k)||[]);if(occupied.some(o=>r.x<o.x+o.w&&r.x+r.w>o.x&&r.y<o.y+o.h&&r.y+r.h>o.y))continue;accepted.push({...c,dx,dy});for(const key of keys){if(!grid.has(key))grid.set(key,[]);grid.get(key).push(r);}break;}
   }
   return accepted;

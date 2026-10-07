@@ -53,7 +53,7 @@ var CiteLensUI = {
     const documents=new Set([doc]);for(const frame of doc.querySelectorAll('iframe'))try{if(frame.contentDocument)documents.add(frame.contentDocument);}catch(_){}
     try{if(doc.defaultView.frameElement?.ownerDocument)documents.add(doc.defaultView.frameElement.ownerDocument);}catch(_){}
     for(const surface of documents){surface.addEventListener('pointerdown',outside,true);surface.addEventListener('mousedown',outside,true);cleanups.push(()=>{surface.removeEventListener('pointerdown',outside,true);surface.removeEventListener('mousedown',outside,true);});}
-    const observer=new doc.defaultView.MutationObserver(()=>{if(!menu.isConnected)close(false);});observer.observe(doc.body,{childList:true,subtree:true});cleanups.push(()=>observer.disconnect());
+    const observer=new doc.defaultView.MutationObserver(()=>{if(!menu.isConnected)close(false);});observer.observe(doc.body||doc.documentElement,{childList:true,subtree:true});cleanups.push(()=>observer.disconnect());
     menu.addEventListener('keydown',e=>{
       const buttons=[...menu.querySelectorAll('button')],index=buttons.indexOf(e.target);
       if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();e.stopPropagation();focusItem(buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:(index+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]);}
@@ -141,7 +141,7 @@ var CiteLensUI = {
     doc.addEventListener('keydown',escape,true);doc.addEventListener('scroll',scroll,true);win.addEventListener('resize',position);
     cleanups.push(()=>{doc.removeEventListener('keydown',escape,true);doc.removeEventListener('scroll',scroll,true);win.removeEventListener('resize',position);});
     const resize=new win.ResizeObserver(()=>{if(!drag&&!resizing)position();});resize.observe(panel);cleanups.push(()=>resize.disconnect());
-    const observer=new win.MutationObserver(()=>{if(!title.isConnected||!panel.isConnected)close(true);});observer.observe(doc.body,{childList:true,subtree:true});cleanups.push(()=>observer.disconnect());
+    const observer=new win.MutationObserver(()=>{if(!title.isConnected||!panel.isConnected)close(true);});observer.observe(doc.body||doc.documentElement,{childList:true,subtree:true});cleanups.push(()=>observer.disconnect());
     let requestTicket=0;
     const load=async(force=false)=>{const ticket=++requestTicket;loading=true;translationTicket++;abstractResult=null;displayMode='original';content.classList.remove('cl-translated','cl-bilingual');modes.hidden=true;translationStatus.textContent='';retry.disabled=true;body.style.minHeight=Math.min(body.clientHeight,180)+'px';content.dataset.uiStatus='true';content.textContent='正在读取摘要…';body.setAttribute('aria-busy','true');source.replaceChildren();facts.replaceChildren();position();
       let result;try{result=await CiteLensAbstracts.lookup(CiteLensServices,record,{force});}catch(_){result={status:'offline'};}
