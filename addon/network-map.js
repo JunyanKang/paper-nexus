@@ -3,7 +3,7 @@ var CiteLensNetworkMap=(()=>{
  const C=CiteLensCore,NC=CiteLensNetworkCore;
  const hash=s=>{let n=2166136261;for(const c of String(s))n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;};
  function build({nodes,edges,mode='authors',limit=600,query='',selected='',positions=[],openEntities=[]}){
-  const matches=query?NC.search(nodes,query):[],priority=new Set([selected,...matches.map(n=>n.id)]),ordered=[...nodes.filter(n=>priority.has(n.id)),...nodes.filter(n=>!priority.has(n.id))],visible=ordered.slice(0,limit),papers=new Map(visible.map(n=>[n.id,{...n,kind:'paper',local:true}])),links=[],linkKeys=new Set();
+  const matches=query?NC.search(nodes,query):[],priority=new Set([selected,...matches.map(n=>n.id)]),ordered=[...nodes.filter(n=>priority.has(n.id)),...nodes.filter(n=>!priority.has(n.id))],visible=ordered.slice(0,limit),papers=new Map(visible.map(n=>[n.id,{...n,kind:'paper',local:n.local!==false&&!n.external}])),links=[],linkKeys=new Set();
   for(const e of edges){if(!papers.has(e.source)||!papers.has(e.target)||e.source===e.target)continue;const key=JSON.stringify([e.source,e.target,e.kind]);if(linkKeys.has(key))continue;linkKeys.add(key);links.push({...e});}
   const groups=[],allPapers=[...papers.values()].sort((a,b)=>a.id.localeCompare(b.id));let authorsCount=0;
   const saved=new Map(positions.map(n=>[n.id,n]));for(const n of allPapers){const p=saved.get(n.id);n.topicTitle=C.researchRecord(n).title;n.color=6;if(p){n.x=p.x;n.y=p.y;n.pinned=p.pinned||false;}}

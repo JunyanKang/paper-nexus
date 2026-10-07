@@ -124,11 +124,15 @@ var CiteLensNetworkCore=(()=>{
     return [...output.values()].sort((a,b)=>weight(b)-weight(a)||String(b.node.year).localeCompare(String(a.node.year))||a.node.title.localeCompare(b.node.title));
   }
   function search(nodes,query){const words=C.norm(query).split(' ').filter(Boolean);return nodes.filter(node=>{const text=C.norm([node.title,node.journal,node.year,node.DOI,...(node.creators||[]).map(a=>a.firstName+' '+a.lastName)].join(' '));return words.every(w=>text.includes(w));});}
+  const searchText=value=>C.norm(value).normalize('NFKD').replace(/\p{M}/gu,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+  function nameForms(name){const words=searchText(name).split(' ').filter(Boolean).slice(0,10),forms=new Set();for(let i=0;i<words.length;i++)forms.add([...words.slice(i),...words.slice(0,i)].join(''));return [...forms];}
   function searchIndex({nodes,papers=[],mode}){
     const entities=nodes.filter(n=>n.kind!=='paper'),owners=new Map();for(const n of entities)for(const id of n.members||[]){if(!owners.has(id))owners.set(id,[]);owners.get(id).push(n.id);}
-    const entries=[...entities,...(papers.length?papers:nodes.filter(n=>n.kind==='paper'))].map(n=>({id:n.id,title:n.title,year:n.kind==='author'||n.kind==='topic'?'':n.year,kind:n.kind||'paper',text:C.norm([n.title,n.abstract,n.journal,n.DOI,...(n.creators||[]).map(a=>a.firstName+' '+a.lastName)].join(' '))}));
+    const entries=[...entities,...(papers.length?papers:nodes.filter(n=>n.kind==='paper'))].map(n=>{const titleText=searchText(n.title),names=n.kind==='author'?[n.title]:(n.creators||[]).map(a=>a.name||[a.firstName,a.lastName].filter(Boolean).join(' '));return {id:n.id,title:n.title,year:n.kind==='author'||n.kind==='topic'?'':n.year,kind:n.kind||'paper',titleText,compactTitle:titleText.replace(/ /g,''),titleWords:[...new Set(titleText.split(' '))],names:names.flatMap(nameForms),text:searchText([n.title,n.abstract,n.journal,n.DOI,...names].join(' '))};});
     return {entries,owners,entities:new Map(entities.map(n=>[n.id,n])),mode,visible:new Set(nodes.map(n=>n.id))};
   }
+  // Bounded one-edit matching for longer title terms; abstracts keep cheap substring search.
+  function oneEdit(a,b){if(a===b)return true;if(Math.abs(a.length-b.length)>1)return false;let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;if(a.length===b.length)return a.slice(i+1)===b.slice(i+1)||(a[i]===b[i+1]&&a[i+1]===b[i]&&a.slice(i+2)===b.slice(i+2));return a.length>b.length?a.slice(i+1)===b.slice(i):a.slice(i)===b.slice(i+1);}
   function authorConnections(index,id){
     const node=index.entities.get(id);if(node?.kind!=='author')return [];
     const pairs=new Map();for(const paperID of node.members||[])for(const target of index.owners.get(paperID)||[]){if(target===id)continue;if(!pairs.has(target))pairs.set(target,{source:id,target,kind:'coauthor',evidence:[]});pairs.get(target).evidence.push({paperID});}
@@ -143,10 +147,19 @@ var CiteLensNetworkCore=(()=>{
     return {mode:'authors',selected:id,nodes,edges:[...pairs.values()],groups:[],stats:{authors:nodes.length,available:1+direct.length+scores.size},depth};
   }
   function queryIndex(index,query){
-    const words=C.norm(query).split(' ').filter(Boolean);if(!words.length)return {matches:[],results:[]};
-    const found=index.entries.filter(n=>words.every(w=>n.text.includes(w))),entities=found.filter(n=>n.kind!=='paper'),papers=found.filter(n=>n.kind==='paper'),matches=new Set(entities.map(n=>n.id));
-    if(index.mode!=='authors'||!entities.length)for(const paper of papers){if(index.visible.has(paper.id))matches.add(paper.id);for(const id of index.owners.get(paper.id)||[])matches.add(id);}
-    return {matches:[...matches],results:[...entities,...papers].slice(0,8).map(({text,...n})=>n)};
+    const normalized=searchText(String(query).slice(0,240)),words=normalized.split(' ').filter(Boolean),compact=words.join('');if(!words.length)return {matches:[],results:[]};
+    const ranked=[];for(const n of index.entries){let score=0;
+      if(n.titleText===normalized||n.compactTitle===compact||n.names.includes(compact))score=100;
+      else if(words.every(w=>n.titleText.includes(w))||n.names.some(name=>words.every(w=>name.includes(w))))score=85;
+      else if(n.compactTitle.includes(compact))score=75;
+      else if(words.every(w=>n.text.includes(w)))score=60;
+      else if(n.kind!=='author'&&words.length<=8&&words.every(w=>n.titleWords.some(t=>t.includes(w)||(w.length>=5&&t.length>=5&&oneEdit(w,t)))))score=35;
+      if(score)ranked.push({n,score});
+    }
+    ranked.sort((a,b)=>Number(b.n.kind!=='paper')-Number(a.n.kind!=='paper')||b.score-a.score||a.n.title.localeCompare(b.n.title));
+    const entities=ranked.filter(x=>x.n.kind!=='paper'),papers=ranked.filter(x=>x.n.kind==='paper'),matches=new Set(entities.map(x=>x.n.id));
+    if(index.mode!=='authors'||!entities.length)for(const {n:paper} of papers){if(index.visible.has(paper.id))matches.add(paper.id);for(const id of index.owners.get(paper.id)||[])matches.add(id);}
+    return {matches:[...matches],results:ranked.slice(0,8).map(({n})=>({id:n.id,title:n.title,year:n.year,kind:n.kind}))};
   }
   // Display consolidation never mutates Zotero. Conflicting metadata remains separate.
   function consolidate(nodes,sources=[]){

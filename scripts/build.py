@@ -2,6 +2,7 @@
 from pathlib import Path
 import zipfile,json,hashlib,argparse
 from audit_release import addon_payload
+from network_revisions import revisions
 parser=argparse.ArgumentParser();parser.add_argument("--personal-adapter",type=Path);args=parser.parse_args()
 root=Path(__file__).resolve().parents[1]
 manifest=json.loads((root/'addon/manifest.json').read_text(encoding='utf-8'))
@@ -17,6 +18,7 @@ with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
  for name,p in sorted(addon_payload(root).items()):
   info=zipfile.ZipInfo(name,(2026,10,5,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16
   z.writestr(info,p.read_bytes())
+ info=zipfile.ZipInfo('network-revisions.json',(2026,10,5,0,0,0));info.create_system=3;info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16;z.writestr(info,revisions(root))
  if args.personal_adapter:
   adapter=json.loads(args.personal_adapter.read_text(encoding='utf-8'));assert adapter['dimension']==384 and adapter['rank']>0 and adapter['model']=='Xenova/all-MiniLM-L6-v2'
   assert adapter['accepted'] is True, 'Only evaluated personal adapters may be included'

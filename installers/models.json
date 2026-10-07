@@ -5,8 +5,8 @@
       "id": "minilm",
       "titleZh": "通用语义",
       "titleEn": "General semantics",
-      "detailZh": "20 MB · MiniLM · 英文通用与跨学科文献",
-      "detailEn": "20 MB · MiniLM · General and interdisciplinary English research",
+      "detailZh": "MiniLM · 20 MB · 英文跨学科",
+      "detailEn": "MiniLM · 20 MB · Cross-disciplinary",
       "package": {
         "name": "paper-nexus-minilm-1.0.0.pnmodel",
         "url": "https://junyankang.github.io/paper-nexus/models/v1.0.0/paper-nexus-minilm-1.0.0.pnmodel",
@@ -18,8 +18,8 @@
       "id": "medembed",
       "titleZh": "医学语义",
       "titleEn": "Biomedical semantics",
-      "detailZh": "29 MB · MedEmbed · 英文生命科学与医学文献",
-      "detailEn": "29 MB · MedEmbed · English life sciences and medicine",
+      "detailZh": "MedEmbed · 29 MB · 英文生命科学与医学",
+      "detailEn": "MedEmbed · 29 MB · Life sciences & medicine",
       "package": {
         "name": "paper-nexus-medembed-1.0.0.pnmodel",
         "url": "https://junyankang.github.io/paper-nexus/models/v1.0.0/paper-nexus-medembed-1.0.0.pnmodel",

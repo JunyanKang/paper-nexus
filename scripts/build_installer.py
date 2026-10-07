@@ -50,6 +50,7 @@ if sys.platform=='darwin':
  subprocess.run(['xcrun','swiftc','-O','-module-cache-path',str(out/'swift-cache'),'-framework','Cocoa',str(ROOT/'installers/macos/DMGBackground.swift'),'-o',str(renderer)],check=True)
  subprocess.run([str(renderer),str(out)],check=True)
  background=resources/'dmg-background.tiff'
+ background.unlink(missing_ok=True)
  subprocess.run(['tiffutil','-cathidpicheck',str(out/'dmg-background.png'),str(out/'dmg-background@2x.png'),'-out',str(background)],check=True)
  subprocess.run(['codesign','--force','--sign','-',str(app)],check=True)
  # An override allows local previews without replacing a release artifact.

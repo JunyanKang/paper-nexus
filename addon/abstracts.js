@@ -55,7 +55,7 @@ var CiteLensAbstracts = (() => {
       // Native XHR avoids Zotero's debug logger printing credential-bearing POST bodies.
       const xhr=new (clock().XMLHttpRequest)();xhr.open(body?'POST':'GET',url,true);xhr.timeout=timeout;
       const abort=()=>xhr.abort(),done=()=>signal?.delete(abort);signal?.add(abort);
-      xhr.onload=()=>{done();if(xhr.status>=200&&xhr.status<300)resolve(xhr.responseText);else reject(Error(xhr.status===429?'busy':'network'));};
+      xhr.onload=()=>{done();if(xhr.status>=200&&xhr.status<300)resolve(xhr.responseText);else reject(Object.assign(Error(xhr.status===429?'busy':'network'),{status:xhr.status}));};
       xhr.onerror=xhr.ontimeout=xhr.onabort=()=>{done();reject(Error('network'));};
       if(body)xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');xhr.send(body);
     });
@@ -71,6 +71,39 @@ var CiteLensAbstracts = (() => {
     return text(standard?.innerHTML);
   }
   function pmcRecords(value){return [...xml(value).querySelectorAll('article')].map(n=>{const a=n.querySelector(':scope > front > article-meta');if(!a)return null;const id=type=>content(a,'article-id[pub-id-type="'+type+'"]');return {title:content(a,'title-group > article-title'),DOI:C.doi(id('doi')),PMCID:A.ids({PMCID:(id('pmc')||id('pmcid')).replace(/^(\d)/,'PMC$1')}).PMCID,PMID:id('pmid'),year:content(a,'pub-date > year'),journal:content(n,'front > journal-meta > journal-title-group > journal-title'),creators:[...a.querySelectorAll('contrib-group > contrib[contrib-type="author"]')].map(x=>({firstName:content(x,'name > given-names'),lastName:content(x,'name > surname')||content(x,'collab'),creatorType:'author'})),abstract:pmcAbstract(a),keywords:[...a.querySelectorAll('kwd-group > kwd')].map(x=>C.clean(x.textContent)),publicationTypes:[]};}).filter(Boolean);}
+  // Read outgoing bibliography entries, never the list of papers citing this article.
+  function referenceRecords(value,input,kind='pubmed'){
+    const doc=xml(value),records=kind==='pmc'?pmcRecords(value):pubmedRecords(value),parent=select(input,records);
+    if(!parent)return {refs:[],parent:null};
+    const root=kind==='pmc'?[...doc.querySelectorAll('article')].find(n=>content(n,'front > article-meta > article-id[pub-id-type="pmid"]')===parent.PMID&&content(n,'front > article-meta > title-group > article-title')===parent.title):[...doc.querySelectorAll('PubmedArticle')].find(n=>content(n,'MedlineCitation > PMID')===parent.PMID);
+    const refs=[...(root?.querySelectorAll(kind==='pmc'?':scope > back ref-list > ref':'PubmedData > ReferenceList Reference')||[])].map(n=>{
+      if(kind==='pubmed'){
+        const raw=content(n,'Citation'),ids=A.ids({PMID:content(n,'ArticleId[IdType="pubmed"]'),DOI:content(n,'ArticleId[IdType="doi"]')});
+        return {...C.parse(raw),...ids,raw,source:'PubMed',metadataVerified:false};
+      }
+      const citation=n.querySelector('element-citation, mixed-citation, nlm-citation')||n,raw=C.clean(citation.textContent),id=t=>content(citation,'pub-id[pub-id-type="'+t+'"]');
+      const names=citation.querySelectorAll('person-group[person-group-type="author"] name, person-group[person-group-type="author"] string-name, :scope > name, :scope > string-name');
+      return {title:content(citation,'article-title'),year:content(citation,'year'),journal:content(citation,'source'),volume:content(citation,'volume'),pages:[content(citation,'fpage'),content(citation,'lpage')].filter(Boolean).join('–'),...A.ids({PMID:id('pmid'),DOI:id('doi')}),creators:[...names].map(a=>({firstName:content(a,'given-names'),lastName:content(a,'surname'),creatorType:'author'})).filter(a=>a.lastName),raw,source:'PMC',metadataVerified:false};
+    });return {refs,parent};
+  }
+  async function referenceList(input,{budget=60000,limit=200,signal}={}){
+    const ctx={until:Date.now()+budget,requestTimeout:12000,retryNetwork:true,abort:new Set(),done:false,stopped(){return this.done||signal?.aborted||Date.now()>=this.until;}},cancel=()=>{ctx.done=true;for(const abort of ctx.abort)abort();};
+    if(signal?.aborted)throw Error('cancelled');signal?.addEventListener('abort',cancel,{once:true});
+    try{
+      const ids=A.ids(input);let pmid=ids.PMID,pmcid=ids.PMCID,result={refs:[],parent:null},source='PubMed';
+      if(!pmid&&!pmcid){const title=C.plainTitle(input.title).replace(/["\[\]]/g,' '),term=ids.DOI?ids.DOI+'[AID]':title.length>=24?'"'+title+'"[Title]':'';if(!term)return {...result,source};
+        const data=JSON.parse(await ncbi(ctx,'esearch',{db:'pubmed',term,retmode:'json',retmax:5}));if(data.error)throw Error('NCBI unavailable');pmid=(data.esearchresult?.idlist||[]).filter(x=>/^\d+$/.test(x)).slice(0,5).join(',');}
+      if(pmid){result=referenceRecords(await ncbi(ctx,'efetch',{db:'pubmed',id:pmid,retmode:'xml'}),input);pmcid=result.parent?.PMCID||pmcid;}
+      if(!result.refs.length&&pmcid){result=referenceRecords(await ncbi(ctx,'efetch',{db:'pmc',id:pmcid.replace('PMC',''),retmode:'xml'}),input,'pmc');source='PMC';}
+      const cap=Math.max(1,Math.min(200,Number(limit)||200)),refs=result.refs.slice(0,cap),pmids=[...new Set(refs.map(r=>r.PMID).filter(Boolean))],hydrated=new Map();
+      // Batch metadata for cited PMIDs; a bibliography entry alone is not a complete author record.
+      for(let i=0;i<pmids.length;i+=25){
+        const batch=pmids.slice(i,i+25),rows=pubmedRecords(await ncbi(ctx,'efetch',{db:'pubmed',id:batch.join(','),retmode:'xml'}));
+        for(const r of rows)if(batch.includes(r.PMID))hydrated.set(r.PMID,r);
+      }
+      return {source,parent:result.parent,limited:result.refs.length>cap,refs:refs.map(r=>{const full=hydrated.get(r.PMID);return full&&(!r.DOI||r.DOI===full.DOI)?{...r,...full,source:'PubMed',metadataVerified:true}:r;})};
+    }finally{cancel();signal?.removeEventListener('abort',cancel);}
+  }
   function select(input,records){
     const identifiable=Object.values(A.ids(input)).some(Boolean),eligible=records.filter(r=>r&&C.compatibility(input,r).eligible&&(!identifiable||A.matches(input,r)));
     if(identifiable)return eligible.length===1?eligible[0]:null;
@@ -111,14 +144,19 @@ var CiteLensAbstracts = (() => {
   async function request(ctx,url,body){
     if(ctx.stopped())throw Error('cancelled');const provider=url.match(/^https:\/\/([^/]+)/)?.[1]||url;
     if((cooldowns.get(provider)||0)>Date.now())throw Error('busy');
-    try{return await deadline(api.transport(url,{body,timeout:Math.min(7000,Math.max(1,ctx.until-Date.now())),signal:ctx.abort}),ctx.until-Date.now());}
+    try{return await deadline(api.transport(url,{body,timeout:Math.min(ctx.requestTimeout||7000,Math.max(1,ctx.until-Date.now())),signal:ctx.abort}),ctx.until-Date.now());}
     catch(e){if(e.message==='busy')cooldowns.set(provider,Date.now()+60000);throw e;}
   }
   async function ncbi(ctx,method,params){
     const key=apiKey(),wait=Math.max(0,nextNCBI-Date.now());nextNCBI=Date.now()+wait+(key?120:380);
     if(wait)await deadline(new Promise(resolve=>later(resolve,wait)),ctx.until-Date.now());if(ctx.stopped())throw Error('cancelled');
     const body=Object.entries({...params,tool:'PaperNexus',...(key?{api_key:key}:{})}).map(([k,v])=>encodeURIComponent(k)+'='+encodeURIComponent(v)).join('&');
-    return request(ctx,'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/'+method+'.fcgi',body);
+    const url='https://eutils.ncbi.nlm.nih.gov/entrez/eutils/'+method+'.fcgi';
+    try{return await request(ctx,url,body);}catch(e){
+      if(!ctx.retryNetwork||ctx.stopped()||!['network','timeout'].includes(e.message)||e.status&&e.status<500||ctx.until-Date.now()<13000)throw e;
+      // One bounded retry for a gateway/connection failure; never retry a rejected key or rate limit.
+      await deadline(new Promise(resolve=>later(resolve,600)),ctx.until-Date.now());return request(ctx,url,body);
+    }
   }
   async function testConnection({budget=8000}={}){
     const ctx={until:Date.now()+budget,abort:new Set(),done:false,stopped(){return this.done||Date.now()>=this.until;}};
@@ -162,7 +200,7 @@ var CiteLensAbstracts = (() => {
     let index=cacheIndexes.get(cache);if(!index){index=new Map();for(const entry of Object.values(cache)){if(entry?.value?.status!=='available'||![3,4].includes(entry.version))continue;for(const key of identityKeys(entry.value.record||{})){if(!index.has(key))index.set(key,new Set());index.get(key).add(entry);}}cacheIndexes.set(cache,index);}
     const candidates=new Set();for(const key of identityKeys(input))for(const e of index.get(key)||[])if(valid(e))candidates.add(e);
     const rows=[...new Map([...candidates].sort((a,b)=>b.expires-a.expires).map(e=>[A.key(e.value.record),e])).values()];if(rows.length){const record=select(input,rows.map(e=>e.value.record));if(record)return rows.find(e=>e.value.record===record)?.value||null;}
-    if(direct?.version===4&&direct.expires>Date.now()&&direct.value?.status!=='available')return direct.value;return null;
+    if(direct?.version===4&&direct.strategy===(typeof CiteLensNetwork!=='undefined'?CiteLensNetwork.revisions.abstracts:'abstracts-5')&&direct.expires>Date.now()&&direct.value?.status!=='available')return direct.value;return null;
   }
   async function lookup(S,input,{force=false,budget=12000}={}){
     if(S.dead)return {status:'offline'};
@@ -171,24 +209,24 @@ var CiteLensAbstracts = (() => {
     const flightKey=JSON.stringify([key,C.norm(input.title),input.year||'',input.creators||[],input.author||'']);
     if(pending.has(flightKey))return pending.get(flightKey);
     const ctx={until:Date.now()+budget,abort:new Set(),done:false,stopped(){return this.done||S.dead||Date.now()>=this.until;}};
-    const work=(async()=>{let transient=false;
+    const work=(async()=>{let transient=false,answered=0;
       // Local lookup has a short budget; it must not block a slow or busy library indefinitely.
       try{const local=await deadline(S.locate(input),Math.min(700,budget)),values=[...new Set(local.map(x=>text(x.item.getField('abstractNote'))).filter(Boolean))];if(values.length===1)return found({...input,abstract:values[0]},'本地文献库','');}catch(_){}
       const stage=async(fns,ms)=>{
         const child={until:Math.min(ctx.until,Date.now()+ms),abort:new Set(),done:false,stopped(){return this.done||ctx.stopped()||Date.now()>=this.until;}},cancel=()=>{child.done=true;for(const abort of child.abort)abort();};ctx.abort.add(cancel);
-        const attempt=fn=>fn(child,input).then(value=>{if(value?.text)return value;throw Error('missing');}).catch(e=>{if(e.message!=='missing')transient=true;throw e;});
+        const attempt=fn=>fn(child,input).then(value=>{if(value?.text)return value;answered++;throw Error('missing');}).catch(e=>{if(e.message!=='missing')transient=true;throw e;});
         try{return await deadline(Promise.any(fns.map(attempt)),child.until-Date.now());}finally{cancel();ctx.abort.delete(cancel);}
       };
       // Two independent providers race; author/metadata background queues cannot hold up the preview.
       try{return await stage([pubmed,europe],Math.max(1,budget*.4));}catch(_){}
       if(!ctx.stopped())try{return await stage([crossref,openalex],Math.max(1,budget*.4));}catch(_){ }
       if(!ctx.stopped())try{return await stage([semanticScholar],ctx.until-Date.now());}catch(_){}
-      return {status:transient||ctx.stopped()?'offline':'missing'};
+      return {status:answered?'missing':'offline'};
     })();
     const bounded=deadline(work,budget).catch(()=>({status:'offline'})).then(result=>{
-      if(!S.dead){S.state.abstractCache||={};cacheIndexes.delete(S.state.abstractCache);S.state.abstractCache[key]={version:4,value:result,expires:Date.now()+(result.status==='available'?30*86400000:result.status==='offline'?15000:3600000)};for(const stale of Object.keys(S.state.abstractCache).sort((a,b)=>S.state.abstractCache[b].expires-S.state.abstractCache[a].expires).slice(500))delete S.state.abstractCache[stale];S.persist().catch(()=>{});}return result;
+      if(!S.dead){S.state.abstractCache||={};cacheIndexes.delete(S.state.abstractCache);S.state.abstractCache[key]={version:4,strategy:typeof CiteLensNetwork!=='undefined'?CiteLensNetwork.revisions.abstracts:'abstracts-5',value:result,expires:Date.now()+(result.status==='available'?30*86400000:result.status==='offline'?15000:3600000)};for(const stale of Object.keys(S.state.abstractCache).sort((a,b)=>S.state.abstractCache[b].expires-S.state.abstractCache[a].expires).slice(500))delete S.state.abstractCache[stale];S.persist().catch(()=>{});}return result;
     }).finally(()=>{ctx.done=true;for(const abort of ctx.abort)abort();pending.delete(flightKey);});pending.set(flightKey,bounded);return bounded;
   }
-  const api={text,placement,dragPlacement,resizePlacement,apiKey,testConnection,transport,invertedAbstract,pubmedRecords,pmcRecords,select,cached,lookup};return api;
+  const api={text,placement,dragPlacement,resizePlacement,apiKey,testConnection,transport,invertedAbstract,pubmedRecords,pmcRecords,referenceRecords,referenceList,select,cached,lookup};return api;
 })();
 if(typeof module!=='undefined')module.exports=CiteLensAbstracts;

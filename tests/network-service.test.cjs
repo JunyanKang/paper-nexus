@@ -82,20 +82,39 @@ function abstractService(){
  ctx.CiteLensAbstracts.lookup=async(_,n)=>{requests.push(n.id);return{status:'available',text:'Published abstract about retinal neural development. '.repeat(3),source:'PubMed',record:{...n}};};
  N.invalidate=(...args)=>changes.push(args);N.scheduleAbstracts=(...args)=>schedules.push(args);return{ctx,N,requests,changes,schedules,paper};
 }
-test('abstract enrichment is bounded, cached, non-mutating and commits one incremental batch',async()=>{
+
+test('abstract pass completes its scope once, preserves records, and reuses saved successes',async()=>{
  const {N,requests,changes,paper}=abstractService(),nodes=Array.from({length:15},(_,i)=>paper(i+1)),before=JSON.stringify(nodes);
- const result=await N.fillAbstracts({nodes});assert.equal(result.updated,12);assert.equal(requests.length,12);assert.equal(changes.length,1);assert.equal(changes[0][2].length,12);assert.equal(JSON.stringify(nodes),before);
+ const result=await N.fillAbstracts({nodes});assert.equal(result.updated,15);assert.equal(requests.length,15);assert.equal(changes.length,1);assert.equal(changes[0][2].length,15);assert.equal(JSON.stringify(nodes),before);
  assert.equal(N.applyAbstract(nodes[0]).abstractSource,'PubMed');assert.equal(N.applyAbstract({...nodes[0],title:'Unrelated geological study of volcanoes'}).abstract,undefined);
  assert.equal(N.applyAbstract({...nodes[0],abstract:'Original user abstract. '.repeat(5)}).abstract,'Original user abstract. '.repeat(5));
- await N.fillAbstracts({nodes});assert.equal(requests.length,15);assert.equal(changes.length,2);
+ await N.fillAbstracts({nodes});assert.equal(requests.length,15);assert.equal(changes.length,1);
 });
-test('background enrichment skips books and uses backoff for missing and offline records',async()=>{
- const {N,ctx,requests,schedules,paper}=abstractService();ctx.CiteLensAbstracts.lookup=async(_,n)=>{requests.push(n.id);return{status:'missing'};};
- const nodes=[paper(1),{...paper(2),type:'bookSection'}];await N.fillAbstracts({nodes});await N.fillAbstracts({nodes});assert.equal(requests.length,1);
- ctx.CiteLensAbstracts.lookup=async()=>({status:'offline'});const r=await N.fillAbstracts({nodes:Array.from({length:6},(_,i)=>paper(i+10))});assert.equal(r.fetched,3);assert.equal(schedules.at(-1)[1],180000);
+test('missing abstracts expire by strategy and manual refresh; books never enter the queue',async()=>{
+ const {N,ctx,requests,paper}=abstractService();ctx.CiteLensAbstracts.lookup=async(_,n)=>{requests.push(n.id);return{status:'missing'};};
+ const nodes=[paper(1),{...paper(2),type:'bookSection'}];await N.ensureAbstracts(nodes);await N.ensureAbstracts(nodes);assert.equal(requests.length,1);
+ N.revisions={...N.revisions,abstracts:'new-provider'};await N.ensureAbstracts(nodes);assert.equal(requests.length,2);
+ N.abstracts.get(nodes[0].id).checked=1;await N.ensureAbstracts(nodes,{refresh:Date.now()});assert.equal(requests.length,3);
 });
-test('an old abstract request cannot mutate or invalidate a restarted network',async()=>{
+test('offline pauses enrichment and leaves prior graph and negative cache intact',async()=>{
+ const {N,ctx,paper}=abstractService();let calls=0;ctx.CiteLensAbstracts.lookup=async()=>{calls++;return{status:'offline'};};
+ await assert.rejects(N.ensureAbstracts([paper(1)]),/摘要服务暂不可用/);assert.equal(calls,3);assert.equal(N.abstracts.size,0);assert.equal(N.abstractRequests.size,0);
+});
+test('an old abstract request cannot mutate a restarted network',async()=>{
  const {N,ctx,changes,paper}=abstractService();let release;ctx.CiteLensAbstracts.lookup=()=>new Promise(r=>release=r);
- const n=paper(1),job=N.fillAbstracts({nodes:[n]});N.abstractEpoch++;const replacement={epoch:N.abstractEpoch};N.abstractFlight=replacement;
- release({status:'available',text:'Verified abstract. '.repeat(20),record:n});await job;assert.equal(N.abstracts.size,0);assert.equal(changes.length,0);assert.equal(N.abstractFlight,replacement);
+ const n=paper(1),job=N.ensureAbstracts([n]);N.abstractEpoch++;release({status:'available',text:'Verified abstract. '.repeat(20),record:n});await assert.rejects(job,/已取消/);assert.equal(N.abstracts.size,0);assert.equal(changes.length,0);
+});
+test('foreground scopes preempt background queue and overlapping requests share downloads',async()=>{
+ const {N,ctx,paper}=abstractService(),seen=[],releases=[];ctx.CiteLensAbstracts.lookup=(_,n)=>{seen.push(n.id);return new Promise(r=>releases.push(()=>r({status:'available',text:'Verified scientific abstract. '.repeat(8),record:n})));};
+ const nodes=[paper(1),paper(2),paper(3)],background=N.ensureAbstracts(nodes),foreground=N.ensureAbstracts([nodes[2]],{foreground:true});releases.shift()();await new Promise(r=>setImmediate(r));assert.equal(seen[1],nodes[2].id);releases.shift()();await foreground;await new Promise(r=>setImmediate(r));assert.equal(seen[2],nodes[1].id);releases.shift()();await background;assert.equal(seen.length,3);
+});
+test('cancelling one scope does not cancel another scope using the same abstract queue',async()=>{
+ const {N,ctx,paper}=abstractService();let release;ctx.CiteLensAbstracts.lookup=(_,n)=>new Promise(r=>release=()=>r({status:'missing'}));const abort=new AbortController(),a=N.ensureAbstracts([paper(1)],{signal:abort.signal}),b=N.ensureAbstracts([paper(1)]);abort.abort();await assert.rejects(a,/已取消/);release();await b;assert.equal(N.abstractRequests.size,0);
+});
+test('algorithm revisions invalidate graph caches while last completed graph remains available',async()=>{
+ const s=await cacheService(),p={mode:'topics',cacheKey:'1:',nodes:[{id:'1'}],positions:[]};await s.N.map(p);s.N.revisions={...s.N.revisions,topics:'new-algorithm'};const previous=await s.N.previousGraph(p);assert.equal(previous.nodes[0].id,'1');assert.equal(s.count(),1);await s.N.map(p);assert.equal(s.count(),2);await s.N.map({...p,refresh:1});assert.equal(s.count(),3);await s.N.map(p);assert.equal(s.count(),3);
+});
+test('topic jobs wait for abstract completion; author jobs do not wait',async()=>{
+ const s=await cacheService();s.ctx.Zotero.getMainWindow=()=>({AbortController});s.ctx.Zotero.Promise={delay:()=>Promise.resolve()};let release,topics=0,authors=0;s.N.ensureAbstracts=nodes=>new Promise(r=>release=()=>r(nodes.map(n=>({...n,abstract:'Completed abstract'}))));s.N.map=async p=>{if(p.mode==='topics'){topics++;assert.equal(p.nodes[0].abstract,'Completed abstract');}else authors++;return {nodes:p.nodes};};
+ const snapshot={},p={mode:'topics',nodes:[{id:'1'}]};const t=s.N.graphJob(snapshot,p),a=s.N.graphJob(snapshot,{...p,mode:'authors'});await a.promise;assert.equal(authors,1);assert.equal(topics,0);release();await t.promise;assert.equal(topics,1);
 });

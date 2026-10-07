@@ -26,3 +26,15 @@ test('author ego has exact first and second degree paths, never arbitrary same-c
  const nodes=['a','b','c','d'].map((id,i)=>({id,kind:'author',title:id,members:([['ab'],['ab','bc'],['bc'],['d']])[i]})),index=N.searchIndex({nodes,mode:'authors'});
  const first=N.authorNeighborhood(index,'a',1),second=N.authorNeighborhood(index,'a',2);assert.deepEqual(Array.from(first.nodes,n=>n.id).sort(),['a','b']);assert.deepEqual(Array.from(second.nodes,n=>n.id).sort(),['a','b','c']);assert.equal(second.nodes.find(n=>n.id==='a').depth,0);assert.equal(second.nodes.find(n=>n.id==='c').depth,2);assert.ok(second.edges.every(e=>e.evidence.length));assert.equal(second.edges.length,2);
 });
+
+test('author lookup accepts joined, reordered, accented and hyphenated names without changing identity',()=>{
+ const nodes=[{id:'kang',kind:'author',title:'Jun–Yan Kang',members:['p']},{id:'other',kind:'author',title:'Kai Wang',members:['p']},{id:'accent',kind:'author',title:'José García',members:[]}],index=N.searchIndex({nodes,mode:'authors'});
+ for(const q of ['kangjunyan','Kang Junyan','Kang Jun-Yan','junyan Kang','junyan','JUN YAN KANG'])assert.deepEqual([...N.queryIndex(index,q).matches],['kang'],q);
+ assert.deepEqual([...N.queryIndex(index,'garcia jose').matches],['accent']);assert.equal(N.queryIndex(index,'J').matches.length,2);assert.equal(N.queryIndex(index,'kangwang').matches.length,0);
+});
+test('topic lookup tolerates spaces, punctuation, word order and a bounded typo',()=>{
+ const nodes=[{id:'t1',kind:'topic',title:'Single-cell retinal development',members:['p1']},{id:'t2',kind:'topic',title:'Retinal cell regeneration',members:['p2']},{id:'t3',kind:'topic',title:'Genomic stability',members:['p3']}],index=N.searchIndex({nodes,mode:'topics'});
+ for(const q of ['singlecell','development retinal','retianl development'])assert.ok(N.queryIndex(index,q).matches.includes('t1'),q);
+ assert.deepEqual([...N.queryIndex(index,'retinal').matches].sort(),['t1','t2']);assert.equal(N.queryIndex(index,'retinal volcano').matches.length,0);assert.deepEqual([...N.queryIndex(index,'').matches],[]);
+ assert.deepEqual(Object.keys(N.queryIndex(index,'retinal').results[0]).sort(),['id','kind','title','year']);
+});

@@ -2,14 +2,16 @@
 from pathlib import Path
 import json,zipfile,hashlib,re,subprocess,tempfile
 from audit_release import public_index, addon_payload
+from network_revisions import revisions
 root=Path(__file__).resolve().parents[1];version=json.loads((root/'package.json').read_text(encoding='utf-8'))['version'];dist=root/'dist';xpi=dist/f'paper-nexus-{version}.xpi'
 with zipfile.ZipFile(xpi) as z:
  assert not z.testzip()
  expected=addon_payload(root)
- assert set(z.namelist())==set(expected)
+ assert set(z.namelist())==set(expected)|{'network-revisions.json'}
+ assert z.read('network-revisions.json')==revisions(root)
  assert all(z.read(name)==p.read_bytes() for name,p in expected.items()), 'Rebuild XPI: addon changed'
  assert not any('harness' in n or 'test' in n for n in z.namelist())
- for name in z.namelist():
+ for name in expected:
   if name.endswith(('.js','.json')):
    data=z.read(name);assert not re.search(rb'/(?:Users|Volumes)/',data) and b'command.js' not in data
 files=public_index();assert 'README.md' in files,'Stage reviewed public files first'

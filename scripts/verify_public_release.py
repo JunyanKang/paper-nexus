@@ -1,4 +1,5 @@
 """Verify the simplified public download page and optional independent model release."""
+from network_revisions import revisions
 from pathlib import Path
 import argparse, hashlib, io, json, subprocess, zipfile, urllib.request, tempfile, sys
 
@@ -58,7 +59,8 @@ assert entry['update_hash']=='sha512:'+hashlib.sha512(xpi).hexdigest()
 with zipfile.ZipFile(io.BytesIO(xpi)) as archive:
     files = {p.relative_to(ROOT/'addon').as_posix(): p for p in (ROOT/'addon').rglob('*')
              if p.is_file() and 'models' not in p.relative_to(ROOT/'addon').parts and p.suffix != '.wasm'}
-    assert set(archive.namelist()) == set(files) and archive.testzip() is None
+    assert set(archive.namelist()) == set(files)|{'network-revisions.json'} and archive.testzip() is None
+    assert archive.read('network-revisions.json') == revisions(ROOT)
     assert all(archive.read(name) == path.read_bytes() for name, path in files.items())
 for name in installer_names:assert (out/name).stat().st_size<10*1024*1024
 exe=(out/installer_names[1]).read_bytes();assert exe[:2]==b'MZ' and xpi not in exe
