@@ -1,59 +1,28 @@
-# Local model architecture and provenance
+# 选择主题分析方案
 
-Paper Nexus 1.0 separates the XPI, public data-only model packs, and the user's private index. End-user instructions are in [Installation](INSTALL.md).
+[安装与更新](INSTALL.md) · [网络指南](NETWORK.md) · [设置](SETTINGS.md)
 
-## Portable runtime
+两种方案都可在本机整理研究主题，无需账号或 API key。
 
-The same XPI and `.pnmodel` archives are used on macOS and Windows. Inference runs in Zotero's privileged worker using ONNX Runtime Web 1.30.0, single-threaded WebAssembly. The plugin requires no native helper, Python interpreter, shell script or background server. The optional standalone Cocoa / Windows Forms installer downloads the selected models and the XPI; it does not remain running after setup. The XPI ships the JavaScript loader; each model pack includes its matching WASM runtime, tokenizer, weights and licenses.
+| 方案 | 下载大小 | 适合文献 |
+|---|---:|---|
+| 通用语义 | 约 20 MB | 英文通用与跨学科文献 |
+| 医学语义 | 约 29 MB | 英文生命科学与医学文献 |
 
-By default, models live under the Zotero data directory in `paper-nexus-models/<id>/<version>`. An atomic active pointer selects a verified version. Installation checks exact archive entries, sizes and SHA256 digests; installer downloads use SHA256-pinned GitHub Pages downloads. The in-plugin downloader uses those same packages for bundled profiles; file-level pinned upstream URLs remain in the provenance catalog for reproducible pack builds. Download cancellation and rejected archives retain the existing active model. Plugin updates preserve this directory. The initial upgrade from an older bundled-model XPI requires installing a separate model pack once.
+按文献领域选择即可，也可以同时安装后比较。两者不按速度排名，处理时间随文献数量和电脑配置而变化。
 
-## Included profiles
+## 安装与切换
 
-| Profile | Upstream | Encoding | Pack bytes |
-|---|---|---|---:|
-| General semantics | [all-MiniLM-L6-v2](https://huggingface.co/Xenova/all-MiniLM-L6-v2/tree/751bff37182d3f1213fa05d7196b954e230abad9) | INT8, 384 dimensions, masked mean pooling; title and abstract chunks, 256 tokens | 20,133,091 |
-| Biomedical semantics | [MedEmbed-small-v0.1](https://huggingface.co/abhinand/MedEmbed-small-v0.1/tree/40a5850d046cfdb56154e332b4d7099b63e8d50e) | INT8, 384 dimensions; exported sentence embedding; joint title and abstract, 384 tokens | 28,996,591 |
+首次安装时勾选需要的方案。之后在 **设置 → 网络 → 主题分析** 中选择，选择即启用；如需补装，使用 **添加方案 → 下载**。
 
-The biomedical pack uses the pinned [medbrevia ONNX export](https://huggingface.co/medbrevia/medembed-small-v0.1-onnx-int8/tree/6cbe4664f1e0067da935f5abc24e4f8b5406b13f), with its provenance and Apache-2.0 / upstream BGE MIT notices. This is an integration of an existing trained model, not a newly trained Nexus foundation model. The biomedical input is truncated at the token limit; the MiniLM path splits longer abstracts. Retrieval improvement does not establish superior scientific clustering for every library.
+切换方案会更新主题视图，作者合作网络不受影响。文献只有题名也可以参与分析，补充摘要有助于理解研究内容。
 
-The public [catalog](../model-catalog.json) is the source of exact file sizes, revisions and hashes. Run `python scripts/build_models.py` to reproduce the packs from these pinned files. Model binaries and personal indexes are excluded from Git. Building the XPI does not download model weights.
+## 保存位置与更新
 
-## Resource use and incremental work
+安装器会推荐模型文件夹，也可点击 **选择文件夹** 自定义。插件会自动识别该位置；使用外接磁盘时，请先连接磁盘。
 
-A shared inference lane prevents one model per network window. The worker is reused across batches, releases tensors after each batch, and terminates after eight idle seconds. Token-length batching reduces padded computation. Canceling a job terminates its worker.
+模型无需随插件每次更新而重新下载。检查模型新版本，请使用主题分析选择框旁的更新图标；只更新插件，请使用设置底部的 **检查更新**，或安装器的 **仅更新插件**。
 
-Vectors are keyed by model identity and text content, stored as little-endian Float32 chunks of at most 96 vectors. A small atomic index points to immutable chunks. New or changed text appends chunks; unchanged chunks are not rewritten. The disk index is bounded to 12,000 entries; missing or damaged chunks are recomputed. A failed index commit preserves the prior readable generation. Compatible old MiniLM JSON vectors are imported once and the original cache is retained for rollback.
+## 模型来源
 
-A 255-byte SIMD kernel accelerates exact dot products for 384-dimensional networks. The scalar implementation remains available if SIMD is unavailable or the input shape is unsupported. Rebuild it with WABT 1.0.39 and `node scripts/build_kernel.cjs <path-to-wabt-module>`; the checked-in WAT is authoritative. No WABT dependency ships to users.
-
-## Standalone installers
-
-Both platform assistants embed only the pinned download catalog and compact OFL-licensed
-UI font subset. The XPI and weights are downloaded and SHA256-verified. At least one model must be selected; a
-user may select multiple. Each model has separate waiting, download, verification,
-installation and completed states. The installer verifies the archive before
-extraction and every file before committing the active pointer. A portable CLI is
-used by platform CI only against temporary data directories. Windows CI executes
-the native EXE; this is separate from Windows Zotero runtime verification.
-
-The plugin discovers complete active models when settings open; installed choices
-and downloadable choices are separate. A sole biomedical installation is selected
-automatically when the preferred model is unavailable. Neither installer writes
-Zotero's database or modifies plugin security preferences. The final XPI handoff
-uses Zotero's official Install Plugin From File interface.
-
-A folder picker can select another existing model root. After a verified install, the installer atomically writes `paper-nexus-model-location.json` in the Zotero data directory. The plugin reads this on startup and when opening settings, using the location recorded by the installer. Changing roots cancels stale inference and refreshes installed model choices; it does not move existing files. An unavailable external drive is reported without silently falling back to a different directory.
-
-
-## Local network analysis
-
-Both semantic grouping and topic naming run on your computer without an API key. Topic labels are grounded in paper titles, available abstracts and biomedical terminology. Additions and edits update the affected content; unchanged vectors remain reusable.
-
-Author nodes represent locally resolved bibliographic identities. An evidence-backed coauthor graph supplies collaboration groups and representative names. This algorithm is shared across both local model choices and does not run text embeddings. No remote model receives library metadata for network analysis.
-
-Completed scoped graphs and parsed PDF references use a separate atomic disk cache, bounded to 64 files / 64 MiB, with a 12 MiB file-read limit. Serialization and parsing run in a worker. Scope, mode, model identity, content form the cache key. PDF identity includes attachment identity, file size, modification time and PDF fingerprint. Reference caches retain only citation-relevant coordinates rather than every page glyph. On restart, metadata is reconciled with Zotero before the matching graph is reused; this is not a zero-I/O startup guarantee.
-
-The network contains only papers in the selected local library or collection. Existing parsed bibliographies may establish citation edges between those papers; they never create external nodes. Author resolution, graph computation and layout run in workers. Metadata changes can still require worker-side recomputation of affected groups.
-
-The product release exposes only a macOS DMG and Windows EXE. The DMG contains the standalone app, which runs directly from the mounted image. XPI, model packs and update metadata are served from a separate Pages distribution branch. Versioned artifacts are immutable; the root update manifest advances with each release. Versions through 1.0.1 require one installer-mediated migration because their update URL points to a release asset.
+通用语义基于 [MiniLM](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)，医学语义基于 [MedEmbed](https://huggingface.co/abhinand/MedEmbed-small-v0.1)。用户无需自行训练模型。

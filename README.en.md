@@ -22,20 +22,18 @@ Hover over a title to open its abstract alongside the card. Switch between **ori
 
 ## Turn your reading list into a research map
 
-Group and name topics and explore coauthors entirely on your computer, without a network-model API key. Saved networks reopen without repeating analysis.
-
 **Topic networks show what papers study.** Open a research topic to reveal its papers, or search for an idea across related groups.
 
 **Author networks show who works together.** Find an author, explore direct or second-degree collaborators, and open the shared papers behind each connection.
 
-Networks prepare quietly at startup and update as your collection grows, connecting familiar work with papers still to discover.
+Explore familiar work alongside papers you have yet to discover.
 
 <p align="center"><img src="docs/images/topics.png" width="960" alt="Research-topic network with papers available on selection"></p>
 <p align="center"><img src="docs/images/network.png" width="960" alt="Author network connected by shared papers"></p>
 
 ## Made for everyday research
 
-- **Lightweight updates, local analysis**: install the model once, update the plugin separately, and add new papers incrementally.
+- **Private research, local exploration**: discover connections within your own library, without an account.
 - **Keep useful leads**: read later, save to collections and copy references in journal styles as you move from reading to writing.
 - **A consistent workspace**: themes, fonts and language carry across cards, abstracts and networks. Pair it with [Paper Voice](https://github.com/JunyanKang/paper-voice) for listening.
 
@@ -44,10 +42,10 @@ Networks prepare quietly at startup and update as your collection grows, connect
 For **Zotero 10.0.5–10.0.x**, with native macOS and Windows installers. Free and open source.
 
 1. Download the macOS `.dmg` or Windows `.exe` from the [release page](https://github.com/JunyanKang/paper-nexus/releases/latest).
-2. Choose one or more local models. The installer downloads the plugin and models from GitHub.
+2. Choose a topic analysis option and follow the installation steps.
 3. Follow the installer to add the plugin to Zotero, then open a PDF.
 
-Later, check for updates in the plugin. Your models and literature index stay in place.
+Check for future updates directly in the plugin.
 
 [Installation](docs/INSTALL.md) · [User guide](docs/GUIDE.md) · [Research network](docs/NETWORK.md) · [Settings](docs/SETTINGS.md) · [FAQ](docs/FAQ.md) · [Privacy](docs/PRIVACY.md) · [What's new](CHANGELOG.md)
 

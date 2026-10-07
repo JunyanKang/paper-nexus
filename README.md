@@ -26,14 +26,14 @@
 
 **作者网络，回答“谁在和谁合作”。** 搜索作者，查看有共同论文支持的一级或二级合作圈，并回到具体文献。
 
-分组、主题命名与作者合作分析都在本机完成，无需网络模型密钥。启动后自动在后台准备网络，并随文献库更新；重复打开复用已有结果，让已读与未读、熟悉与陌生的工作连起来。
+让分散在文献库里的论文，成为可以探索的研究地图。
 
 <p align="center"><img src="docs/images/topics.png" width="960" alt="主题网络：从研究主题展开和探索论文"></p>
 <p align="center"><img src="docs/images/network.png" width="960" alt="作者合作网络：共同论文连接作者"></p>
 
 ## 为日常科研而设计
 
-- **轻装更新，本地分析**：模型只安装一次，插件独立更新；新文献增量加入自己的网络。
+- **私有文献，本地探索**：无需账号，在自己的文献库中发现研究联系。
 - **线索随手留下**：稍后读、文献夹保存与多种期刊引文格式，衔接阅读和写作。
 - **界面保持一致**：主题、字体与语言贯穿卡片、摘要和网络；与 [Paper Voice](https://github.com/JunyanKang/paper-voice) 相伴使用。
 
@@ -42,10 +42,10 @@
 适用于 **Zotero 10.0.5–10.0.x**，提供 macOS、Windows 安装器，免费开源。
 
 1. 在 [发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载对应系统的安装器：macOS `.dmg`／Windows `.exe`。
-2. 选择一个或多个本地模型，安装器从 GitHub 获取插件和模型。
+2. 选择适合的主题分析方案，按提示完成安装。
 3. 按安装器提示将插件添加到 Zotero，打开 PDF 开始阅读。
 
-日后在插件内检查更新，模型和文献索引继续保留。
+日后可直接在插件内检查更新。
 
 
 [安装帮助](docs/INSTALL.md) · [使用指南](docs/GUIDE.md) · [文献网络](docs/NETWORK.md) · [设置与服务](docs/SETTINGS.md) · [常见问题](docs/FAQ.md) · [隐私说明](docs/PRIVACY.md) · [更新记录](CHANGELOG.md)
