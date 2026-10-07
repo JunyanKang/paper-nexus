@@ -2,6 +2,12 @@
 var CiteLensI18n = {
  catalogs:{
   "en": {
+    "返回上一级": "Back",
+    "适应当前视图": "Fit view",
+    "打开 DOI": "Open DOI",
+    "完整作者列表": "Full author list",
+    "放大": "Zoom in",
+    "缩小": "Zoom out",
     "重试翻译": "Retry translation",
     "透明度": "Transparency",
     "主题": "Theme",

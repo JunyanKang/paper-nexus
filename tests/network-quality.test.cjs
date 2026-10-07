@@ -70,3 +70,12 @@ test('metadata alignment rejects duplicate same-name authors and conflicting ide
  const rows=N.enrichCreators([person('J.','Smith')],[known,person('John','Smith')]);assert.equal(rows[0].ORCID,undefined);assert.equal(rows[0].firstName,'J.');
  const duplicate=N.enrichCreators([person('J.','Smith'),person('Jane','Smith')],[known]);assert.ok(duplicate.every(r=>!r.ORCID));
 });
+
+test('specific shared concepts reconnect sparse semantic neighbors but never unrelated homonyms',()=>{
+ const nodes=[paper('a','Retinal ganglion cell regeneration',[]),paper('b','Retinal ganglion cell repair',[]),paper('c','Retinal ganglion cell microscopy',[])],vectors=[[1,0,0],[.48,Math.sqrt(1-.48**2),0],[0,0,1]],g=M.topics(M.build({nodes,edges:[],mode:'topics'}),{vectors});
+ assert.ok(g.groups.some(x=>x.members.includes('a')&&x.members.includes('b')));assert.ok(!g.groups.some(x=>x.members.includes('a')&&x.members.includes('c')));
+});
+test('sibling concepts avoid generic and repeated labels without numeric suffixes',()=>{
+ const nodes=['Light adaptation in retinal ganglion cells','Light damage in photoreceptor outer segments','Light responses in visual cortex'].map((title,i)=>paper('p'+i,title,[])),vectors=[[1,0,0],[0,1,0],[0,0,1]],g=M.topics(M.build({nodes,edges:[],mode:'topics'}),{vectors});
+ assert.equal(new Set(g.nodes.map(n=>n.title.toLowerCase())).size,3);assert.ok(g.nodes.every(n=>n.title&&!/^Light$|Unclassified research|\s\d+$/.test(n.title)));assert.ok(g.nodes.every(n=>nodes.some(p=>p.title.toLowerCase().includes(n.title.toLowerCase()))));
+});

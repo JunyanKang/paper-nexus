@@ -2,7 +2,7 @@ var CiteLens = {
   id:'cite-lens@local.research',name:'Paper Nexus',label:'Paper Nexus',homepage:'https://github.com/JunyanKang/paper-nexus',toolbarNodes:new WeakMap(),readers:new Map(),panels:new Map(),windows:new Map(),dead:false,
   async start() {
     this.dead=false;this.stopTask=null;this.assetResource='paper-nexus-'+this.version.replace(/\./g,'-')+'-'+Services.uuid.generateUUID().toString().replace(/[{}]/g,'');this.ensureAssets();
-    await Zotero.uiReadyPromise;await CiteLensServices.init();CiteLensTranslation.init();await CiteLensThemes.initialize();this.dead=false;CiteLensSemantic.start();CiteLensUpdater.start(this).catch(e=>Zotero.logError(e));this.prepareNetwork().catch(e=>Zotero.logError(e));this.prepareModels().catch(e=>Zotero.logError(e));
+    await Zotero.uiReadyPromise;await CiteLensServices.init();CiteLensTranslation.init();await CiteLensThemes.initialize();this.dead=false;CiteLensSemantic.start();CiteLensUpdater.start(this).catch(e=>Zotero.logError(e));this.prepareNetwork().catch(e=>Zotero.logError(e));this.prepareModels().catch(e=>Zotero.logError(e));Promise.all([this.prepareNetwork(),this.prepareModels()]).then(()=>{if(!this.dead)CiteLensNetwork.scheduleWarmup(12000);}).catch(e=>Zotero.logError(e));
     this.toolbarHandler=e=>{if(this.dead)return;const button=this.toolbar(e.doc,e.reader);if(!button.isConnected)e.append(button);this.normalizeToolbar(e.doc);e.doc.defaultView.setTimeout(()=>{if(!this.dead)this.normalizeToolbar(e.doc);},0);};
     Zotero.Reader.registerEventListener('renderToolbar',this.toolbarHandler,this.id);
     for(const win of Zotero.getMainWindows())this.addWindow(win);

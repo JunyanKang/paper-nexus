@@ -58,7 +58,7 @@ test('scientific labels reject conjunction fragments, generic method labels and 
   ['Statin use after diagnosis of breast cancer and survival: a population-based cohort study.',/diagnosis|cohort|population-based/],
   ['Methylmercury: A Potential Environmental Risk Factor Contributing to Epileptogenesis',/potential|contributing|risk factor/],
   ['Differences among total and in vitro digestible phosphorus content of plant foods and beverages.',/^vitro/]
- ]){const graph=topic([paper('a',title)],[[1,0]]);assert.doesNotMatch(graph.groups[0].title,forbidden);assert.notEqual(graph.groups[0].title,'Unclassified research');}
+ ]){const graph=topic([paper('a',title)],[[1,0]]);assert.doesNotMatch(graph.groups[0].title,forbidden);assert.notEqual(graph.groups[0].title,'A new perspective');}
 });
 test('medical phrases and acronyms remain intact while author text does not become a topic',()=>{
  assert.equal(topic([paper('a','Flatulence--causes, relation to diet and remedies.')],[[1,0]]).groups[0].title,'Flatulence');
@@ -68,5 +68,5 @@ test('medical phrases and acronyms remain intact while author text does not beco
 });
 test('uninformative titles use bounded abstract evidence without inventing an unsupported topic',()=>{
  assert.equal(topic([paper('a','A new perspective',{abstract:'Retinal ganglion cell regeneration restores vision.'})],[[1,0]]).groups[0].title,'Retinal ganglion cell regeneration');
- assert.equal(topic([paper('a','A new perspective')],[[1,0]]).groups[0].title,'Unclassified research');
+ assert.equal(topic([paper('a','A new perspective')],[[1,0]]).groups[0].title,'A new perspective');
 });

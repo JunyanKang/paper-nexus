@@ -33,7 +33,12 @@ var CiteLensNetworkMap=(()=>{
     const previous=phrases.get(key);if(!previous||isTitle&&!previous.inTitle)phrases.set(key,{key,text:part.join(' '),size,exact,inTitle:isTitle});
    }
   }
-  const priority=p=>Number(p.inTitle)*100+Number(p.exact)*8+Math.min(p.size,4);const bounded=new Map([...phrases].sort((a,b)=>priority(b[1])-priority(a[1])||a[0].localeCompare(b[0])).slice(0,128));phraseCache.set(n.id,{signature,phrases:bounded});while(phraseCache.size>800)phraseCache.delete(phraseCache.keys().next().value);return bounded;
+  const priority=p=>Number(p.inTitle)*100+Number(p.exact)*8+Math.min(p.size,4);const bounded=new Map([...phrases].sort((a,b)=>priority(b[1])-priority(a[1])||a[0].localeCompare(b[0])).slice(0,128));phraseCache.set(n.id,{signature,phrases:bounded});while(phraseCache.size>2000)phraseCache.delete(phraseCache.keys().next().value);return bounded;
+ }
+ function conceptCandidates(n){
+  const rows=[...phraseCandidates(n).values()],lexicon=typeof CiteLensTopicLexicon==='undefined'?{has:()=>false}:CiteLensTopicLexicon;
+  for(const span of C.researchTitle(n).split(/[.!?:;,()\[\]\n]/)){const words=span.toLowerCase().match(/[\p{L}][\p{L}\p{M}0-9-]*/gu)||[];for(let size=2;size<=5;size++)for(let at=0;at+size<=words.length;at++){const text=words.slice(at,at+size).join(' ');if(lexicon.has(text)||lexicon.has(text+'s'))rows.push({text,key:text.replace(/s$/,''),size,inTitle:true});}}
+  return [...new Map(rows.map(p=>[p.key,p])).values()];
  }
  function labelIndex(all,groups=null,vectors=null,needed=null,progress=()=>{}){
   const global=new Map(),terms=new Map(),phrases=new Map(),classWords=new Map();let done=0;
@@ -42,21 +47,35 @@ var CiteLensNetworkMap=(()=>{
   const classFrequency=new Map();for(const rows of phrases.values())for(const p of rows.values())if(!classFrequency.has(p.key)){const words=NC.terms(p.text),sets=words.map(w=>classWords.get(w)||new Set()).sort((a,b)=>a.size-b.size);classFrequency.set(p.key,sets.length?[...sets[0]].filter(id=>sets.every(set=>set.has(id))).length:1);}
   return{global,terms,phrases,classFrequency,classCount:classes.length,vectors:vectors?new Map(all.map((n,i)=>[n.id,vectors[i]])):null};
  }
- function label(members,all,stats){
+ function label(members,all,stats,excluded=new Set()){
   if(members.every(n=>/^(?:biography|obituary|in memoriam)\b/i.test(C.researchTitle(n))))return 'Scientific biographies';
   if(members.every(n=>/^(?:series page|contents|editorial board|front matter|copyright|index)\b/i.test(C.researchTitle(n))))return 'Publication information';
   stats ||= labelIndex(all);const phrases=new Map(),vectors=members.map(n=>stats.vectors?.get(n.id)).filter(v=>Array.isArray(v)&&v.length),centroid=vectors.length?CiteLensSemanticCore.normalize(vectors[0].map((_,i)=>vectors.reduce((sum,v)=>sum+v[i],0)/vectors.length)):null;
   for(const n of members){const v=stats.vectors?.get(n.id),central=centroid&&v?Math.max(0,CiteLensSemanticCore.dot(v,centroid)):1;
    for(const p of stats.phrases.get(n.id)||phraseCandidates(n)){const [key,row]=p;if(!phrases.has(key))phrases.set(key,{...row,count:0,titles:0,central:0});const item=phrases.get(key);item.count++;item.titles+=Number(row.inTitle);item.central+=central;}
   }
-  const options=[...phrases.values()],distinct=options.filter(p=>stats.classCount<3||(stats.classFrequency.get(p.key)||1)<stats.classCount*.8),eligible=distinct.length?distinct:options,repeated=eligible.filter(p=>p.count>=2&&p.count/members.length>=.3),supported=repeated.length?repeated:eligible;
+  const generic=/^(?:light|cells?|genes?|assembly|disruption|plasticity|development|regulation|expression|translation|transcription|proteins?|structure|function|research|signaling|signalling|dna|rna|retina|chromatin|aging|maturation|proliferation|synthesis|alignment|ribosome|single cells)$/i;
+  const options=[...phrases.values()].filter(p=>!excluded.has(C.norm(p.text))&&!generic.test(p.text)),distinct=options.filter(p=>stats.classCount<3||(stats.classFrequency.get(p.key)||1)<stats.classCount*.8),eligible=distinct.length?distinct:options,repeated=eligible.filter(p=>p.count>=2&&p.count/members.length>=.3),supported=repeated.length?repeated:eligible;
   const extensions=new Map();for(const q of supported)if(q.size>1){const prefix=q.key.split(' ').slice(0,-1).join(' ');if(!extensions.has(prefix))extensions.set(prefix,[]);extensions.get(prefix).push(q);}const complete=supported.filter(p=>!(extensions.get(p.key)||[]).some(q=>q.count>=p.count*.8&&q.titles>=p.titles*.8));
   const score=p=>{const words=NC.terms(p.text),contrast=words.length?Math.max(...words.map(w=>Math.log1p(all.length/Math.max(1,stats.global.get(w)||1)))):1;
    const coverage=p.count/members.length,classContrast=Math.log1p(stats.classCount/Math.max(1,stats.classFrequency.get(p.key)||1)),fieldSupport=(p.titles+.35*(p.count-p.titles))/members.length,representative=.8+.2*p.central/p.count;
    return coverage**.5*fieldSupport*Math.sqrt(Math.min(4,p.size))*contrast**.7*classContrast*representative*(p.exact?1.1:1)*(p.size===1?.7:1)/(1+Math.max(0,p.size-4)*.25);};
-  const ranked=complete.map(p=>({...p,score:score(p)})).sort((a,b)=>b.score-a.score||a.text.localeCompare(b.text));const best=ranked[0];return best?best.text.charAt(0).toUpperCase()+best.text.slice(1):'Unclassified research';
+  const ranked=complete.map(p=>({...p,score:score(p)})).sort((a,b)=>b.score-a.score||a.text.localeCompare(b.text));const best=ranked[0];return best?best.text.charAt(0).toUpperCase()+best.text.slice(1):fallbackLabel(members,excluded);
  }
 
+ function fallbackLabel(members,excluded=new Set()){
+  // Preserve a real title when NLP lacks a supported concept; never manufacture a scientific label.
+  for(const n of [...members].sort((a,b)=>String(a.id).localeCompare(String(b.id)))){
+   const title=C.researchTitle(n);if(title&&!excluded.has(C.norm(title)))return title;
+  }return '';
+ }
+ function uniqueLabels(groups,papers,vectors=null,progress=()=>{}){
+  const byID=new Map(papers.map(n=>[n.id,n])),stats=labelIndex(papers,groups.map(g=>g.members),vectors,null,progress),used=new Set();
+  for(const g of [...groups].sort((a,b)=>b.members.length-a.members.length||a.id.localeCompare(b.id))){
+   const members=g.members.map(id=>byID.get(id)).filter(Boolean);if(!members.length)continue;
+   g.title=label(members,papers,stats,used);if(g.title)used.add(C.norm(g.title));
+  }
+ }
  function authors(graph){
   const authors=new Map(),pairs=new Map(),teams=new Map(),resolved=NC.authorIdentities(graph.nodes);let unattributed=0;
   for(const paper of graph.nodes){const ids=[];(paper.creators||[]).forEach((creator,position)=>{
@@ -81,15 +100,32 @@ var CiteLensNetworkMap=(()=>{
  function topics(graph,semantic,previous=null,progress=()=>{}){
   const papers=graph.nodes,byID=new Map(papers.map(n=>[n.id,n])),result=CiteLensSemanticCore.graph(papers,semantic.vectors,NC.communities,{previous,signatures:semantic.signatures,progress});
   graph.edges.push(...result.links.map(e=>({source:e.source,target:e.target,kind:'similarity',evidence:[{score:e.score}]})));
-  const decided=result.groups,covered=new Set(decided.flat()),groups=[...decided,...papers.filter(n=>!covered.has(n.id)).map(n=>[n.id])],used=new Set(),prior=previous?.groups||[],signatures=new Map(papers.map((n,i)=>[n.id,semantic.signatures?.[i]||[C.researchTitle(n),n.abstract||'']]));
+  // Reinforce sparse semantic neighborhoods only with specific shared concepts.
+  // Generic methods and very frequent phrases never create a scientific relation.
+  const conceptRows=new Map(),pairs=new Map(),vectorIDs=new Map(papers.map((p,i)=>[p.id,i]));
+  for(const p of papers)for(const candidate of conceptCandidates(p))if(candidate.size>=2&&candidate.inTitle&&!/^(?:single cell sequencing|gene expression|protein expression|cell culture|research article|systematic review)$/i.test(candidate.text)){
+   if(!conceptRows.has(candidate.key))conceptRows.set(candidate.key,[]);conceptRows.get(candidate.key).push(p.id);
+  }
+  for(const [concept,ids] of conceptRows)if(ids.length>=2&&ids.length<=Math.min(24,Math.max(4,papers.length*.08)))for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
+   const score=CiteLensSemanticCore.dot(semantic.vectors[vectorIDs.get(ids[i])],semantic.vectors[vectorIDs.get(ids[j])]);if(score<.46)continue;
+   const pair=[ids[i],ids[j]].sort(),key=JSON.stringify(pair);if(!pairs.has(key))pairs.set(key,{source:pair[0],target:pair[1],score,weight:score*score,concept});
+  }
+  const degrees=new Map(),known=new Set(result.links.map(e=>JSON.stringify([e.source,e.target].sort()))),support=[];
+  for(const [key,e] of [...pairs].sort((a,b)=>b[1].score-a[1].score||a[0].localeCompare(b[0])))if(!known.has(key)&&(degrees.get(e.source)||0)<3&&(degrees.get(e.target)||0)<3){support.push(e);for(const id of [e.source,e.target])degrees.set(id,(degrees.get(id)||0)+1);}
+  graph.edges.push(...support.map(e=>({source:e.source,target:e.target,kind:'similarity',evidence:[{score:e.score,concept:e.concept}]})));
+  const decided=support.length?NC.communities(papers.map(n=>n.id),[...result.links,...support],1.05):result.groups,covered=new Set(decided.flat()),groups=[...decided,...papers.filter(n=>!covered.has(n.id)).map(n=>[n.id])],used=new Set(),prior=previous?.groups||[],signatures=new Map(papers.map((n,i)=>[n.id,semantic.signatures?.[i]||[C.researchTitle(n),n.abstract||'']]));
   graph.groups=groups.map(ids=>{const members=new Set(ids);const match=prior.filter(g=>!used.has(g.id)).map(g=>({g,overlap:g.members.filter(id=>members.has(id)).length})).filter(x=>x.overlap/Math.max(ids.length,x.g.members.length)>=.5).sort((a,b)=>b.overlap-a.overlap||a.g.id.localeCompare(b.g.id))[0]?.g;
-   const id=match?.id||'topic:'+hash(ids.join('\0')).toString(36);used.add(id);const labelKey=JSON.stringify(['noun-contrast-1',...ids.map(id=>[id,signatures.get(id)])]),title=match?.labelKey===labelKey?match.title:'';
+   const id=match?.id||'topic:'+hash(ids.join('\0')).toString(36);used.add(id);const labelKey=JSON.stringify(['concept-contrast-3',...ids.map(id=>[id,signatures.get(id)])]),title=match?.labelKey===labelKey?match.title:'';
    return {id,title,labelKey,members:ids,kind:'topic',local:ids.some(id=>byID.get(id).local),color:hash(id)%6};
   });
   // Stable names are reused for unchanged groups; only changed scientific content
   // incurs part-of-speech analysis. The cache stores names/signatures, not NLP state.
-  const needed=new Set(graph.groups.filter(g=>!g.title).flatMap(g=>g.members));progress({phase:'naming',completed:0,total:needed.size});
-  if(needed.size){const labels=labelIndex(papers,groups,semantic.vectors,needed,progress);for(const g of graph.groups)if(!g.title)g.title=label(g.members.map(id=>byID.get(id)),papers,labels);}progress({phase:'naming',completed:needed.size,total:needed.size});
+  // Repair names at the sibling level, including collisions introduced by incremental updates.
+  uniqueLabels(graph.groups,papers,semantic.vectors,progress);
+  // Identical content can produce identical singleton names. Consolidate those only;
+  // different scientific content is assigned its next evidence-backed phrase above.
+  const canonical=new Map();for(const g of graph.groups){const key=C.norm(g.title)||JSON.stringify(g.members.map(id=>C.researchTitle(byID.get(id))));if(!canonical.has(key))canonical.set(key,g);else canonical.get(key).members.push(...g.members);}
+  graph.groups=[...canonical.values()];progress({phase:'naming',completed:papers.length,total:papers.length});
   const owner=new Map(graph.groups.flatMap(g=>g.members.map(id=>[id,g.id]))),links=new Map();for(const edge of graph.edges){if(!['similarity','cites','related'].includes(edge.kind))continue;const a=owner.get(edge.source),b=owner.get(edge.target);if(!a||!b||a===b)continue;const pair=[a,b].sort(),key=JSON.stringify(pair);if(!links.has(key))links.set(key,{source:pair[0],target:pair[1],kind:'topic-relation',evidence:[]});const list=links.get(key).evidence;if(!list.some(e=>e.sourcePaper===edge.source&&e.targetPaper===edge.target&&e.kind===edge.kind))list.push({sourcePaper:edge.source,targetPaper:edge.target,kind:edge.kind,...(edge.evidence?.[0]||{})});}
   // A second semantic graph relates subtopics, independent of authors and citations.
   // Content-keyed centroids reuse unchanged neighbours when the library grows.
@@ -127,7 +163,7 @@ var CiteLensNetworkMap=(()=>{
   return [...groups.values()].map(g=>g.members.sort()).sort((a,b)=>b.length-a.length||a[0].localeCompare(b[0]));
  }
  function layout(graph,progress=()=>{}){
-  const nodes=graph.nodes,byID=new Map(nodes.map(n=>[n.id,n])),labels=labelIndex(nodes);if(!nodes.length){graph.communities=[];graph.stats.communities=0;return graph;}
+  const nodes=graph.nodes,byID=new Map(nodes.map(n=>[n.id,n])),labels=graph.mode==='topics'?null:labelIndex([]);if(!nodes.length){graph.communities=[];graph.stats.communities=0;return graph;}
   const weight=e=>e.kind==='coauthor'?Math.max(.02,e.strength??e.evidence?.length??1):e.kind==='similarity'?2*(e.evidence?.[0]?.score||.3):e.kind==='cites'?(graph.mode==='topics'?.015:.15):e.kind==='related'?1.5:['author','coauthor','topic-relation'].includes(e.kind)?Math.min(5,1+Math.log2(1+(e.evidence?.length||1))):1;
   const links=graph.edges.map(e=>({...e,weight:weight(e)}));
   // Only scientific similarity attracts topics; citation and coauthor evidence
@@ -159,8 +195,12 @@ var CiteLensNetworkMap=(()=>{
    for(const {a,b,weight:w,local} of physical){const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,ideal=local?55:160,k=(d-ideal)*(local?.014*Math.min(2,w):.0005);a.vx+=dx/d*k;a.vy+=dy/d*k;b.vx-=dx/d*k;b.vy-=dy/d*k;}
    for(const n of nodes){if(n.pinned)continue;n.vx*=.68;n.vy*=.68;n.x+=Math.max(-7,Math.min(7,n.vx));n.y+=Math.max(-7,Math.min(7,n.vy));}if(step%30===0)progress(62+Math.round(step/150*34));
   }
-  for(const n of nodes){delete n.vx;delete n.vy;delete n.layoutFixed;}graph.communities=groups.map(g=>{const members=g.members.map(id=>byID.get(id));return{id:g.id,members:g.members,papers:g.papers,x:members.reduce((s,n)=>s+n.x,0)/members.length,y:members.reduce((s,n)=>s+n.y,0)/members.length};});graph.stats.communities=groups.filter(g=>g.papers>1).length;const degree=new Map(nodes.map(n=>[n.id,new Set()]));for(const e of graph.edges){degree.get(e.source)?.add(e.target);degree.get(e.target)?.add(e.source);}for(const n of nodes)n.degree=degree.get(n.id).size;for(const g of graph.communities){const members=g.members.map(id=>byID.get(id));const authorMembers=members.filter(n=>n.kind==='author').sort((a,b)=>(b.members?.length||0)-(a.members?.length||0)||(b.degree||0)-(a.degree||0)||a.id.localeCompare(b.id));g.title=(graph.mode==='authors'?authorMembers[0]?.title:null)||graph.groups.find(t=>t.members.filter(id=>g.members.includes(id)).length>=Math.max(2,g.members.length/2))?.title||label(members,nodes,labels);g.color=members[0]?.color||0;}return graph;
+  for(const n of nodes){delete n.vx;delete n.vy;delete n.layoutFixed;}graph.communities=groups.map(g=>{const members=g.members.map(id=>byID.get(id));return{id:g.id,members:g.members,papers:g.papers,x:members.reduce((s,n)=>s+n.x,0)/members.length,y:members.reduce((s,n)=>s+n.y,0)/members.length};});graph.stats.communities=groups.filter(g=>g.papers>1).length;const degree=new Map(nodes.map(n=>[n.id,new Set()]));for(const e of graph.edges){degree.get(e.source)?.add(e.target);degree.get(e.target)?.add(e.source);}for(const n of nodes)n.degree=degree.get(n.id).size;for(const g of graph.communities){const members=g.members.map(id=>byID.get(id));const authorMembers=members.filter(n=>n.kind==='author').sort((a,b)=>(b.members?.length||0)-(a.members?.length||0)||(b.degree||0)-(a.degree||0)||a.id.localeCompare(b.id));g.title=(graph.mode==='authors'?authorMembers[0]?.title:null)||graph.groups.find(t=>t.members.filter(id=>g.members.includes(id)).length>=Math.max(2,g.members.length/2))?.title||(graph.mode==='topics'?members.find(n=>n.title)?.title:label(members,nodes,labels));g.color=members[0]?.color||0;}
+  if(graph.mode==='topics'){
+   const papers=graph.paperNodes||[],paperIDs=new Set(papers.map(n=>n.id)),communities=graph.communities.map(g=>({...g,members:[...new Set(g.members.flatMap(id=>{const n=byID.get(id);return n.kind==='paper'?[id]:n.members||[];}))].filter(id=>paperIDs.has(id))}));
+   uniqueLabels(communities,papers);const titles=new Map(communities.map(g=>[g.id,g.title]));for(const g of graph.communities)g.title=titles.get(g.id)||g.title;
+  }return graph;
  }
- return {build,layout,topics,authors,hash,communityGroups};
+ return {build,layout,topics,authors,hash,communityGroups,expandMembers};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkMap;

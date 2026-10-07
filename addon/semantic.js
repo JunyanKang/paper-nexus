@@ -11,6 +11,7 @@ var CiteLensSemantic={
  async key(text,scope=this.version){const bytes=new (Zotero.getMainWindow().TextEncoder)().encode(scope+'\0'+text),buffer=await Zotero.getMainWindow().crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(buffer),x=>x.toString(16).padStart(2,'0')).join('');},
  async persist(){if(!this.store)return;const pending=[...this.pendingVectors];this.pendingVectors.clear();this.write=this.store.put(pending,new Map());try{await this.write;}catch(e){for(const [key,v] of pending)this.pendingVectors.set(key,v);throw e;}},
  async adapter(){if(this.model?.id!=='minilm')return null;if(this.adapterValue!==undefined)return this.adapterValue;this.adapterValue=null;try{const response=await Zotero.getMainWindow().fetch('resource://'+CiteLens.assetResource+'/models/personal/adapter.json');if(response.ok){const value=await response.json();if(CiteLensSemanticCore.validAdapter(value))this.adapterValue=value;}}catch(_){}return this.adapterValue;},
+ setForeground(value){this.foreground=!!value;this.encoder?.postMessage({priority:this.foreground?'foreground':'background'});},
  async encode(texts,options={}){
   if(!this.model&&typeof CiteLensModels!=='undefined')await this.load();
   const epoch=this.encodeEpoch;
@@ -23,7 +24,7 @@ var CiteLensSemantic={
   const win=Zotero.getMainWindow();return new Promise((resolve,reject)=>{let worker,timer,done=false;
    const dispose=()=>{if(!worker)return;win.clearTimeout(worker.idleTimer);worker.terminate();this.workers.delete(worker);if(this.encoder===worker)this.encoder=null;};
    const finish=(error,result)=>{if(done)return;done=true;win.clearTimeout(timer);signal?.removeEventListener('abort',cancel);if(error)dispose();else worker.idleTimer=win.setTimeout(dispose,8000);error?reject(error):resolve(result);},cancel=()=>finish(Error('已取消'));
-   try{CiteLens.ensureAssets?.();worker=this.encoder;if(!worker){worker=new win.ChromeWorker('resource://'+CiteLens.assetResource+'/semantic-worker.js');this.encoder=worker;this.workers.add(worker);}win.clearTimeout(worker.idleTimer);
+   try{CiteLens.ensureAssets?.();worker=this.encoder;if(!worker){worker=new win.ChromeWorker('resource://'+CiteLens.assetResource+'/semantic-worker.js');this.encoder=worker;this.workers.add(worker);}win.clearTimeout(worker.idleTimer);worker.postMessage({priority:this.foreground?'foreground':'background'});
     worker.cancel=()=>{if(done)dispose();else cancel();};worker.onmessage=e=>{const data=e.data;if(data.error)finish(Error(data.error));else if(data.ready){worker.ready=true;worker.postMessage({id:'encode',texts});}else if(data.vectors)finish(null,data.vectors);else if(data.progress)progress(data.progress,data.total);};worker.onerror=()=>finish(Error('本地模型加载失败，请在设置中重新安装模型'));signal?.addEventListener('abort',cancel,{once:true});timer=win.setTimeout(()=>finish(Error('本地模型处理超时，请缩小文献夹范围')),15*60*1000);worker.postMessage(worker.ready?{id:'encode',texts}:{id:'init',init:this.model?{model:this.model.baseURL+'model.onnx',tokenizerURL:this.model.baseURL+'tokenizer.json',wasm:this.model.baseURL+'runtime.wasm',pooling:this.model.pooling,maxTokens:this.model.maxTokens}:{}});
    }catch(_){finish(Error('本地模型加载失败，请在设置中重新安装模型'));}
   });

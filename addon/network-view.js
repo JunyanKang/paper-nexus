@@ -49,7 +49,7 @@ var CiteLensNetworkView=(()=>{
    if(community){const group=byCommunity.get(community),ids=new Set(group?.members||[]);for(const n of model.nodes)if(ids.has(n.id)){nodes.push(n);owner.set(n.id,n.id);}}
    else for(const g of model.communities){const members=g.members.map(id=>index.byID.get(id)).filter(Boolean);if(!members.length)continue;if(members.length===1){nodes.push(members[0]);owner.set(members[0].id,members[0].id);continue;}
     const representative=(model.mode==='authors'&&members.find(n=>n.kind==='author'&&n.title===g.title))||[...members].filter(n=>n.kind!=='paper').sort((a,b)=>(b.members?.length||0)-(a.members?.length||0)||(b.degree||0)-(a.degree||0)||a.id.localeCompare(b.id))[0]||members[0];
-    const node={id:g.id,kind:'community',title:representative.title,representative:representative.id,members:g.members,color:g.color,local:members.some(n=>n.local),x:g.x,y:g.y,degree:0};nodes.push(node);for(const n of members)owner.set(n.id,g.id);
+    const node={id:g.id,kind:'community',title:model.mode==='topics'?(g.title||representative.title):representative.title,representative:representative.id,members:g.members,color:g.color,local:members.some(n=>n.local),x:g.x,y:g.y,degree:0};nodes.push(node);for(const n of members)owner.set(n.id,g.id);
    }
    const combined=new Map(),sourceEdges=index.detail?[...model.edges.filter(e=>e.source!==index.detail.id&&e.target!==index.detail.id),...index.detail.relations]:model.edges;
    for(const e of sourceEdges){const a=owner.get(e.source),b=owner.get(e.target);if(!a||!b||a===b)continue;const pair=[a,b].sort(),key=JSON.stringify(pair);if(!combined.has(key))combined.set(key,{source:pair[0],target:pair[1],kind:e.kind,kinds:new Set(),directions:[],signals:new Set()});const edge=combined.get(key);edge.kinds.add(e.kind);for(const proof of e.evidence||[])edge.signals.add(proof.paperID||JSON.stringify([proof.sourcePaper,proof.targetPaper].sort()));if(!e.evidence?.length)edge.signals.add(JSON.stringify([e.source,e.target].sort()));}
@@ -89,7 +89,10 @@ var CiteLensNetworkView=(()=>{
  function labels(candidates,width,height){
   const grid=new Map(),accepted=[],cell=48;
   const cells=r=>{const out=[];for(let x=Math.floor(r.x/cell);x<=Math.floor((r.x+r.w)/cell);x++)for(let y=Math.floor(r.y/cell);y<=Math.floor((r.y+r.h)/cell);y++)out.push(x+','+y);return out;};
-  for(const c of candidates.sort((a,b)=>b.priority-a.priority||a.id.localeCompare(b.id))){const r=c.rect;if(r.x<6||r.y<5||r.x+r.w>width-6||r.y+r.h>height-62)continue;const keys=cells(r),occupied=keys.flatMap(k=>grid.get(k)||[]);if(occupied.some(o=>r.x<o.x+o.w&&r.x+r.w>o.x&&r.y<o.y+o.h&&r.y+r.h>o.y))continue;accepted.push(c);for(const key of keys){if(!grid.has(key))grid.set(key,[]);grid.get(key).push(r);}}
+  for(const c of candidates.sort((a,b)=>b.priority-a.priority||a.id.localeCompare(b.id))){
+   const placements=[[0,0],[0,-c.rect.h-2*(c.r||5)-8],[c.rect.w/2+12,-12],[-c.rect.w/2-12,-12],[0,23],[0,-48],[0,46],[0,-71],[c.rect.w/2+12,20],[-c.rect.w/2-12,20]];
+   for(const [dx,dy] of placements){const r={...c.rect,x:c.rect.x+dx,y:c.rect.y+dy};if(r.x<6||r.y<5||r.x+r.w>width-6||r.y+r.h>height-35)continue;const keys=cells(r),occupied=keys.flatMap(k=>grid.get(k)||[]);if(occupied.some(o=>r.x<o.x+o.w&&r.x+r.w>o.x&&r.y<o.y+o.h&&r.y+r.h>o.y))continue;accepted.push({...c,dx,dy});for(const key of keys){if(!grid.has(key))grid.set(key,[]);grid.get(key).push(r);}break;}
+  }
   return accepted;
  }
  return{nearest,magnetic,opacity,wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,emphasis,detail};

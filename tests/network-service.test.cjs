@@ -59,3 +59,9 @@ test('cancelled and failed jobs can retry; prepared graphs replace the unprepare
  const view=await s.N.presentation(retried);assert.equal(await retried.promise,view.graph);assert.equal(retried.value,view.graph);assert.notEqual(retried.value,initial);
  retried.controller.abort();const next=s.N.graphJob(snapshot,p);assert.notEqual(next,retried);await next.promise;assert.equal(attempts,3);
 });
+
+test('startup warmup prepares both modes silently and shares jobs with later views',async()=>{
+ const s=await cacheService();s.ctx.Zotero.getMainWindow=()=>({AbortController});s.ctx.Zotero.getActiveZoteroPane=()=>({getSelectedLibraryID:()=>1});s.ctx.Zotero.Promise={delay:()=>Promise.resolve()};s.ctx.CiteLensModels={installed:new Map([['local',{}]]),selected:()=> 'local'};
+ const data={nodes:[{id:'1',libraryID:1,collections:[]}],edges:[],collections:[]};s.N.snapshot=async()=>data;s.N.presentation=j=>j.promise;let calls=0;s.N.map=async p=>{calls++;return{nodes:[],mode:p.mode};};await s.N.warmup();assert.equal(s.N.views.size,0);assert.equal(calls,4);await s.N.warmup();assert.equal(calls,4);assert.equal(s.N.graphJobs.size,4);
+ const job=s.N.graphJob(data,{mode:'topics',cacheKey:'1:',limit:Number.MAX_SAFE_INTEGER,openEntities:[]});await job.promise;assert.equal(calls,4);
+});

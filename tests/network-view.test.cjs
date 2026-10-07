@@ -32,3 +32,8 @@ test('pointer attraction stays local, releases to rest and preserves graph coord
  V.magnetic(offsets,new Map([['a',{x:8,y:2}]]),16,true);assert.equal(offsets.size,0);
  let alpha=1;for(let i=0;i<100;i++)alpha=V.opacity(alpha,.32,16);assert.equal(alpha,.32);
 });
+
+test('nearby labels use alternative placements before hiding text',()=>{
+ const a={id:'a',priority:2,rect:{x:120,y:120,w:70,h:19},p:{x:155,y:110},r:5},b={id:'b',priority:1,rect:{x:140,y:122,w:70,h:19},p:{x:175,y:112},r:5};
+ const labels=V.labels([a,b],500,400);assert.equal(labels.length,2);assert.ok(labels.some(x=>x.dx||x.dy));
+});
