@@ -57,6 +57,11 @@ var CiteLensNetworkUI={
    if(pointer&&hover&&!drag&&!moving&&!reduced.matches){const n=visualIndex.byID.get(hover);if(n){const dx=pointer.x-(n.x*camera.k+camera.x),dy=pointer.y-(n.y*camera.k+camera.y),scale=Math.min(.24,9/Math.max(1,Math.hypot(dx,dy))),offset={x:dx*scale,y:dy*scale};targets.set(n.id,offset);let count=0;for(const id of visualIndex.adj.get(n.id)||[]){if(id===n.id)continue;if(++count>10)break;targets.set(id,{x:offset.x*.2,y:offset.y*.2});}}}
    feedbackPending=V.magnetic(magnet,targets,dt,reduced.matches);
    const screen=n=>({x:n.x*camera.k+camera.x+(magnet.get(n.id)?.x||0),y:n.y*camera.k+camera.y+(magnet.get(n.id)?.y||0)});
+   // Overview retains a bounded preview of actual members and their real links.
+   // Only the group is interactive here; individual labels belong to drill-down.
+   const contextByID=scene.contextByID;
+   for(const e of scene.contextEdges||[]){const a=screen(contextByID.get(e.source)),b=screen(contextByID.get(e.target)),group=scene.contextOwner.get(e.source),active=!near||near.has(group);ctx.globalAlpha=active?.13:.045;ctx.strokeStyle=palette[contextByID.get(e.source).color];ctx.lineWidth=.65;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+   for(const n of scene.contextNodes||[]){const p=screen(n),group=scene.contextOwner.get(n.id),active=!near||near.has(group);if(p.x<0||p.x>dimensions.w||p.y<0||p.y>dimensions.h)continue;ctx.globalAlpha=active?.58:.18;ctx.fillStyle=palette[n.color];ctx.beginPath();ctx.arc(p.x,p.y,Math.max(1.5,Math.min(3,2.4*Math.sqrt(camera.k))),0,Math.PI*2);ctx.fill();}
    let edgesDrawn=0;const citationBundles=new Set();ctx.lineCap='round';
    for(const e of scene.edges){const active=emphasis.roots.has(e.source)||emphasis.roots.has(e.target);if(scene.aggregate&&!focused&&e.kind==='cites'){const a=(scene.index||egoIndex||index).byID.get(e.source),b=(scene.index||egoIndex||index).byID.get(e.target),key=a.community+'|'+b.community;if(citationBundles.has(key))continue;citationBundles.add(key);}
     if(!active&&edgesDrawn>=360)continue;
@@ -79,7 +84,7 @@ var CiteLensNetworkUI={
    labelHits=labels.map(c=>({id:c.id,x:c.rect.x+(c.dx||0),y:c.rect.y+(c.dy||0),w:c.rect.w,h:c.rect.h}));frame._pnLabels=labelHits;for(const c of labels){ctx.globalAlpha=c.alpha;ctx.font=(c.picked||c.group?'600 ':'500 ')+c.size+'px '+font;ctx.strokeStyle=paper;ctx.lineWidth=4;ctx.strokeText(c.label+c.count,c.p.x+(c.dx||0),c.p.y+c.r+17+(c.dy||0));ctx.fillStyle=c.picked?accent:c.group?muted:ink;ctx.fillText(c.label+c.count,c.p.x+(c.dx||0),c.p.y+c.r+17+(c.dy||0));}
    ctx.globalAlpha=1;frame._pnScene={aggregate:scene.aggregate,nodes:nodesDrawn,edges:edgesDrawn,labels:labels.length,emphasized:near?.size??nodesDrawn,searchActive:emphasis.searching,matched:matches.size,moving,paintMS:win.performance.now()-started};frame._pnMotion={hover,selected,offsets:[...magnet].map(([id,p])=>({id,x:p.x,y:p.y})),pending:feedbackPending};if(pending||morph||feedbackPending)draw();
   }
-  function hitPoint(p){if(!p)return null;const label=labelHits.find(r=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h);return (label&&scene?.nodes.find(n=>n.id===label.id))||V.nearest(scene?.nodes||[],p,camera,hover);}
+  function hitPoint(p){if(!p)return null;const label=labelHits.find(r=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h);const direct=(label&&scene?.nodes.find(n=>n.id===label.id))||V.nearest(scene?.nodes||[],p,camera,hover);if(direct)return direct;const member=V.nearest(scene?.contextNodes||[],p,camera,'',12);return member?scene.nodes.find(n=>n.id===scene.contextOwner.get(member.id)):null;}
   function hit(e){const r=canvas.getBoundingClientRect();return hitPoint({x:e.clientX-r.left,y:e.clientY-r.top});}
   async function showSearch(){
    const ticket=++searchEpoch,query=search.value.trim();clearSearch.disabled=!search.value;suggestions.replaceChildren();if(model){model.searchActive=!!query;model.matches=[];sceneKey='';}

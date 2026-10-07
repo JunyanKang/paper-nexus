@@ -50,11 +50,11 @@ var CiteLensCore = (() => {
     let journal=!book&&!chapter && parts.length>1?parts.slice(1).join('. ').replace(/\s+\d.*$/,'').replace(/[.,]+$/,''):'';
     // A question/exclamation mark can terminate a title without a following period.
     // Require a journal + volume + page tail, so internal questions stay in the title.
-    if(!book&&!chapter){const end=tail.match(/^(.{12,}[?!])\s+([\p{Lu}][\p{L}\s.&’'–-]{1,100}?)\s+(\d+)(?:\s*\([^)]*\))?[,;:]\s*\d+(?:[-–]\d+)?[.]?$/u);if(end&&!journal){title=end[1];journal=clean(end[2]).replace(/[.,]+$/,'');}}
+    if(!book&&!chapter){const end=tail.match(/^(.{12,}[?!])\s+([\p{Lu}][\p{L}\s.&’'–-]{1,100}?)\s+(\d+)(?:\s*\([^)]*\))?[,;:]\s*\d+(?:[-–]\d+)?[.]?$/u);if(end&&(!journal||/^(?:[A-Z][a-z]{0,5}\.\s*){1,8}$/.test(end[2]))){title=end[1];journal=clean(end[2]).replace(/[.,]+$/,'');}}
     const creators=[];
     const rx=/([\p{L}][\p{L}'’\- ]+),\s*((?:[A-Z]\.\s*){1,5})/gu;
     const authorMatches=[...creatorText.matchAll(rx)];
-    for(const m of authorMatches)creators.push({lastName:m[1].trim(),firstName:m[2].replace(/\s+/g,''),creatorType:'author'});
+    for(const m of authorMatches)creators.push({lastName:m[1].trim().replace(/^(?:and|&)\s+/i,''),firstName:m[2].replace(/\s+/g,''),creatorType:'author'});
     if(title===raw&&authorMatches.length){const last=authorMatches.at(-1),rest=creatorText.slice(last.index+last[0].length).replace(/^[\s,&]+/,'').replace(/^et al\.\s*/,'');const split=rest.match(/^(.{12,}?)\.\s+(.+)$/);if(split){title=split[1];journal=split[2].replace(/\s+\d.*$/,'').replace(/[.,(\s]+$/,'');}}
     if(!creators.length){for(const part of creatorText.replace(/et al\.?/g,'').split(',')){const m=part.trim().replace(/[\s(.]+$/,'').match(/^([\p{L}][\p{L}'’\- ]+?)\s+([A-Z]{1,5})$/u);if(m)creators.push({lastName:m[1],firstName:m[2],creatorType:'author'});}}
     if(!creators.length&&author)creators.push({lastName:author,firstName:'',creatorType:'author'});

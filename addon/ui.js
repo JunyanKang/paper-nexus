@@ -105,6 +105,7 @@ var CiteLensUI = {
   bindAbstract(doc,card,title,getRecord) {
     const win=doc.defaultView;let timer;
     title.removeAttribute('title');title.tabIndex=0;title.setAttribute('role','button');title.setAttribute('aria-label',title.textContent+'；查看文献摘要');title.setAttribute('aria-expanded','false');
+    const initialRecord=getRecord(),cached=CiteLensAbstracts.cached(CiteLensServices,initialRecord);title.dataset.abstractState=cached?.status||(String(initialRecord.abstract||initialRecord.abstractNote||'').length>=80?'available':'unknown');
     const open=()=>{win.clearTimeout(timer);if(title.isConnected)this.abstractPopover(doc,card,title,getRecord);};
     title.addEventListener('pointerenter',()=>{win.clearTimeout(timer);timer=win.setTimeout(open,320);});
     title.addEventListener('pointerleave',()=>win.clearTimeout(timer));
@@ -177,10 +178,11 @@ var CiteLensUI = {
     const resize=new win.ResizeObserver(()=>{if(!drag&&!resizing)position();});resize.observe(panel);cleanups.push(()=>resize.disconnect());
     const observer=new win.MutationObserver(()=>{if(!title.isConnected||!panel.isConnected)close(true);});observer.observe(doc.body||doc.documentElement,{childList:true,subtree:true});cleanups.push(()=>observer.disconnect());
     let requestTicket=0;
-    const load=async(force=false)=>{const ticket=++requestTicket;loading=true;translationTicket++;abstractResult=null;displayMode='original';content.classList.remove('cl-translated','cl-bilingual');modes.hidden=true;translationStatus.textContent='';retry.disabled=true;body.style.minHeight=Math.min(body.clientHeight,180)+'px';content.dataset.uiStatus='true';content.textContent='正在读取摘要…';body.setAttribute('aria-busy','true');source.replaceChildren();facts.replaceChildren();position();
+    const load=async(force=false)=>{const ticket=++requestTicket;loading=true;title.dataset.abstractState='loading';translationTicket++;abstractResult=null;displayMode='original';content.classList.remove('cl-translated','cl-bilingual');modes.hidden=true;translationStatus.textContent='';retry.disabled=true;body.style.minHeight=Math.min(body.clientHeight,180)+'px';content.dataset.uiStatus='true';content.textContent='正在读取摘要…';body.setAttribute('aria-busy','true');source.replaceChildren();facts.replaceChildren();position();
       if(typeof CiteLensNetwork!=='undefined')CiteLensNetwork.prioritizeAbstract(record);let result;try{result=await CiteLensAbstracts.lookup(CiteLensServices,record,{force});}catch(_){result={status:'offline'};}
-      if(closed||ticket!==requestTicket||!title.isConnected||CiteLensCore.identity(getRecord())!==key)return;
-      if(result.status==='available'&&typeof CiteLensNetwork!=='undefined')CiteLensNetwork.acceptAbstract(record,result);if(result.status==='available')result={...result,text:CiteLensCore.abstractBody(result.text,result.record||record)};loading=false;abstractResult=result;modes.hidden=result.status!=='available';body.setAttribute('aria-busy','false');body.style.minHeight='';retry.disabled=false;retry.hidden=result.status==='available';
+      if(ticket!==requestTicket||!title.isConnected||CiteLensCore.identity(getRecord())!==key)return;
+      title.dataset.abstractState=result.status;if(closed)return;
+      if(result.status==='available'&&typeof CiteLensNetwork!=='undefined')CiteLensNetwork.acceptAbstract(record,result);if(result.status==='available')result={...result,text:CiteLensCore.abstractBody(result.text,result.record||record)};loading=false;title.dataset.abstractState=result.status;abstractResult=result;modes.hidden=result.status!=='available';body.setAttribute('aria-busy','false');body.style.minHeight='';retry.disabled=false;retry.hidden=result.status==='available';
       if(retry.hidden&&doc.activeElement===retry){panel.tabIndex=-1;panel.focus({preventScroll:true});}
       content.dataset.uiStatus=String(result.status!=='available');content.textContent=result.status==='available'?result.text:result.status==='offline'?'暂时无法连接摘要服务，请重试。':'公开来源暂未返回可匹配的摘要。';
       if(result.status==='available'){

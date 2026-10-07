@@ -5,8 +5,8 @@ from pathlib import Path
 def revisions(root=None):
     root=root or Path(__file__).resolve().parents[1]
     groups={
-        'topics':['network.js','core.js','network-core.js','network-map.js','semantic-core.js','topic-concepts.js','topic-lexicon.js','semantic-kernel.js'],
-        'authors':['network.js','core.js','authors.js','network-core.js','network-map.js'],
+        'topics':['network.js','core.js','network-core.js','network-map.js','semantic-core.js','topic-concepts.js','topic-lexicon.js','semantic-kernel.js','network-view.js'],
+        'authors':['network.js','core.js','authors.js','network-core.js','network-map.js','semantic-core.js','network-view.js'],
         'abstracts':['network.js','core.js','authors.js','abstracts.js'],
         'input':['core.js','semantic.js','semantic-core.js','semantic-worker.js'],
         'enhancement':['network-enhancement.js','network-core.js','core.js','abstracts.js','authors.js'],

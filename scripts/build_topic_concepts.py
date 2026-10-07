@@ -17,13 +17,13 @@ with gzip.open(source,'rb') as stream:
    natural=[n for n in dict.fromkeys([preferred]+terms) if re.fullmatch(r"[A-Za-z][A-Za-z0-9 '\-]{2,74}",n) and len(n.split())<=7]
    if not natural:continue
    label=preferred if preferred in natural else min(natural,key=lambda s:(len(s.split())<2,len(s)))
-   aliases=sorted(set(n.lower() for n in natural));rows.append([concept.findtext('ConceptUI'),label,trees,aliases,descriptor])
+   aliases=sorted(set(n.lower() for n in natural));acronyms=sorted({n.lower() for n in natural if re.fullmatch(r'[A-Z][A-Z0-9-]{1,7}',n) and not any(t==n.lower() for t in natural)});rows.append([concept.findtext('ConceptUI'),label,trees,aliases,descriptor,acronyms])
   r.clear()
 dedup={}
 for row in rows:
  if row[0] not in dedup:dedup[row[0]]=row
  else:
-  old=dedup[row[0]];old[2]=sorted(set(old[2]+row[2]));old[3]=sorted(set(old[3]+row[3]))
+  old=dedup[row[0]];old[2]=sorted(set(old[2]+row[2]));old[3]=sorted(set(old[3]+row[3]));old[5]=sorted(set(old[5]+row[5]))
 rows=list(dedup.values())
 # Stable descriptor IDs retain provenance and disambiguate shared aliases.
 data=json.dumps(rows,ensure_ascii=True,separators=(',',':'))
@@ -33,8 +33,8 @@ var CiteLensTopicConcepts=(()=>{
  const rows=DATA;let index;
  const normalize=s=>String(s).normalize('NFKC').toLowerCase().replace(/[‐‑–—]/g,'-').replace(/\\s+/g,' ').trim();
  function ready(){if(index)return;index=new Map();rows.forEach((r,i)=>{for(const a of r[3]){const key=normalize(a);if(!index.has(key))index.set(key,[]);index.get(key).push(i);}});}
- function lookup(text){ready();let ids=index.get(normalize(text));if(!ids&&/s$/i.test(text))ids=index.get(normalize(text).slice(0,-1));if(!ids&&!/s$/i.test(text))ids=index.get(normalize(text)+'s');return (ids||[]).map(i=>({id:rows[i][0],title:rows[i][1],trees:rows[i][2],descriptor:rows[i][4]}));}
- return{lookup,normalize,version:'mesh2026-concepts-2'};
+ function lookup(text){ready();let ids=index.get(normalize(text));if(!ids&&/s$/i.test(text))ids=index.get(normalize(text).slice(0,-1));if(!ids&&!/s$/i.test(text))ids=index.get(normalize(text)+'s');return (ids||[]).filter(i=>!rows[i][5].includes(normalize(text))||text===text.toUpperCase()).map(i=>({id:rows[i][0],title:rows[i][1],trees:rows[i][2],descriptor:rows[i][4]}));}
+ return{lookup,normalize,version:'mesh2026-concepts-3'};
 })();
 '''.replace('DATA',data)
 p=Path(__file__).resolve().parents[1]/'addon/topic-concepts.js';p.write_text(script);print(len(rows),'concepts;',p.stat().st_size,'bytes')

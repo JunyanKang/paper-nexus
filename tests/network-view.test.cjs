@@ -37,3 +37,7 @@ test('nearby labels use alternative placements before hiding text',()=>{
  const a={id:'a',priority:2,rect:{x:120,y:120,w:70,h:19},p:{x:155,y:110},r:5},b={id:'b',priority:1,rect:{x:140,y:122,w:70,h:19},p:{x:175,y:112},r:5};
  const labels=V.labels([a,b],500,400);assert.equal(labels.length,2);assert.ok(labels.some(x=>x.dx||x.dy));
 });
+test('overview group previews retain real members and edges without exposing individual hit targets',()=>{
+ const nodes=Array.from({length:40},(_,i)=>({id:'a'+i,kind:'author',title:'Person '+i,x:i,y:i%4,degree:40-i,members:['p']})),edges=nodes.slice(1).map(n=>({source:'a0',target:n.id,kind:'coauthor',evidence:[{paperID:'p'}]})),model={mode:'authors',nodes,edges,communities:[{id:'community:a',title:'Person 0',members:nodes.map(n=>n.id),x:20,y:2,color:0}]},scene=V.scene(model,V.index(model));
+ assert.equal(scene.nodes.length,1);assert.equal(scene.contextNodes.length,24);assert.ok(scene.contextEdges.length>0);assert.ok(scene.contextEdges.every(e=>edges.includes(e)));assert.ok(!scene.index.byID.has('a1'));assert.equal(scene.contextOwner.get('a1'),'community:a');
+});

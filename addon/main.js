@@ -135,10 +135,11 @@ var CiteLens = {
         const list=overlay.references||(overlay.type==='reference'?[overlay]:[]);
         for(const ref of list){const r=CiteLensBibliography.fromReference(ref,runningHeaders);if(r.raw.length<12)continue;const key=CiteLensCore.identity(r);if(!refs.has(key))refs.set(key,r);}
       }
-      // Parse only the bibliography tail around the first native reference, or scan headings if none exist.
-      const native=[...refs.values()],first=native.length?Math.min(...native.map(x=>x.position?.pageIndex??pdf.numPages-1)):0,pages=[];
-      for(let n=Math.max(0,first-1);n<pdf.numPages;n++) {if(this.dead)break;const page=Components.utils.waiveXrays(await pdf.getPage(n+1));pages.push({pageIndex:n,items:(await page.getTextContent()).items,width:Math.abs(page.view[2]-page.view[0]),height:Math.abs(page.view[3]-page.view[1])});await Zotero.Promise.delay(0);}
-      const result=CiteLensBibliography.merge(native,CiteLensBibliography.parse(pages,runningHeaders)).sort((a,b)=>(a.position?.pageIndex||0)-(b.position?.pageIndex||0)||Math.floor((a.position?.rects?.[0]?.[0]||0)/80)-Math.floor((b.position?.rects?.[0]?.[0]||0)/80)||(b.position?.rects?.[0]?.[3]||0)-(a.position?.rects?.[0]?.[3]||0));
+      // Discover the bibliography independently: native overlays can mistake late Methods prose for references.
+      const native=[...refs.values()],pages=[];
+      for(let n=0;n<pdf.numPages;n++) {if(this.dead)break;const page=Components.utils.waiveXrays(await pdf.getPage(n+1));pages.push({pageIndex:n,items:(await page.getTextContent()).items,width:Math.abs(page.view[2]-page.view[0]),height:Math.abs(page.view[3]-page.view[1])});await Zotero.Promise.delay(0);}
+      const local=await CiteLensNetwork.compute('bibliography',{pages,headers:runningHeaders}),validNative=local.length>=3?native.filter(r=>CiteLensBibliography.authorStart(r.raw.replace(/^\[?\d{1,4}\]?[.)]?\s+/,''))&&r.position?.pageIndex>=local[0].position.pageIndex&&r.position?.pageIndex<=local[local.length-1].position.pageIndex):native;
+      const result=CiteLensBibliography.merge(validNative,local).sort((a,b)=>(a.position?.pageIndex||0)-(b.position?.pageIndex||0)||Math.floor((a.position?.rects?.[0]?.[0]||0)/80)-Math.floor((b.position?.rects?.[0]?.[0]||0)/80)||(b.position?.rects?.[0]?.[3]||0)-(a.position?.rects?.[0]?.[3]||0));
       if(result.length&&cacheKey)(async()=>{await CiteLensNetwork.writeCache('refs',cacheKey,{refs:result,runningHeaders,citationPages:state?.citationPages?await this.compactCitationPages(state.citationPages):null});})().catch(e=>Zotero.logError(e));return result;
     })();if(state)state.refPromise=promise;
     try{const refs=await promise;if(state)state.referenceList=refs;CiteLensNetwork.remember(reader,refs).catch(e=>Zotero.logError(e));if(!refs.length&&state)state.refPromise=null;return refs;}catch(e){if(state)state.refPromise=null;throw e;}

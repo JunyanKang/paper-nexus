@@ -45,16 +45,17 @@ var CiteLensNetworkView=(()=>{
  function communityScene(model,index,{selected='',focused=false,k=1,community=''}={}){
   if(!index.projections)index.projections=new Map();const key=community+'|'+(index.detail?.id||'');let projected=index.projections.get(key);
   if(!projected){
-   const owner=new Map(),nodes=[],byCommunity=new Map((model.communities||[]).map(g=>[g.id,g]));
+   const owner=new Map(),nodes=[],contextNodes=[],contextOwner=new Map(),byCommunity=new Map((model.communities||[]).map(g=>[g.id,g]));
    if(community){const group=byCommunity.get(community),ids=new Set(group?.members||[]);for(const n of model.nodes)if(ids.has(n.id)){nodes.push(n);owner.set(n.id,n.id);}}
    else for(const g of model.communities){const members=g.members.map(id=>index.byID.get(id)).filter(Boolean);if(!members.length)continue;if(members.length===1){nodes.push(members[0]);owner.set(members[0].id,members[0].id);continue;}
     const representative=(model.mode==='authors'&&members.find(n=>n.kind==='author'&&n.title===g.title))||[...members].filter(n=>n.kind!=='paper').sort((a,b)=>(b.members?.length||0)-(a.members?.length||0)||(b.degree||0)-(a.degree||0)||a.id.localeCompare(b.id))[0]||members[0];
+    for(const n of [...members].sort((a,b)=>(b.degree||0)-(a.degree||0)||a.id.localeCompare(b.id)).slice(0,24)){if(contextNodes.length>=1200)break;contextNodes.push(n);contextOwner.set(n.id,g.id);}
     const node={id:g.id,kind:'community',title:model.mode==='topics'?(g.title||representative.title):representative.title,representative:representative.id,members:g.members,color:g.color,local:members.some(n=>n.local),x:g.x,y:g.y,degree:0};nodes.push(node);for(const n of members)owner.set(n.id,g.id);
    }
    const combined=new Map(),sourceEdges=index.detail?[...model.edges.filter(e=>e.source!==index.detail.id&&e.target!==index.detail.id),...index.detail.relations]:model.edges;
    for(const e of sourceEdges){const a=owner.get(e.source),b=owner.get(e.target);if(!a||!b||a===b)continue;const pair=[a,b].sort(),key=JSON.stringify(pair);if(!combined.has(key))combined.set(key,{source:pair[0],target:pair[1],kind:e.kind,kinds:new Set(),directions:[],signals:new Set()});const edge=combined.get(key);edge.kinds.add(e.kind);for(const proof of e.evidence||[])edge.signals.add(proof.paperID||JSON.stringify([proof.sourcePaper,proof.targetPaper].sort()));if(!e.evidence?.length)edge.signals.add(JSON.stringify([e.source,e.target].sort()));}
    const edges=[...combined.values()].map(e=>({...e,kinds:[...e.kinds],count:e.signals.size}));for(const e of edges)delete e.signals;edges.sort((a,b)=>b.count-a.count||a.source.localeCompare(b.source));
-   projected={nodes,edges,owner,index:windowlessIndex(nodes,edges)};index.projections.set(key,projected);
+   const contextEdges=sourceEdges.filter(e=>contextOwner.has(e.source)&&contextOwner.get(e.source)===contextOwner.get(e.target)).slice(0,1800);projected={nodes,edges,owner,contextNodes,contextEdges,contextOwner,contextByID:new Map(contextNodes.map(n=>[n.id,n])),index:windowlessIndex(nodes,edges)};index.projections.set(key,projected);
   }
   const mappedSelected=projected.owner.get(selected)||selected,near=projected.index.adj.get(mappedSelected),nodes=focused&&near?projected.nodes.filter(n=>near.has(n.id)):projected.nodes,ids=focused&&near?new Set(nodes.map(n=>n.id)):null;
   return {...projected,nodes,edges:ids?projected.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)):projected.edges,near,matches:[...new Set((model.matches||[]).map(id=>projected.owner.get(id)).filter(Boolean))],aggregate:!community,hidden:model.nodes.length-nodes.length};

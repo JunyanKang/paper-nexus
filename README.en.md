@@ -26,6 +26,8 @@ Hover over a title to open its abstract alongside the card. Missing abstracts ar
 
 **Author networks show who works together.** Find an author, explore direct or second-degree collaborators, and open the shared papers behind each connection.
 
+The overview reveals connections within groups and uses spacing to reflect relationships between them.
+
 Enable **network enrichment** to include papers directly cited by your library and discover connections beyond your saved collection. Preparation runs in the background and can be cancelled at any time.
 
 <p align="center"><img src="docs/images/topics.png" width="960" alt="Research-topic network with papers available on selection"></p>

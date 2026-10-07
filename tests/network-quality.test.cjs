@@ -79,3 +79,50 @@ test('sibling concepts avoid generic and repeated labels without numeric suffixe
  const nodes=['Light adaptation in retinal ganglion cells','Light damage in photoreceptor outer segments','Light responses in visual cortex'].map((title,i)=>paper('p'+i,title,[])),vectors=[[1,0,0],[0,1,0],[0,0,1]],g=M.topics(M.build({nodes,edges:[],mode:'topics'}),{vectors});
  assert.equal(new Set(g.nodes.map(n=>n.title.toLowerCase())).size,3);assert.ok(g.nodes.every(n=>n.title&&!/^Light$|Unclassified research|\s\d+$/.test(n.title)));assert.ok(g.nodes.every(n=>nodes.some(p=>p.title.toLowerCase().includes(n.title.toLowerCase()))));
 });
+test('ontology acronyms retain source case and cannot turn stem cells into microscopy',()=>{
+ const concepts=ctx.CiteLensTopicConcepts;
+ assert.ok(concepts.lookup('STEM').some(c=>/Microscopy/.test(c.title)));assert.ok(!concepts.lookup('stem').some(c=>/Microscopy/.test(c.title)));
+ const nodes=[paper('stem','Early human development and stem cell-based human embryo models',[])],g=M.topics(M.build({nodes,edges:[],mode:'topics'}),{vectors:[[1,0]]});assert.doesNotMatch(g.nodes[0].title,/microscop/i);
+});
+test('topic scope is grounded in the same title and never labels a finite verb as a concept',()=>{
+ const nodes=[paper('a','Retinoic acid regulates foveal development in the human retina',[]),paper('b','Retinoic acid controls foveal development in retinal organoids',[])],g=M.topics(M.build({nodes,edges:[],mode:'topics'}),{vectors:[[1,0],[1,0]]});
+ assert.match(g.nodes[0].title,/retinoic acid.*foveal development/i);assert.ok(g.groups[0].namingEvidence.length>=2);
+ const one=[paper('c','NRF1-mediated innate immune response drives inflammaging',[])],h=M.topics(M.build({nodes:one,edges:[],mode:'topics'}),{vectors:[[1,0]]});assert.doesNotMatch(h.nodes[0].title,/drives?$/i);assert.match(h.nodes[0].title,/immune|immun/i);
+});
+
+test('multilevel communities preserve sparse boundaries, isolates and input-order stability',()=>{
+ const ids=Array.from({length:17},(_,i)=>'p'+String(i).padStart(2,'0')),edges=[];
+ for(let group=0;group<2;group++)for(let i=0;i<8;i++)for(let j=i+1;j<8;j++)edges.push({source:ids[group*8+i],target:ids[group*8+j],weight:1});
+ edges.push({source:ids[0],target:ids[8],weight:.02});const groups=N.multilevelCommunities(ids,edges);
+ assert.deepEqual(JSON.parse(JSON.stringify(groups)),[ids.slice(0,8),ids.slice(8,16),[ids[16]]]);assert.deepEqual(N.multilevelCommunities([...ids].reverse(),[...edges].reverse()),groups);
+});
+test('multilevel aggregation joins local fragments while each final community stays connected',()=>{
+ const ids=Array.from({length:36},(_,i)=>'n'+String(i).padStart(2,'0')),edges=[];
+ for(let block=0;block<6;block++)for(let i=0;i<6;i++)for(let j=i+1;j<6;j++)edges.push({source:ids[block*6+i],target:ids[block*6+j],weight:1});
+ for(let block=0;block<5;block++)edges.push({source:ids[block*6],target:ids[(block+1)*6],weight:.05});
+ const groups=N.multilevelCommunities(ids,edges);assert.equal(new Set(groups.flat()).size,ids.length);
+ for(const group of groups){const seen=new Set([group[0]]);for(let pass=0;pass<group.length;pass++)for(const e of edges)if(group.includes(e.source)&&group.includes(e.target)){if(seen.has(e.source))seen.add(e.target);if(seen.has(e.target))seen.add(e.source);}assert.equal(seen.size,group.length);}
+ assert.ok(groups.length>=6);
+});
+test('high embedding similarity alone cannot collapse unrelated overview subjects',()=>{
+ const titles=['Pulmonary fibrosis','T cell exhaustion','Tryptophan metabolism','Stem cell differentiation'],nodes=titles.map((title,i)=>({id:'topic:'+i,title,kind:'topic',members:[],local:true})),edges=[];for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++)edges.push({source:nodes[i].id,target:nodes[j].id,kind:'topic-relation',evidence:[{kind:'semantic-centroid',score:.9}]});
+ const graph=M.layout({mode:'topics',nodes,edges,groups:[],paperNodes:[],stats:{}});assert.equal(graph.communities.length,4);assert.equal(graph.edges.length,6);
+});
+test('related scientific subtopics form a visible overview group without inventing edges',()=>{
+ const nodes=['Cellular senescence','Cellular senescence in renal ischemia','Macular degeneration'].map((title,i)=>({id:'topic:'+i,title,kind:'topic',members:[],local:true})),edges=[{source:'topic:0',target:'topic:1',kind:'topic-relation',evidence:[{kind:'semantic-centroid',score:.8}]}],g=M.layout({mode:'topics',nodes,edges,groups:[],paperNodes:[],stats:{}});assert.ok(g.communities.some(c=>c.members.length===2));assert.equal(g.edges.length,1);
+});
+
+test('group affinity uses cross-team evidence without favoring team size or repeated scaling',()=>{
+ const groups=['a','b','c'].map(id=>({id,members:[id+'1',id+'2']})),links=groups.map(g=>({source:g.members[0],target:g.members[1],weight:10}));
+ links.push({source:'a1',target:'b1',weight:4},{source:'a2',target:'c1',weight:.2});
+ const a=M.communityRelations(groups,links,'authors'),b=M.communityRelations(groups,links.map(e=>({...e,weight:e.weight*10})),'authors');
+ assert.ok(a[0].affinity>a[1].affinity);assert.ok(a[0].gap<a[1].gap);a.forEach((r,i)=>assert.ok(Math.abs(r.affinity-b[i].affinity)<1e-9));
+});
+test('distinct topic communities stay separate but stronger scientific similarity brings them closer',()=>{
+ const g={mode:'topics',nodes:['Retinal maturation','Synaptic pruning','Neuroinflammation'].map((title,i)=>({id:'t'+i,title,kind:'topic',members:[]})),edges:[{source:'t0',target:'t1',kind:'topic-relation',evidence:[{kind:'semantic-centroid',score:.92}]},{source:'t0',target:'t2',kind:'topic-relation',evidence:[{kind:'semantic-centroid',score:.42}]}],groups:[],paperNodes:[],stats:{}};
+ M.layout(g);assert.equal(g.communities.length,3);const [a,b,c]=g.nodes,d=(x,y)=>Math.hypot(x.x-y.x,x.y-y.y);assert.ok(d(a,b)<d(a,c)*.8,`${d(a,b)} / ${d(a,c)}`);
+});
+test('author groups with repeated cross-team collaboration sit closer than weakly linked teams',()=>{
+ const nodes=[],edges=[];for(let k=0;k<3;k++)for(let i=0;i<8;i++){nodes.push({id:k+':'+i,title:'Team '+k+' Author '+i,kind:'author',members:['p'+k]});for(let j=0;j<i;j++)edges.push({source:k+':'+i,target:k+':'+j,kind:'coauthor',strength:3});}
+ edges.push({source:'0:0',target:'1:0',kind:'coauthor',strength:2},{source:'0:1',target:'1:1',kind:'coauthor',strength:2},{source:'0:0',target:'2:0',kind:'coauthor',strength:.1});const g=M.layout({mode:'authors',nodes,edges,groups:[],stats:{}}),group=k=>g.communities.find(c=>c.members.includes(k+':0')),d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);assert.equal(g.communities.length,3);assert.ok(d(group(0),group(1))<d(group(0),group(2))*.8);
+});

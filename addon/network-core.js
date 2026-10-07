@@ -205,6 +205,29 @@ var CiteLensNetworkCore=(()=>{
     const links=new Map();for(const d of docs){const candidates=new Set(),features=[...d.vector].sort((a,b)=>b[1]-a[1]).slice(0,32);for(const [t] of features){const list=index.get(t),stride=Math.max(1,Math.ceil(list.length/256));for(let i=0;i<list.length;i+=stride)candidates.add(list[i]);}const ranked=[];for(const other of candidates){if(other===d)continue;let dot=0;for(const [t,w] of d.vector)dot+=w*(other.vector.get(t)||0);if(dot>=.24)ranked.push({other,dot});}ranked.sort((a,b)=>b.dot-a.dot||a.other.node.id.localeCompare(b.other.node.id));for(const {other,dot} of ranked.slice(0,8)){const pair=[d.node.id,other.node.id].sort(),key=JSON.stringify(pair);links.set(key,{source:pair[0],target:pair[1],weight:dot*dot});}}
     const byID=new Map(docs.map(d=>[d.node.id,d]));return communities(docs.map(d=>d.node.id),[...links.values()],1.1).filter(g=>g.length>1).map(ids=>{const members=ids.map(id=>byID.get(id)),weights=new Map();for(const d of members)for(const [t,w] of d.vector)weights.set(t,(weights.get(t)||0)+w);const keywords=[...weights].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,3).map(x=>x[0]);return {id:ids[0],keywords,nodes:members.map(d=>d.node),abstracts:members.filter(d=>!!d.node.abstract).length,links:[...links.values()].filter(e=>ids.includes(e.source)||ids.includes(e.target))};});
   }
-  return {id,authorKey,orcid,enrichCreators,authorIdentities,build,neighbors,search,consolidate,workspace,topics,communities,terms,searchIndex,queryIndex,authorConnections,authorNeighborhood};
+ // Multilevel weighted modularity with self-loop-preserving aggregation.
+ // Each level operates on the sparse neighbour graph, never on all paper pairs.
+ function multilevelCommunities(ids,edges,resolution=1.05){
+  let members=[...ids].sort().map(id=>[id]),positions=new Map(members.map((m,i)=>[m[0],i])),adj=members.map(()=>new Map());
+  for(const e of edges){const a=positions.get(e.source),b=positions.get(e.target),w=Number(e.weight)||1;if(a===undefined||b===undefined||a===b||w<=0)continue;adj[a].set(b,(adj[a].get(b)||0)+w);adj[b].set(a,(adj[b].get(a)||0)+w);}
+  for(let level=0;level<8;level++){
+   const degree=adj.map(row=>[...row.values()].reduce((s,w)=>s+w,0)),total=degree.reduce((s,w)=>s+w,0);if(!total)break;
+   const label=members.map((_,i)=>i),volume=[...degree];let moved=false;
+   for(let pass=0;pass<24;pass++){let moves=0;for(let i=0;i<members.length;i++){
+    const k=degree[i];if(!k)continue;const old=label[i],weights=new Map();for(const [j,w] of adj[i])if(j!==i)weights.set(label[j],(weights.get(label[j])||0)+w);
+    volume[old]-=k;const score=c=>(weights.get(c)||0)-(level?Math.max(2,resolution):resolution)*k*volume[c]/total;let best=old,gain=score(old);
+    for(const c of [...weights.keys()].sort((a,b)=>a-b)){const value=score(c);if(value>gain+1e-10){best=c;gain=value;}}
+    label[i]=best;volume[best]+=k;if(best!==old){moves++;moved=true;}
+   }if(!moves)break;}
+   const groups=new Map(),seen=new Set();for(let i=0;i<members.length;i++){if(seen.has(i))continue;const block=[i];seen.add(i);for(let at=0;at<block.length;at++)for(const j of adj[block[at]].keys())if(!seen.has(j)&&label[j]===label[i]){seen.add(j);block.push(j);}groups.set(i,block);}if(!moved||groups.size===members.length)break;
+   const blocks=[...groups.values()].sort((a,b)=>members[a[0]][0].localeCompare(members[b[0]][0])),owner=new Map(blocks.flatMap((g,i)=>g.map(j=>[j,i]))),next=blocks.map(()=>new Map());
+   for(let i=0;i<adj.length;i++)for(const [j,w] of adj[i]){const a=owner.get(i),b=owner.get(j);next[a].set(b,(next[a].get(b)||0)+w);}
+   members=blocks.map(g=>g.flatMap(i=>members[i]).sort());adj=next;
+  }
+  return members.sort((a,b)=>b.length-a.length||a[0].localeCompare(b[0]));
+ }
+
+
+  return {multilevelCommunities,id,authorKey,orcid,enrichCreators,authorIdentities,build,neighbors,search,consolidate,workspace,topics,communities,terms,searchIndex,queryIndex,authorConnections,authorNeighborhood};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkCore;
