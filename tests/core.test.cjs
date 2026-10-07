@@ -29,3 +29,15 @@ test('copy and RIS export do not leak title formatting tags',()=>{const r={title
 test('legacy SICI DOI angle components are preserved without accepting HTML tags',()=>{const doi='10.1002/1096-9861(20000904)424:4<718::aid-cne12>3.0.co;2-z';assert.equal(C.doi(doi),doi);assert.equal(C.doi('https://doi.org/'+encodeURIComponent(doi)),doi);assert.equal(C.doi('10.1234/test<img src=x>'),'10.1234/test');});
 test('old truncated SICI cache identifiers can be repaired from exact DOI URLs only',()=>{const url='https://doi.org/10.1002/1096-9861(20000904)424:4<718::aid-cne12>3.0.co;2-z';assert.equal(C.recordDOI({DOI:'10.1002/1096-9861(20000904)424:4',url}),C.doi(url));assert.equal(C.recordDOI({DOI:'10.1234/other',url}),'10.1234/other');});
 test('PDF year suffix font artifact and publication ranges preserve real titles',()=>{const a=C.parse('Sjöstrand, J., Olsson, V., 1999Fa. Quantitative estimations of foveal retinal circuitry. Vision Res. 39, 2987–2998.');assert.equal(a.year,'1999');assert.equal(a.suffix,'a');assert.equal(a.title,'Quantitative estimations of foveal retinal circuitry');const b=C.parse('Nishikawa, S., 2006–07. The pathology of Müller cells under different disease conditions. Neuroembryol. Aging 4, 61–75.');assert.equal(b.title,'The pathology of Müller cells under different disease conditions');assert.equal(b.author,'Nishikawa');});
+test('abstract display strips terminal publishing notices without changing scientific text or markup',()=>{
+ const body='In this review paper, <i>eye development</i> is compared between species.';
+ assert.equal(C.abstractBody(body+' Birth Defects Research 109:1540–1567, 2017. © 2017 Wiley Periodicals, Inc.',{journal:'Birth Defects Research'}),body);
+ assert.equal(C.abstractBody(body+' <p>Copyright 2017 The Authors.</p>'),body);
+ assert.equal(C.abstractBody('We studied copyright literacy in 2017. Results were significant.'),'We studied copyright literacy in 2017. Results were significant.');
+ assert.equal(C.abstractBody(body),body);
+});
+test('publication line includes available journal year volume issue and pages without placeholders',()=>{
+ assert.equal(C.publicationLine({journal:'Cell',year:'2018',volume:'173',issue:'4',pages:'851-863'}),'Cell. 2018; 173(4): 851–863');
+ assert.equal(C.publicationLine({journal:'Birth Defects Research',year:'2017',volume:'109',pages:'1540–1567'}),'Birth Defects Research. 2017; 109: 1540–1567');
+ assert.equal(C.publicationLine({title:'No metadata'}),'');assert.equal(C.publicationLine({journal:'Cell',year:'2018'}),'Cell. 2018');
+});

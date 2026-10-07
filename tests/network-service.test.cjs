@@ -65,3 +65,11 @@ test('startup warmup prepares both modes silently and shares jobs with later vie
  const data={nodes:[{id:'1',libraryID:1,collections:[]}],edges:[],collections:[]};s.N.snapshot=async()=>data;s.N.presentation=j=>j.promise;let calls=0;s.N.map=async p=>{calls++;return{nodes:[],mode:p.mode};};await s.N.warmup();assert.equal(s.N.views.size,0);assert.equal(calls,4);await s.N.warmup();assert.equal(calls,4);assert.equal(s.N.graphJobs.size,4);
  const job=s.N.graphJob(data,{mode:'topics',cacheKey:'1:',limit:Number.MAX_SAFE_INTEGER,openEntities:[]});await job.promise;assert.equal(calls,4);
 });
+test('repeated topic drilldowns cannot evict or recompute either base network',async()=>{
+ const s=await cacheService();s.ctx.Zotero.getMainWindow=()=>({AbortController});s.ctx.Zotero.Promise={delay:()=>Promise.resolve()};
+ let builds=0,expansions=0;s.N.map=async p=>{builds++;return {nodes:[],mode:p.mode};};s.N.compute=async(action,p)=>{assert.equal(action,'expand');expansions++;return {...p.graph};};
+ const snapshot={},p={cacheKey:'1:',mode:'topics',nodes:[],openEntities:[]};
+ const topic=s.N.graphJob(snapshot,p),author=s.N.graphJob(snapshot,{...p,mode:'authors'});await Promise.all([topic.promise,author.promise]);
+ for(let i=0;i<12;i++)await s.N.graphJob(snapshot,{...p,selected:'topic'+i,openEntities:['topic'+i]}).promise;
+ assert.equal(builds,2);assert.equal(expansions,12);assert.equal(s.N.graphJob(snapshot,p),topic);assert.equal(s.N.graphJob(snapshot,{...p,mode:'authors'}),author);assert.equal(topic.controller.signal.aborted,false);assert.equal(author.controller.signal.aborted,false);assert.ok(s.N.graphJobs.size<=8);
+});

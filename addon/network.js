@@ -43,7 +43,7 @@ var CiteLensNetwork = {
       for(const source of [record&&CiteLensCore.recordDOI(record)===doi?record.creators:null,authors&&CiteLensCore.doi(authors.DOI)===doi?authors.authors:null])if(Array.isArray(source))creators=CiteLensNetworkCore.enrichCreators(creators,source);
     }
     for(const a of await Zotero.Items.getAsync(item.getAttachments()))if(!a.deleted&&['application/pdf','application/epub+zip'].includes(a.attachmentContentType))attachments.push({id:a.id,key:a.key,type:a.attachmentContentType,dateModified:a.dateModified});
-    return {id:CiteLensNetworkCore.id(item.libraryID,item.key),itemID:item.id,key:item.key,libraryID:item.libraryID,type:Zotero.ItemTypes.getName(item.itemTypeID),title:CiteLensCore.plainTitle(item.getField('title')),DOI:CiteLensCore.doi(item.getField('DOI')),year:String(item.getField('date')).match(/\b(?:1[6-9]|20)\d{2}\b/)?.[0]||'',journal:item.getField('publicationTitle')||item.getField('bookTitle')||item.getField('publisher'),abstract:CiteLensCore.plainTitle(item.getField('abstractNote')),abstractMarkup:item.getField('abstractNote'),creators,collections:item.getCollections(),relatedKeys:item.relatedItems,attachments};
+    return {id:CiteLensNetworkCore.id(item.libraryID,item.key),itemID:item.id,key:item.key,libraryID:item.libraryID,type:Zotero.ItemTypes.getName(item.itemTypeID),title:CiteLensCore.plainTitle(item.getField('title')),DOI:CiteLensCore.doi(item.getField('DOI')),year:String(item.getField('date')).match(/\b(?:1[6-9]|20)\d{2}\b/)?.[0]||'',journal:item.getField('publicationTitle')||item.getField('bookTitle')||item.getField('publisher'),volume:item.getField('volume'),issue:item.getField('issue'),pages:item.getField('pages'),abstract:CiteLensCore.plainTitle(item.getField('abstractNote')),abstractMarkup:item.getField('abstractNote'),creators,collections:item.getCollections(),relatedKeys:item.relatedItems,attachments};
   },
   authorMetadataChanged(doi){if(this.dead||!doi)return;const ids=[];for(const row of this.records?.values()||[])if(row.DOI===doi)ids.push(row.itemID);if(ids.length)this.invalidate('modify','item',ids);},
   compute(action,payload,{progress=()=>{},signal=null}={}){
@@ -62,7 +62,7 @@ var CiteLensNetwork = {
     worker.onmessage=e=>{const data=e.data;if(data.error){close(Error(data.error));return;}if(data.ready){win.clearTimeout(timer);readyResolve();return;}const task=pending.get(data.request);if(task){pending.delete(data.request);task.resolve(data.result);}};
     worker.postMessage({action:'search-init',payload:{mode:model.mode,nodes:model.nodes.map(n=>({id:n.id,title:n.title,kind:n.kind,members:n.members,local:n.local,identity:n.identity,orcid:n.orcid})),papers:(model.paperNodes||[]).map(n=>({id:n.id,title:n.title,abstract:n.abstract,journal:n.journal,DOI:n.DOI,year:n.year,creators:n.creators}))}});
     const request=async(action,payload)=>{await ready;if(closed)throw Error('已取消');const id=++serial;return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});worker.postMessage({action,payload:{...payload,request:id}});});};
-    return {close,query:query=>request('search-query',{query}),relations:id=>request('author-links',{id}),neighborhood:(id,depth,limit)=>request('author-neighborhood',{id,depth,limit})};
+    return {close,get closed(){return closed;},query:query=>request('search-query',{query}),relations:id=>request('author-links',{id}),neighborhood:(id,depth,limit)=>request('author-neighborhood',{id,depth,limit})};
   },
   async cacheKey(value){if(!this.cacheRoot||typeof CiteLensSemantic==='undefined')return null;const {text}=await this.compute('cache-encode',{value});return CiteLensSemantic.key(text,'network-cache-v3');},
   async readCache(kind,key){
@@ -88,9 +88,10 @@ var CiteLensNetwork = {
     const key=JSON.stringify([payload.cacheKey,payload.mode,modelID,payload.limit,[...(payload.openEntities||[])].sort(),payload.openEntities?.length?payload.selected:'']);
     let job=this.graphJobs.get(key);if(job&&job.snapshot===snapshot&&!job.controller.signal.aborted){this.graphJobs.delete(key);this.graphJobs.set(key,job);return job;}
     job?.controller.abort();const win=Zotero.getMainWindow();
-    job={snapshot,mode:payload.mode,controller:new win.AbortController(),listeners:new Set(),value:null,progress:null};this.graphJobs.set(key,job);
-    job.promise=(async()=>{await Zotero.Promise.delay(0);const result=payload.openEntities?.length?await this.compute('expand',{graph:await this.graphJob(snapshot,{...payload,openEntities:[],selected:'',positions:[]}).promise,openEntities:payload.openEntities,selected:payload.selected},{signal:job.controller.signal}):await this.map({...payload,query:''},{signal:job.controller.signal,progress:p=>{job.progress=p;for(const fn of job.listeners)fn(p);}});if(job.controller.signal.aborted)throw Error('已取消');job.value=result;return result;})().catch(e=>{if(this.graphJobs.get(key)===job)this.graphJobs.delete(key);throw e;});job.promise.catch(()=>{});
-    while(this.graphJobs.size>4){const oldest=this.graphJobs.keys().next().value;this.graphJobs.get(oldest).controller.abort();this.graphJobs.delete(oldest);}
+    job={snapshot,mode:payload.mode,expanded:!!payload.openEntities?.length,controller:new win.AbortController(),listeners:new Set(),value:null,progress:null};this.graphJobs.set(key,job);
+    job.promise=(async()=>{await Zotero.Promise.delay(0);const result=payload.openEntities?.length?await this.compute('expand',{graph:await this.graphJob(snapshot,{...payload,openEntities:[],selected:'',positions:[]}).promise,openEntities:payload.openEntities,selected:payload.selected,positions:payload.positions},{signal:job.controller.signal}):await this.map({...payload,query:''},{signal:job.controller.signal,progress:p=>{job.progress=p;for(const fn of job.listeners)fn(p);}});if(job.controller.signal.aborted)throw Error('已取消');job.value=result;return result;})().catch(e=>{if(this.graphJobs.get(key)===job)this.graphJobs.delete(key);throw e;});job.promise.catch(()=>{});
+    // Navigation variants cannot evict the expensive base networks.
+    for(const expanded of [false,true]){const entries=[...this.graphJobs].filter(([,value])=>value.expanded===expanded);while(entries.length>4){const [oldest,previous]=entries.shift();previous.controller.abort();this.graphJobs.delete(oldest);}}
     return job;
   },
   async presentation(job){

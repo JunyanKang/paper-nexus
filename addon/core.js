@@ -183,10 +183,22 @@ var CiteLensCore = (() => {
   }
   function findCitations(text,refs) {return [...new Map(citationMentions(text).flatMap(m=>resolveMention(m,refs).records).map(r=>[identity(r),r])).values()];}
   function citationAt(text,offset,refs) {const m=citationMentions(text).find(m=>offset>=m.start&&offset<m.end);return resolveMention(m,refs).records;}
+  // Display-only cleanup: keep scientific text and remove explicit terminal publishing notices.
+  function abstractBody(value,record={}) {
+    let text=String(value||'').trim();
+    const notice=/(?:©|&copy;|copyright\s*(?:©|\(c\))?)\s*(?:19|20)\d{2}\b[\s\S]{0,500}$/i.exec(text);
+    if(notice){text=text.slice(0,notice.index).replace(/(?:<(?:p|div|section)[^>]*>\s*)+$/gi,'').trim();const journal=plainTitle(record.journal||'');if(journal){const escaped=journal.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');text=text.replace(new RegExp('(?:<[^>]+>|\\s)*'+escaped+'\\s+\\d+[\\s\\S]{0,70}?(?:19|20)\\d{2}\\s*\\.?\\s*(?:<[^>]+>\\s*)*$','i'),'').trim();}}
+    return text;
+  }
+  function publicationLine(r) {
+    const journal=plainTitle(r.journal||r.publicationTitle||r.bookTitle||''),year=clean(r.year),volume=clean(r.volume),issue=clean(r.issue),pages=clean(r.pages);
+    const citation=[year,volume+(issue?'('+issue+')':'')].filter(Boolean).join('; ')+(pages?': '+pages.replace(/(\d)\s*[-–]\s*(\d)/g,'$1–$2'):'');
+    return [journal,citation.replace(/^:\s*/,'')].filter(Boolean).join('. ');
+  }
   function citation(r) {return r.raw?plainTitle(r.raw):`${r.creators?.map(c=>c.lastName+(c.firstName?', '+c.firstName:'')).join(', ')||r.author||''} (${r.year||'n.d.'}). ${plainTitle(r.title)}. ${r.journal||r.publisher||''}${recordDOI(r)?' https://doi.org/'+recordDOI(r):''}`;}
   function ris(records) {
     const one=r=>{const lines=['TY  - '+({book:'BOOK',bookSection:'CHAP',conferencePaper:'CONF',preprint:'UNPB'}[r.type]||'JOUR'),'TI  - '+plainTitle(r.title)];for(const a of r.creators||[])lines.push('AU  - '+clean(a.lastName)+', '+clean(a.firstName));for(const [k,v] of Object.entries({PY:r.year,JO:r.journal,DO:recordDOI(r),VL:r.volume,IS:r.issue,SP:r.pages,UR:r.url||recordDOI(r)&&'https://doi.org/'+recordDOI(r),N1:r.raw}))if(v)lines.push(k+'  - '+clean(v));return lines.join('\n')+'\nER  - \n';};return records.map(one).join('\n');
   }
-  return {clean,titleParts,plainTitle,researchTitle,researchRecord,norm,doi,recordDOI,charsText,parse,fromReference,identity,similarity,fromCrossref,compatibility,rank,decide,issn,parseCSV,metricsImport,metricFor,citationMentions,resolveMention,findCitations,citationAt,citation,ris};
+  return {abstractBody,publicationLine,clean,titleParts,plainTitle,researchTitle,researchRecord,norm,doi,recordDOI,charsText,parse,fromReference,identity,similarity,fromCrossref,compatibility,rank,decide,issn,parseCSV,metricsImport,metricFor,citationMentions,resolveMention,findCitations,citationAt,citation,ris};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensCore;
