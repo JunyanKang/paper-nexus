@@ -219,8 +219,8 @@ var CiteLensUI = {
   appearance(doc) {
     const s=CiteLensServices.state.settings,html=doc.documentElement;
     CiteLensThemes.apply(doc);
-    html.style.setProperty('--cl-size',Math.max(12,Math.min(16,Number(s.fontSize)||13))+'px');html.style.setProperty('--cl-user-size',Math.max(12,Math.min(16,Number(s.fontSize)||13))+'px');
-    const font=s.readingFont==='serif'?'Georgia,"Songti SC",serif':s.readingFont&&s.readingFont!=='system'?JSON.stringify(s.readingFont)+',sans-serif':'-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif';
+    html.style.setProperty('--cl-size','13px');html.style.setProperty('--cl-user-size','13px');
+    const font='system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans","Microsoft YaHei","Yu Gothic UI",sans-serif';
     html.style.setProperty('--cl-reading-font',font);
     html.style.setProperty('--cl-translation-font',font);html.style.setProperty('--cl-translation-size',Math.max(10,Math.min(20,Number(CiteLensTranslation.get('translationSize','13'))||13))+'px');
   },
@@ -675,6 +675,8 @@ var CiteLensUI = {
     const S=CiteLensServices,existing=doc.querySelector('.cl-settings');if(existing){existing.focus();return;}
     let unsubscribe=()=>{},unsubscribeModels=()=>{},testTicket=0;
     const {root,footer,close}=this.dialog(doc,'Paper Nexus',{className:'cl-settings',onClose:()=>{testTicket++;unsubscribe();unsubscribeModels();}}),status=this.el(doc,'div','','cl-status');
+    const frame=root.parentElement,head=frame.querySelector('.cl-dialog-header'),tools=this.el(doc,'div',null,'cl-header-tools'),network=this.iconButton(doc,'文献网络','network',()=>{const reader=Zotero.Reader._readers.find(r=>r._iframeWindow?.document===doc);close();CiteLens.showNetwork(reader||null);});
+    network.dataset.networkEntry='true';tools.append(network,head.querySelector('.cl-dismiss'));head.append(tools);
     const version=this.quiet(doc,'v'+CiteLens.version,()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));version.title='版本说明与插件下载';version.classList.add('cl-version');
     const update=this.quiet(doc,'检查更新',()=>CiteLensUpdater.phase==='available'?CiteLensUpdater.apply():CiteLensUpdater.check()),updateStatus=this.el(doc,'div','','cl-status');updateStatus.dataset.updateStatus='true';updateStatus.setAttribute('role','status');updateStatus.setAttribute('aria-live','polite');updateStatus.setAttribute('aria-atomic','true');
     const release=this.quiet(doc,'打开发布页',()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));release.hidden=true;
@@ -686,7 +688,7 @@ var CiteLensUI = {
     const row=(parent,label,key,input,description='')=>{const row=this.el(doc,'div',null,'cl-setting-row'),text=this.el(doc,'div'),lab=this.el(doc,'label',label);input.id='cl-setting-'+key;lab.htmlFor=input.id;text.append(lab);if(description)input.title=description;row.append(text,input);parent.append(row);return input;};
     const select=(parent,label,key,choices)=>{
       const input=this.el(doc,'select');for(const [value,name] of choices){const option=this.el(doc,'option',name);option.value=value;input.append(option);}input.value=String(S.state.settings[key]??choices[0][0]);
-      input.addEventListener('change',async()=>{try{S.state.settings[key]=key==='fontSize'?Number(input.value):input.value;await persist();}catch(e){this.status(status,e.message,true);}});return row(parent,label,key,input);
+      input.addEventListener('change',async()=>{try{S.state.settings[key]=input.value;await persist();}catch(e){this.status(status,e.message,true);}});return row(parent,label,key,input);
     };
     const tabs=this.el(doc,'nav',null,'cl-tabs cl-settings-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','设置分类');root.before(tabs);
     const panes={};let active='general';
@@ -707,9 +709,6 @@ var CiteLensUI = {
     const transparency=this.el(doc,'input');transparency.type='range';transparency.min='0';transparency.max='80';transparency.step='1';transparency.value=S.state.settings.transparency||0;const opacityValue=this.el(doc,'output',transparency.value+'%');row(appearance,'透明度','transparency',transparency).parentElement.append(opacityValue);transparency.addEventListener('input',()=>{S.state.settings.transparency=Number(transparency.value);opacityValue.textContent=transparency.value+'%';CiteLensThemes.refresh();});transparency.addEventListener('change',()=>persist());
 
 
-    select(appearance,'字号','fontSize',[13,12,14,15,16].map(n=>[String(n),String(n)]));
-    const fonts=CiteLensControls.fonts().map(f=>[f,f]);
-    select(appearance,'字体','readingFont',fonts);
     if(!S.state.settings.interfaceLanguage)S.state.settings.interfaceLanguage='zh';
     select(appearance,'界面语言','interfaceLanguage',[['auto','跟随系统'],['zh','简体中文'],['en','English'],['ja','日本語'],['fr','Français'],['de','Deutsch']]);
     const T=CiteLensTranslation;

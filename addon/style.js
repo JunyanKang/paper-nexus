@@ -1,6 +1,6 @@
 /* Scoped reading surfaces: one type scale, spacing scale and semantic palette. */
 var CiteLensStyle = `
-:root{--cl-size:13px;--cl-ui-size:clamp(11px,calc(var(--cl-size) - 1px),14px);--cl-control-height:26px;--cl-leading-ui:1.35;--cl-leading-title:1.28;--cl-leading-copy:1.45;--cl-space-tight:2px;--cl-space-row:4px;--cl-control-radius:7px;--cl-dialog-padding:14px;--cl-reading-font:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--cl-bg:#fff;--cl-ink:#25352f;--cl-muted:#64716b;--cl-line:#dfe5e1;--cl-soft:#f3f6f3;--cl-accent:#2d6656;--cl-on-accent:#fff;--cl-error:#a53229;--cl-shadow:0 12px 42px #18322926;--cl-veil:#182d264d;}
+:root{--cl-size:13px;--cl-ui-size:clamp(11px,calc(var(--cl-size) - 1px),14px);--cl-control-height:26px;--cl-leading-ui:1.35;--cl-leading-title:1.28;--cl-leading-copy:1.45;--cl-space-tight:2px;--cl-space-row:4px;--cl-control-radius:7px;--cl-dialog-padding:14px;--cl-reading-font:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans","Microsoft YaHei","Yu Gothic UI",sans-serif;--cl-bg:#fff;--cl-ink:#25352f;--cl-muted:#64716b;--cl-line:#dfe5e1;--cl-soft:#f3f6f3;--cl-accent:#2d6656;--cl-on-accent:#fff;--cl-error:#a53229;--cl-shadow:0 12px 42px #18322926;--cl-veil:#182d264d;}
 .cl-root,.cl-dialog,.cl-card,.cl-floating{box-sizing:border-box;color:var(--cl-ink);font:var(--cl-size)/var(--cl-leading-ui) var(--cl-reading-font);text-align:left;white-space:normal;color-scheme:var(--cl-scheme,light);}
 :is(.cl-root,.cl-dialog,.cl-card,.cl-floating) *{box-sizing:border-box;}
 :is(.cl-root,.cl-dialog,.cl-card,.cl-floating) [hidden]{display:none!important;}
@@ -322,7 +322,6 @@ button[data-cite-lens]:is(:hover,:focus-visible){background:var(--cl-soft);color
 .pn-map-window .cl-dialog-footer{flex-wrap:nowrap;gap:10px}
 .pn-map-count{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pn-map-status{flex:1;min-width:0;margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;font-size:11px}
-.pn-ego-depth{display:flex;gap:2px;background:var(--cl-soft);border-radius:7px}.pn-ego-depth[hidden]{display:none}.pn-ego-depth button[aria-pressed=true]{background:var(--cl-bg);color:var(--cl-accent)}
 
 .pn-map-controls{grid-template-columns:minmax(90px,1fr) minmax(110px,1.1fr) minmax(170px,3fr)}
 .pn-map-mode-tools{position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:3px;padding:3px;border-radius:11px;background:color-mix(in srgb,var(--cl-soft) 92%,transparent);backdrop-filter:blur(12px)}

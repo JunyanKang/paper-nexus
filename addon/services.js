@@ -13,6 +13,8 @@ var CiteLensServices = {
     this.state.settings.networkEnabled=true;
     delete this.state.settings.networkEnhanceEnabled;
     delete this.state.settings.themeArtwork;
+    delete this.state.settings.readingFont;
+    delete this.state.settings.fontSize;
     this.dead=false;
     this.state.authorCache||={};this.authorGeneration=(this.authorGeneration||0)+1;
     this.localMetricCache=new Map();this.localMetricFlight=new Map();

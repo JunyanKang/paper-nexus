@@ -28,7 +28,7 @@ Hover over a paper title to open its abstract. Choose **original, translated or 
 <p align="center"><img src="docs/images/network.png" width="700" alt="Author communities and their shared research"></p>
 <p align="center"><sub>See who worked together, then explore what they discovered.</sub></p>
 
-Your network prepares automatically, without an API account, and updates as you add papers. Customize the theme, font and interface language, or pair Nexus with [Paper Voice](https://github.com/JunyanKang/paper-voice) to listen as you read.
+Your network prepares automatically, without an API account, and updates as you add papers. Customize the theme and interface language, or pair Nexus with [Paper Voice](https://github.com/JunyanKang/paper-voice) to listen as you read.
 
 ## Get started
 

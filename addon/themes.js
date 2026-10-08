@@ -18,7 +18,6 @@ var CiteLensThemes = {
   async initialize(){
     const s=CiteLensServices.state.settings;
     if(!s.theme||s.theme==='system')s.theme=this.resolve('system',Zotero.getMainWindow().matchMedia('(prefers-color-scheme: dark)').matches).id;
-    if(!s.readingFont||['system','serif'].includes(s.readingFont))s.readingFont=CiteLensControls.defaultFont(s.readingFont);
     try{const path=this.imagePath();if(await IOUtils.exists(path)){const bytes=await IOUtils.read(path,{maxBytes:2097152});if(bytes.length>=2097152)throw Error('Image too large');this.customImage='data:image/jpeg;base64,'+Zotero.getMainWindow().btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(''));}}catch(_){this.customImage=null;}
     await CiteLensServices.persist();
   },

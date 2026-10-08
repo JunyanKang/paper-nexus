@@ -28,7 +28,7 @@ Paper Nexus 是一款免费的 Zotero 插件，把引文信息、摘要阅读与
 <p align="center"><img src="docs/images/network.png" width="700" alt="从作者群组进入合作关系，查看共同论文"></p>
 <p align="center"><sub>看见谁与谁共同研究，再读他们做了什么。</sub></p>
 
-朋友圈自动准备，无需配置账号。新增文献后会随之更新，让你的研究收藏持续积累。主题、字体和界面语言可统一调整；也可搭配 [Paper Voice](https://github.com/JunyanKang/paper-voice)，把阅读延伸为听读。
+朋友圈自动准备，无需配置账号。新增文献后会随之更新，让你的研究收藏持续积累。可选择主题与界面语言；也可搭配 [Paper Voice](https://github.com/JunyanKang/paper-voice)，把阅读延伸为听读。
 
 ## 开始使用
 

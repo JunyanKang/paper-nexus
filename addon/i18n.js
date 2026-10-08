@@ -1677,3 +1677,55 @@ for(const [source,values] of Object.entries({
 })){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
 
 for(const [language,text] of Object.entries({en:'References are unavailable for this PDF',ja:'この PDF の参考文献を読み取れません',fr:'Références indisponibles pour ce PDF',de:'Referenzen für diese PDF nicht verfügbar'}))CiteLensI18n.catalogs[language]['此 PDF 暂无法读取参考文献']=text;
+
+// Compact setting labels share the same geometry in every interface language.
+for(const [source,values] of Object.entries({
+  "界面语言": [
+    "Interface",
+    "表示言語",
+    "Interface",
+    "Oberfläche"
+  ],
+  "跟随系统": [
+    "System",
+    "システム",
+    "Système",
+    "System"
+  ],
+  "译文语言": [
+    "Translate to",
+    "翻訳先",
+    "Langue cible",
+    "Zielsprache"
+  ],
+  "译文字号": [
+    "Text size",
+    "訳文サイズ",
+    "Taille du texte",
+    "Textgröße"
+  ],
+  "翻译服务": [
+    "Service",
+    "翻訳サービス",
+    "Service",
+    "Dienst"
+  ],
+  "保存并测试": [
+    "Save & test",
+    "保存・テスト",
+    "Valider et tester",
+    "Speichern & Test"
+  ],
+  "翻译大模型": [
+    "Translation AI",
+    "翻訳 AI",
+    "IA de traduction",
+    "Übersetzungs-KI"
+  ],
+  "引文格式": [
+    "Citation style",
+    "引用形式",
+    "Style de citation",
+    "Zitierstil"
+  ]
+})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}

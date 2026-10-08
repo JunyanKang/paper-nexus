@@ -2,8 +2,6 @@
  * Keep native select data/events; replace only the OS-owned popup presentation. */
 var CiteLensControls={
  documents:new Map(),sequence:0,
- fonts(){if(!this.fontCache){try{this.fontCache=[...new Set(Array.from(Components.classes['@mozilla.org/gfx/fontenumerator;1'].createInstance(Components.interfaces.nsIFontEnumerator).EnumerateAllFonts()))].filter(x=>x&&!x.startsWith('.')).sort((a,b)=>a.localeCompare(b));}catch(_){this.fontCache=['Arial'];}}return this.fontCache;},
- defaultFont(legacy){const names=legacy==='serif'?['Songti SC','Georgia','Times New Roman']:['PingFang SC','Microsoft YaHei','Noto Sans CJK SC','Helvetica Neue','Segoe UI','Arial'];return names.find(x=>this.fonts().includes(x))||this.fonts()[0];},
  install(doc){
   if(this.documents.has(doc))return;const win=doc.defaultView,entries=new Map(),tips=new Map(),listeners=[],scope='.cl-root,.cl-dialog,.cl-floating,.cl-card,.cl-summary,[data-cite-lens]',owns=n=>!!n?.closest?.(scope);let active=null,index=0,tipTarget=null,timer,typeTimer,typed='';
   const revealSheet='data:text/css,'+encodeURIComponent('.cl-settings input::-moz-reveal{display:none!important;pointer-events:none!important}');let revealLoaded=false;try{win.windowUtils.loadSheetUsingURIString(revealSheet,win.windowUtils.AGENT_SHEET);revealLoaded=true;}catch(_){}
