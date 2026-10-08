@@ -1,55 +1,53 @@
-<p align="center"><img src="docs/images/hero.png" width="960" alt="Paper Nexus · 从一处引文，走进一张文献网络"></p>
-
-<h1 align="center">从一处引文，走进一张文献网络。</h1>
-
+<p align="center"><img src="addon/assets/nexus.png" width="76" alt="Paper Nexus"></p>
+<h1 align="center">Paper Nexus</h1>
+<p align="center"><b>从眼前的引用，发现下一条研究线索。</b></p>
+<p align="center">看清引文 · 对照摘要 · 探索研究网络</p>
 <p align="center"><b>简体中文</b> · <a href="README.en.md">English</a></p>
-<p align="center">在 Zotero 里看清引用、读懂摘要、发现联系。<br>让每一次阅读，都成为下一条研究线索。</p>
-<p align="center"><a href="https://github.com/JunyanKang/paper-nexus/releases/latest"><b>下载 Paper Nexus</b></a> · <a href="docs/GUIDE.md">使用指南</a> · <a href="https://github.com/JunyanKang/paper-nexus/issues">反馈建议</a></p>
+<p align="center"><a href="https://github.com/JunyanKang/paper-nexus/releases/latest"><b>下载 Paper Nexus</b></a> · <a href="docs/INSTALL.md">安装指南</a> · <a href="docs/GUIDE.md">开始使用</a></p>
 
-## 看清引用，不打断阅读
+Paper Nexus 是一款免费的 Zotero 插件，把引文信息、摘要阅读与文献网络带到同一个研究空间。阅读一篇论文时，随手了解它引用的工作；回到自己的文献库，又能沿着作者与合作关系发现值得继续追踪的论文。
 
-鼠标停在正文引文上，对应论文就在旁边展开。题名、作者、期刊、可获取的影响因子与分区一眼可见；多篇连引连续呈现，省去正文与文末之间的来回跳转。
+## 看清一处引用，留住阅读思路
 
-打开 DOI、定位引用、收藏稍后读，或保存到 Zotero 文献夹。已经在库里的论文，直接回到它所在的位置。
+这句话引用了哪篇论文？把鼠标停在引文上，题名、作者、期刊与可获取的期刊指标就在旁边展开。查看原文、跳回引用位置，把值得读的论文留下来，无需在正文与参考文献表之间反复翻找。
 
-<p align="center"><img src="docs/images/hover.png" width="540" alt="真实期刊论文悬浮卡片：作者、期刊指标、DOI、引用位置与操作图标"></p>
+<p align="center"><img src="docs/images/hover.png" width="440" alt="引文卡片展示题名、作者、期刊、引用位置与保存入口"></p>
+<p align="center"><sub>看清引用的来源，把有价值的线索随手留下。</sub></p>
 
 ## 先读摘要，再决定深入
 
-悬停题名，摘要在旁边展开；缺少摘要时，自动查找可获取的公开摘要。**原文、译文、双语**一键切换，逐句对照更容易看清术语和论述。窗口可拖动、缩放与吸附，让信息留在顺手的位置。
+悬停论文题名，即可阅读摘要。用**原文、译文、双语**三种方式理解研究内容，在一句原文与一句译文之间对照术语、方法和结论。摘要窗口可以移动和调整大小，让阅读保持连贯。
 
-<p align="center"><img src="docs/images/translation.png" width="850" alt="期刊论文卡片与相邻的双语摘要窗口"></p>
+<p align="center"><img src="docs/images/translation.png" width="720" alt="论文卡片与对应的双语摘要，顶部可切换三种阅读方式"></p>
+<p align="center"><sub>同一篇论文的原文与译文，就在手边。</sub></p>
 
-## 从论文列表，走向研究地图
+## 从一个名字，发现一个合作圈
 
-**主题网络，回答“这些论文在研究什么”。** 从研究主题进入相关论文，用关键词聚焦可能相关的方向。
+**朋友圈**把文献库中的作者与共同论文连接起来。搜索熟悉的名字，查看直接合作者，或再向外探索一层；点击作者，即可回到他们一起完成的研究。
 
-**作者网络，回答“谁在和谁合作”。** 搜索作者，查看有共同论文支持的一级或二级合作圈，并回到具体文献。
+<p align="center"><img src="docs/images/network.png" width="700" alt="从作者群组进入合作关系，查看共同论文"></p>
+<p align="center"><sub>看见谁与谁共同研究，再读他们做了什么。</sub></p>
 
-总览呈现群组内部的联系，群组间的远近帮助辨认彼此的关联。
-
-启用**网络增强**，还可纳入这些论文直接引用的研究，在本地收藏之外继续发现线索。准备过程在后台进行，可随时取消。
-
-<p align="center"><img src="docs/images/topics.png" width="960" alt="主题网络：从研究主题展开和探索论文"></p>
-<p align="center"><img src="docs/images/network.png" width="960" alt="作者合作网络：共同论文连接作者"></p>
-
-## 为日常科研而设计
-
-- **私有文献，本地探索**：无需账号，在自己的文献库中发现研究联系。
-- **线索随手留下**：稍后读、文献夹保存与多种期刊引文格式，衔接阅读和写作。
-- **界面保持一致**：主题、字体与语言贯穿卡片、摘要和网络；与 [Paper Voice](https://github.com/JunyanKang/paper-voice) 相伴使用。
+朋友圈自动准备，无需配置账号。新增文献后会随之更新，让你的研究收藏持续积累。主题、字体和界面语言可统一调整；也可搭配 [Paper Voice](https://github.com/JunyanKang/paper-voice)，把阅读延伸为听读。
 
 ## 开始使用
 
-适用于 **Zotero 10.0.5–10.0.x**，提供 macOS、Windows 安装器，免费开源。
+适用于 **Zotero 10.0.5–10.0.x**，macOS 与 Windows 使用同一个插件文件。
 
-1. 在 [发布页](https://github.com/JunyanKang/paper-nexus/releases/latest) 下载对应系统的安装器：macOS `.dmg`／Windows `.exe`。
-2. 选择适合的主题分析方案，按提示完成安装。
-3. 按安装器提示将插件添加到 Zotero，打开 PDF 开始阅读。
+1. 从[官方发布页](https://github.com/JunyanKang/paper-nexus/releases/latest)下载 **XPI**。
+2. 在 Zotero 的 **工具 → 插件 → 齿轮 → 从文件安装插件** 中选择该文件。
+3. 打开论文，悬停一处引文，开始探索。
 
-日后可直接在插件内检查更新。
+[查看安装指南 →](docs/INSTALL.md)
 
+## 文档与支持
 
-[安装帮助](docs/INSTALL.md) · [使用指南](docs/GUIDE.md) · [文献网络](docs/NETWORK.md) · [设置与服务](docs/SETTINGS.md) · [常见问题](docs/FAQ.md) · [隐私说明](docs/PRIVACY.md) · [更新记录](CHANGELOG.md)
+<table align="center">
+<tr><td align="center"><a href="docs/GUIDE.md">使用指南</a></td><td>从引文阅读到保存论文</td></tr>
+<tr><td align="center"><a href="docs/NETWORK.md">文献网络</a></td><td>探索作者、合作关系与共同论文</td></tr>
+<tr><td align="center"><a href="docs/SETTINGS.md">设置</a></td><td>阅读、翻译与外观</td></tr>
+<tr><td align="center"><a href="docs/FAQ.md">常见问题</a></td><td>遇到问题时从这里查找</td></tr>
+</table>
 
-Created by [Junyan Kang](https://github.com/JunyanKang) · [MIT License](LICENSE)
+<p align="center"><a href="docs/PRIVACY.md">数据与隐私</a> · <a href="CHANGELOG.md">更新记录</a> · <a href="https://github.com/JunyanKang/paper-nexus/issues">反馈建议</a> · <a href="CONTRIBUTING.md">参与贡献</a></p>
+<p align="center">Created by <a href="https://github.com/JunyanKang">Junyan Kang</a> · <a href="LICENSE">MIT License</a></p>

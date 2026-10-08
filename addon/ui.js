@@ -65,7 +65,7 @@ var CiteLensUI = {
   iconButton(doc,label,icon,run) {const b=this.button(doc,'',run);b.classList.add('cl-icon-button');this.setButtonLabel(b,label,icon);return b;},
   setButtonLabel(button,label,icon=button.dataset.icon) {
     const doc=button.ownerDocument;button.replaceChildren();button.title=label;button.setAttribute('aria-label',label);button.dataset.icon=icon;
-    const paths={enhance:'M5 7h6v6H5zM13 16h6v6h-6zM8 13l6 4M18 2v8m-4-4h8',back:'M15 5l-7 7 7 7',focus:'M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',plus:'M12 4v16M4 12h16',minus:'M4 12h16',folder:'M3 7V4h6l3 3h9v13H3V7m0 3h18',import:'M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5',clear:'M6 6l12 12M18 6L6 18',authors:'M15 7a3 3 0 1 1-6 0 3 3 0 1 1 6 0M6 21v-3a6 6 0 0 1 12 0v3M4 5a2 2 0 0 0 0 4m16-4a2 2 0 0 1 0 4M2 17v-3a4 4 0 0 1 3-4m17 7v-3a4 4 0 0 0-3-4',topics:'M12 3 2 8l10 5 10-5-10-5M2 12l10 5 10-5M2 16l10 5 10-5',network:'M5 5h5v5H5zM14 14h5v5h-5zM15 3h6v6h-6zM3 15h6v6H3zM10 8l5-2M8 10l-2 5M9 18l5-2M18 9l-2 5',settings:'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1 1-3M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0',copy:'M9 8h11v13H9V8M15 8V3H4v13h5',locate:'M9 3H4v17h16v-5M13 3h8v8m0-8L10 14',references:'M6 3h14v18H6V3M3 6v15M9 7h8M9 11h8M9 15h6',drag:'M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01',bilingual:'M3 4h18v16H3V4m9 0v16M6 8h3m-3 4h3m-3 4h3m6-8h3m-3 4h3m-3 4h3',remove:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',save:'M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5',open:'M14 3h7v7m0-7L10 14M10 5H4v15h15v-6',bookmark:'M6 3h12v18l-6-4-6 4V3',bookmarked:'M6 3h12v18l-6-4-6 4V3m3 6 2 2 4-4',more:'M5 12h.01M12 12h.01M19 12h.01',translate:'M3 3h10v13H3V3m3 4h4M6 10h3m7-2h5v13H11v-3m4-6h3m-3 4h3M7 20l2 2 2-2M9 22v-4',doi:'M10 13a5 5 0 0 0 7 .1l3-3a5 5 0 0 0-7.1-7.1L11 5M14 11a5 5 0 0 0-7-.1l-3 3a5 5 0 0 0 7.1 7.1L13 19',original:'M14 2H5v20h14V7l-5-5v5h5M8 12h8m-8 4h8',retry:'M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 14 6M4 12a8 8 0 0 0 14 6'};
+    const paths={enhance:'M5 7h6v6H5zM13 16h6v6h-6zM8 13l6 4M18 2v8m-4-4h8',back:'M15 5l-7 7 7 7',focus:'M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',plus:'M12 4v16M4 12h16',minus:'M4 12h16',folder:'M3 7V4h6l3 3h9v13H3V7m0 3h18',import:'M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5',clear:'M6 6l12 12M18 6L6 18',authors:'M15 7a3 3 0 1 1-6 0 3 3 0 1 1 6 0M6 21v-3a6 6 0 0 1 12 0v3M4 5a2 2 0 0 0 0 4m16-4a2 2 0 0 1 0 4M2 17v-3a4 4 0 0 1 3-4m17 7v-3a4 4 0 0 0-3-4',topics:'M12 3 2 8l10 5 10-5-10-5M2 12l10 5 10-5M2 16l10 5 10-5',network:'M5 5h5v5H5zM14 14h5v5h-5zM15 3h6v6h-6zM3 15h6v6H3zM10 8l5-2M8 10l-2 5M9 18l5-2M18 9l-2 5',settings:'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1 1-3M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0',copy:'M9 8h11v13H9V8M15 8V3H4v13h5',locate:'M9 3H4v17h16v-5M13 3h8v8m0-8L10 14',references:'M6 3h14v18H6V3M3 6v15M9 7h8M9 11h8M9 15h6',drag:'M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01',bilingual:'M3 4h18v16H3V4m9 0v16M6 8h3m-3 4h3m-3 4h3m6-8h3m-3 4h3m-3 4h3',remove:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',save:'M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5',open:'M3 8V4h6l3 3h9v4M3 8v12h15l3-9H7L3 20',bookmark:'M6 3h12v18l-6-4-6 4V3',bookmarked:'M6 3h12v18l-6-4-6 4V3m3 6 2 2 4-4',more:'M5 12h.01M12 12h.01M19 12h.01',translate:'M3 3h10v13H3V3m3 4h4M6 10h3m7-2h5v13H11v-3m4-6h3m-3 4h3M7 20l2 2 2-2M9 22v-4',doi:'M10 13a5 5 0 0 0 7 .1l3-3a5 5 0 0 0-7.1-7.1L11 5M14 11a5 5 0 0 0-7-.1l-3 3a5 5 0 0 0 7.1 7.1L13 19',original:'M14 2H5v20h14V7l-5-5v5h5M8 12h8m-8 4h8',retry:'M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 14 6M4 12a8 8 0 0 0 14 6'};
     const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg'),path=doc.createElementNS(svg.namespaceURI,'path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width',['more','drag'].includes(icon)?'3':'1.7');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');path.setAttribute('d',paths[icon]||paths.more);if(icon==='orcid'){const circle=doc.createElementNS(svg.namespaceURI,'circle');circle.setAttribute('cx','12');circle.setAttribute('cy','12');circle.setAttribute('r','11');circle.setAttribute('fill','#A6CE39');circle.setAttribute('stroke','none');svg.append(circle);svg.setAttribute('stroke','#fff');svg.setAttribute('stroke-width','1.8');path.setAttribute('d','M7.3 10v7.5M11 7v10.5h2.6a5.25 5.25 0 0 0 0-10.5H11');const dot=doc.createElementNS(svg.namespaceURI,'circle');dot.setAttribute('cx','7.3');dot.setAttribute('cy','7');dot.setAttribute('r','1');dot.setAttribute('fill','#fff');dot.setAttribute('stroke','none');svg.append(dot);}svg.append(path);button.append(svg,this.el(doc,'span',label,'cl-action-label'));
   },
   actionMenu(doc,owner) {
@@ -102,22 +102,21 @@ var CiteLensUI = {
     menu.style.left=Math.max(8,Math.min(anchor.left+anchor.width/2-menu.offsetWidth/2,doc.defaultView.innerWidth-menu.offsetWidth-8))+'px';
     menu.style.top=Math.max(8,Math.min(anchor.bottom+5,doc.defaultView.innerHeight-menu.offsetHeight-8))+'px';
   },
-  bindAbstract(doc,card,title,getRecord) {
+  bindAbstract(doc,card,title,getRecord,{activateOnClick=true}={}) {
     const win=doc.defaultView;let timer;
     title.removeAttribute('title');title.tabIndex=0;title.setAttribute('role','button');title.setAttribute('aria-label',title.textContent+'；查看文献摘要');title.setAttribute('aria-expanded','false');
     const initialRecord=getRecord(),cached=CiteLensAbstracts.cached(CiteLensServices,initialRecord);title.dataset.abstractState=cached?.status||(String(initialRecord.abstract||initialRecord.abstractNote||'').length>=80?'available':'unknown');
-    const open=()=>{win.clearTimeout(timer);if(title.isConnected)this.abstractPopover(doc,card,title,getRecord);};
+    const open=()=>{win.clearTimeout(timer);if(title.isConnected&&title.getClientRects().length)this.abstractPopover(doc,card,title,getRecord);};
     title.addEventListener('pointerenter',()=>{win.clearTimeout(timer);timer=win.setTimeout(open,320);});
     title.addEventListener('pointerleave',()=>win.clearTimeout(timer));
     title.addEventListener('focus',()=>{if(Date.now()<(title._clSummaryDismissed||0))return;timer=win.setTimeout(open,320);});
     title.addEventListener('blur',()=>win.clearTimeout(timer));
-    title.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();open();});
-    title.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();e.stopPropagation();open();}});
+    if(activateOnClick){title.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();open();});title.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();e.stopPropagation();open();}});}
   },
   abstractPopover(doc,card,title,getRecord,{placement=null}={}) {
     if(doc._clAbstract?.title===title)return;
     doc._clAbstract?.close(true);doc._clClosingAbstract?.();CiteLens.retainCitation(doc,card);
-    const win=doc.defaultView,host=card.closest('.cl-native-host,.cl-floating')||card,record={...getRecord()},key=CiteLensCore.identity(record);
+    const win=doc.defaultView,listRow=card.closest('.cl-list-row'),host=card.closest('.cl-native-host,.cl-floating')||(listRow?card.closest('.cl-root'):null)||card,record={...getRecord()},key=CiteLensCore.identity(record);
     const panel=this.el(doc,'aside',null,'cl-summary'),body=this.el(doc,'div',null,'cl-summary-body'),content=this.el(doc,'div','正在读取摘要…','cl-summary-content'),source=this.el(doc,'div',null,'cl-summary-source'),facts=this.el(doc,'div',null,'cl-summary-facts');
     let closed=false,inline=false,loading=false,abstractResult=null,translationTicket=0,displayMode='original',animation,manual=placement,drag=null,resizing=null,userSize=doc._clSummarySize||null,dockPreview=null;const cleanups=[];
     content.dataset.uiStatus='true';content.lang='en';panel.dataset.citeLens='summary';panel.id='cl-summary-'+(++this.sequence);panel.setAttribute('aria-label','文献摘要');panel.setAttribute('role','region');panel.setAttribute('popover','manual');body.setAttribute('aria-live','polite');
@@ -129,13 +128,14 @@ var CiteLensUI = {
     const close=(immediate=false)=>{if(closed){if(immediate)finish();return;}closed=true;for(const fn of cleanups)fn();delete host.dataset.summarySide;delete card.dataset.summaryActive;delete card.dataset.summaryEdge;title.setAttribute('aria-expanded','false');title.removeAttribute('aria-controls');if(doc._clAbstract?.title===title)delete doc._clAbstract;
       if(immediate||!panel.isConnected){finish();return;}panel.dataset.closing='true';doc._clClosingAbstract=finish;animation=animate(false);if(animation)animation.finished.then(finish,()=>{});else finish();
     };
-    const position=()=>{if(closed)return;if(!title.isConnected||!host.isConnected){close(true);return;}let p=CiteLensAbstracts.placement(host.getBoundingClientRect(),{width:win.innerWidth,height:win.innerHeight},card.getBoundingClientRect().top,panel.offsetHeight||280);if(manual){const a=host.getBoundingClientRect(),horizontal=['left','right'].includes(manual.side),point={side:manual.side,left:horizontal?manual.left:manual.side==='free'?manual.left:a.left+manual.offset,top:horizontal?a.top+manual.offset:manual.top};p=manual.side==='inline'?{side:'inline'}:CiteLensAbstracts.dragPlacement(a,{width:win.innerWidth,height:win.innerHeight},{width:manual.width,height:userSize?.height||panel.offsetHeight||280,userSized:!!userSize},point,false);}
-      if(userSize&&p.side!=='inline'){p=CiteLensAbstracts.dragPlacement(host.getBoundingClientRect(),{width:win.innerWidth,height:win.innerHeight},{width:userSize.width,height:userSize.height,userSized:true},{...p,side:resizing?'free':p.side},false);}
+    const dockOptions=()=>({target:card.getBoundingClientRect(),...(listRow?{sides:['left']}:{})});
+    const position=()=>{if(closed)return;if(!title.isConnected||!host.isConnected){close(true);return;}let p=CiteLensAbstracts.placement(host.getBoundingClientRect(),{width:win.innerWidth,height:win.innerHeight},card.getBoundingClientRect().top,panel.offsetHeight||280,dockOptions());if(manual){const a=host.getBoundingClientRect(),horizontal=['left','right'].includes(manual.side),point={side:manual.side,left:horizontal?manual.left:manual.side==='free'?manual.left:a.left+manual.offset,top:horizontal?a.top+manual.offset:manual.top};p=manual.side==='inline'?{side:'inline'}:CiteLensAbstracts.dragPlacement(a,{width:win.innerWidth,height:win.innerHeight},{width:manual.width,height:userSize?.height||panel.offsetHeight||280,userSized:!!userSize},point,false,dockOptions());}
+      if(userSize&&p.side!=='inline'){p=CiteLensAbstracts.dragPlacement(host.getBoundingClientRect(),{width:win.innerWidth,height:win.innerHeight},{width:userSize.width,height:userSize.height,userSized:true},{...p,side:resizing?'free':p.side},false,dockOptions());}
       if(p.side==='free')delete host.dataset.summarySide;else host.dataset.summarySide=p.side;panel.dataset.side=p.side;card.dataset.summaryActive='true';card.dataset.summaryEdge=p.side;
       if(p.side==='inline'){if(!inline){animation?.cancel();if(panel.matches(':popover-open'))panel.hidePopover();panel.removeAttribute('popover');panel.classList.add('cl-summary-inline');card.append(panel);inline=true;}panel.removeAttribute('style');this.fitPopup(host,doc);}
-      else{if(inline){animation?.cancel();panel.setAttribute('popover','manual');panel.classList.remove('cl-summary-inline');inline=false;}panel.style.cssText=`left:${p.left}px;top:${p.top}px;width:${p.width}px;max-height:${p.maxHeight}px;${userSize?'height:'+Math.min(userSize.height,p.maxHeight)+'px':''}`;if(!panel.matches(':popover-open'))panel.showPopover();}
-      const ownerBox=card.getBoundingClientRect(),summaryBox=panel.getBoundingClientRect(),clamp=(v,max)=>Math.max(20,Math.min(v,max-20));
-      panel.style.setProperty('--cl-link-y',clamp(ownerBox.top+ownerBox.height/2-summaryBox.top,summaryBox.height)+'px');panel.style.setProperty('--cl-link-x',clamp(ownerBox.left+ownerBox.width/2-summaryBox.left,summaryBox.width)+'px');
+      else{if(inline){animation?.cancel();panel.setAttribute('popover','manual');panel.classList.remove('cl-summary-inline');inline=false;}panel.style.cssText=`left:${p.left}px;top:${p.top}px;width:${p.width}px;max-height:${p.maxHeight}px;min-height:${p.minHeight||0}px;${userSize?'height:'+Math.max(p.minHeight||0,Math.min(userSize.height,p.maxHeight))+'px':''}`;if(!panel.matches(':popover-open'))panel.showPopover();}
+      const link=CiteLensAbstracts.linkPosition(card.getBoundingClientRect(),p.side==='inline'?panel.getBoundingClientRect():{left:p.left,top:p.top,width:panel.offsetWidth,height:panel.offsetHeight});
+      panel.style.setProperty('--cl-link-y',link.y+'px');panel.style.setProperty('--cl-link-x',link.x+'px');
     };
     const retry=this.button(doc,'重新加载',()=>load(true));retry.classList.add('cl-summary-retry');retry.hidden=true;
     const tools=this.el(doc,'div',null,'cl-summary-tools'),modes=this.el(doc,'div',null,'cl-summary-modes'),translationStatus=this.el(doc,'span','','cl-mode-status');modes.setAttribute('role','group');modes.setAttribute('aria-label','摘要显示方式');
@@ -143,10 +143,10 @@ var CiteLensUI = {
     modes.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();const buttons=[...modes.children],i=buttons.indexOf(doc.activeElement),n=e.key==='Home'?0:e.key==='End'?2:(i+(e.key==='ArrowLeft'?-1:1)+3)%3;buttons[n].focus();buttons[n].click();});
     translationStatus.setAttribute('role','status');tools.append(source,translationStatus,modes);facts.setAttribute('aria-label','关键词');body.append(content,facts,retry);panel.append(tools,body);card.append(panel);doc._clAbstract={title,close,position,get placement(){return manual?{...manual}:null;}};title.setAttribute('aria-expanded','true');title.setAttribute('aria-controls',panel.id);position();animation=animate(true);
     const grip=tools;grip.tabIndex=0;grip.setAttribute('role','toolbar');grip.setAttribute('aria-label','摘要工具栏');
-    const geometry=(point,snap=true)=>CiteLensAbstracts.dragPlacement(host.getBoundingClientRect(),{width:win.innerWidth,height:win.innerHeight},{width:userSize?.width||manual?.width||panel.offsetWidth,height:userSize?.height||panel.offsetHeight,userSized:!!userSize},point,snap);
+    const geometry=(point,snap=true)=>CiteLensAbstracts.dragPlacement(host.getBoundingClientRect(),{width:win.innerWidth,height:win.innerHeight},{width:userSize?.width||manual?.width||panel.offsetWidth,height:userSize?.height||panel.offsetHeight,userSized:!!userSize},point,snap,dockOptions());
     const remember=p=>{const a=host.getBoundingClientRect();manual={...p,offset:['top','bottom'].includes(p.side)?p.left-a.left:p.top-a.top};};
     const hideDock=()=>{dockPreview?.remove();dockPreview=null;};
-    const preview=p=>{if(['free','inline'].includes(p.side)){hideDock();return;}if(!dockPreview){dockPreview=this.el(doc,'div',null,'cl-summary-dock-preview');dockPreview.setAttribute('popover','manual');dockPreview.setAttribute('aria-hidden','true');doc.body.append(dockPreview);dockPreview.showPopover();}dockPreview.style.cssText=`left:${p.left}px;top:${p.top}px;width:${p.width}px;height:${Math.min(panel.offsetHeight,p.maxHeight)}px`;};
+    const preview=p=>{if(['free','inline'].includes(p.side)){hideDock();return;}if(!dockPreview){dockPreview=this.el(doc,'div',null,'cl-summary-dock-preview');dockPreview.setAttribute('popover','manual');dockPreview.setAttribute('aria-hidden','true');doc.body.append(dockPreview);dockPreview.showPopover();}dockPreview.style.cssText=`left:${p.left}px;top:${p.top}px;width:${p.width}px;height:${Math.max(p.minHeight||0,Math.min(panel.offsetHeight,p.maxHeight))}px`;};
     const settle=before=>{position();const after=panel.getBoundingClientRect();animation?.cancel();if(!win.matchMedia('(prefers-reduced-motion: reduce)').matches){animation=panel.animate([{transform:`translate(${before.left-after.left}px,${before.top-after.top}px)`},{transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.85,.25,1)',fill:'none'});}};
     const endDrag=(cancelled=false)=>{if(!drag)return;const before=panel.getBoundingClientRect(),previous=drag.previous,pointer=drag.pointer;drag=null;delete panel.dataset.dragging;hideDock();try{grip.releasePointerCapture(pointer);}catch(_){}if(cancelled)manual=previous;else remember(geometry({left:before.left,top:before.top}));settle(before);};
     grip.addEventListener('pointerdown',e=>{if(e.button!==0||drag||resizing||e.target.closest?.('button,a,input,select,textarea,[role=button]'))return;e.preventDefault();e.stopPropagation();animation?.cancel();const b=panel.getBoundingClientRect(),previous=manual;remember(geometry({left:b.left,top:b.top},false));position();const placed=panel.getBoundingClientRect();drag={pointer:e.pointerId,x:e.clientX,y:e.clientY,left:placed.left,top:placed.top,previous};panel.dataset.dragging='true';try{grip.setPointerCapture(e.pointerId);}catch(_){}});
@@ -179,10 +179,10 @@ var CiteLensUI = {
     const observer=new win.MutationObserver(()=>{if(!title.isConnected||!panel.isConnected)close(true);});observer.observe(doc.body||doc.documentElement,{childList:true,subtree:true});cleanups.push(()=>observer.disconnect());
     let requestTicket=0;
     const load=async(force=false)=>{const ticket=++requestTicket;loading=true;title.dataset.abstractState='loading';translationTicket++;abstractResult=null;displayMode='original';content.classList.remove('cl-translated','cl-bilingual');modes.hidden=true;translationStatus.textContent='';retry.disabled=true;body.style.minHeight=Math.min(body.clientHeight,180)+'px';content.dataset.uiStatus='true';content.textContent='正在读取摘要…';body.setAttribute('aria-busy','true');source.replaceChildren();facts.replaceChildren();position();
-      if(typeof CiteLensNetwork!=='undefined')CiteLensNetwork.prioritizeAbstract(record);let result;try{result=await CiteLensAbstracts.lookup(CiteLensServices,record,{force});}catch(_){result={status:'offline'};}
+      let result;try{result=await CiteLensAbstracts.lookup(CiteLensServices,record,{force});}catch(_){result={status:'offline'};}
       if(ticket!==requestTicket||!title.isConnected||CiteLensCore.identity(getRecord())!==key)return;
       title.dataset.abstractState=result.status;if(closed)return;
-      if(result.status==='available'&&typeof CiteLensNetwork!=='undefined')CiteLensNetwork.acceptAbstract(record,result);if(result.status==='available')result={...result,text:CiteLensCore.abstractBody(result.text,result.record||record)};loading=false;title.dataset.abstractState=result.status;abstractResult=result;modes.hidden=result.status!=='available';body.setAttribute('aria-busy','false');body.style.minHeight='';retry.disabled=false;retry.hidden=result.status==='available';
+      if(result.status==='available')result={...result,text:CiteLensCore.abstractBody(result.text,result.record||record)};loading=false;title.dataset.abstractState=result.status;abstractResult=result;modes.hidden=result.status!=='available';body.setAttribute('aria-busy','false');body.style.minHeight='';retry.disabled=false;retry.hidden=result.status==='available';
       if(retry.hidden&&doc.activeElement===retry){panel.tabIndex=-1;panel.focus({preventScroll:true});}
       content.dataset.uiStatus=String(result.status!=='available');content.textContent=result.status==='available'?result.text:result.status==='offline'?'暂时无法连接摘要服务，请重试。':'公开来源暂未返回可匹配的摘要。';
       if(result.status==='available'){
@@ -341,7 +341,7 @@ var CiteLensUI = {
         await S.enqueue(record,context);this.setButtonLabel(b,'已在清单','bookmarked');b.setAttribute('aria-pressed','true');this.status(status,'已加入本地阅读清单');onChange?.();
       });later.setAttribute('aria-pressed',String(!!this.queued(record)));
       later.title='加入稍后阅读清单';actions.append(save,later);
-      const more=this.iconButton(doc,'更多','more',()=>this.actionMenu(doc,root));more.classList.add('cl-more');more.setAttribute('aria-label','更多操作');more.setAttribute('aria-haspopup','menu');more.setAttribute('aria-expanded',String(!!root._menu));if(root._menu)more.setAttribute('aria-controls',root._menu.id);more.title='更多操作';actions.append(more);
+      const copy=this.iconButton(doc,'复制引文','copy',()=>root._copy()),refresh=this.iconButton(doc,'更新信息','retry',b=>runLookup(true,b));actions.append(copy,refresh);
       eyebrow.append(status,actions);
       const runLookup=async(interactive,b=null)=>{
         if(lookupBusy)return;lookupBusy=true;if(b)b.disabled=true;
@@ -350,7 +350,7 @@ var CiteLensUI = {
           if(interactive){if(!await this.networkConsent(doc))return;this.status(status,'正在更新…');}
           else if(!S.state.settings.autoLookup||!S.state.settings.networkConsent)return;
           if(!root.isConnected||S.dead)return;
-          const result=await S.lookup(record);if(queryKey!==C.identity(record)||!root.isConnected||S.dead||!S.state.settings.networkConsent||!interactive&&!S.state.settings.autoLookup)return;
+          const result=await S.lookup(record,{force:interactive});if(queryKey!==C.identity(record)||!root.isConnected||S.dead||!S.state.settings.networkConsent||!interactive&&!S.state.settings.autoLookup)return;
           const apply=async(next,reasons)=>{
             const wasQueued=this.queued(record);
             record={...initial,...next,raw:initial.raw,position:initial.position};record.DOI=C.recordDOI(record);
@@ -452,20 +452,20 @@ var CiteLensUI = {
     this.style(doc);
     const previous=doc.activeElement,parent=[...doc.querySelectorAll('.cl-overlay,.cl-root')].reverse().find(x=>!x.hidden),overlay=this.el(doc,'div',null,'cl-overlay'),frame=this.el(doc,'section',null,'cl-dialog '+className),head=this.el(doc,'header',null,'cl-dialog-header'),root=this.el(doc,'div',null,'cl-dialog-body'),footer=this.el(doc,'footer',null,'cl-dialog-footer');
     const heading=this.el(doc,'h2',title);heading.id='cl-dialog-title-'+(++this.sequence);
-    frame.setAttribute('role','dialog');frame.setAttribute('aria-modal','true');if(header)frame.setAttribute('aria-labelledby',heading.id);else frame.setAttribute('aria-label',title);frame.tabIndex=-1;
+    frame.setAttribute('role','dialog');frame.setAttribute('aria-modal',String(className!=='cl-settings'));if(header)frame.setAttribute('aria-labelledby',heading.id);else frame.setAttribute('aria-label',title);frame.tabIndex=-1;
     let closed=false,busy=false;const win=doc.defaultView;
     doc._clAbstract?.close(true);doc.querySelector('.cl-menu')?._close?.();
     const rect=parent?.classList.contains('cl-root')?parent.getBoundingClientRect():null;
-    if(parent){if(!keepParentVisible)parent.hidden=true;parent.inert=true;}
-    if(rect&&className==='cl-settings'){overlay.classList.add('cl-context-page');overlay.style.setProperty('--cl-context-right',Math.max(8,win.innerWidth-rect.right)+'px');overlay.style.setProperty('--cl-context-top',rect.top+'px');}
-    const release=()=>{if(closed)return;closed=true;try{removed.disconnect();win.removeEventListener('pagehide',release);}catch(_){}if(parent?.isConnected){parent.hidden=false;parent.inert=false;}onClose?.();};
-    const removed=new win.MutationObserver(()=>{try{if(!overlay.isConnected||parent&&!parent.isConnected){overlay.remove();release();}}catch(_){release();}});removed.observe(doc.body||doc.documentElement,{childList:true,subtree:true});win.addEventListener('pagehide',release);
+    if(parent&&className!=='cl-settings'){if(!keepParentVisible)parent.hidden=true;parent.inert=true;}
+    if(className==='cl-settings'){overlay.classList.add('cl-context-page');overlay.style.setProperty('--cl-context-right',(rect?Math.max(8,win.innerWidth-rect.right):12)+'px');overlay.style.setProperty('--cl-context-top',(rect?Math.max(8,rect.top):48)+'px');}
+    const release=()=>{if(closed)return;closed=true;try{removed.disconnect();win.removeEventListener('pagehide',release);}catch(_){}if(parent?.isConnected&&className!=='cl-settings'){parent.hidden=false;parent.inert=false;}onClose?.();};
+    const removed=new win.MutationObserver(()=>{try{if(!overlay.isConnected||className!=='cl-settings'&&parent&&!parent.isConnected){overlay.remove();release();}}catch(_){release();}});removed.observe(doc.body||doc.documentElement,{childList:true,subtree:true});win.addEventListener('pagehide',release);
     const close=()=>{if(closed||busy)return;overlay.remove();release();try{if(previous?.isConnected)previous.focus();}catch(_){}};
     const dismiss=this.quiet(doc,'×',close);dismiss.classList.add('cl-dismiss');dismiss.setAttribute('aria-label','关闭'+title);
-    if(title.startsWith('Paper Nexus')){heading.classList.add('pn-brand-heading');heading.prepend(this.logo(doc,24));}if(parent&&!keepParentVisible){const back=this.quiet(doc,'‹',close);back.classList.add('cl-dismiss','cl-back');back.setAttribute('aria-label','返回上一页');head.append(back);}head.append(heading,dismiss);if(header)frame.append(head);frame.append(root,footer);overlay.append(frame);(doc.body||doc.documentElement).append(overlay);
+    if(title.startsWith('Paper Nexus')){heading.classList.add('pn-brand-heading');heading.prepend(this.logo(doc,24));}if(parent&&!keepParentVisible&&className!=='cl-settings'){const back=this.quiet(doc,'‹',close);back.classList.add('cl-dismiss','cl-back');back.setAttribute('aria-label','返回上一页');head.append(back);}head.append(heading,dismiss);if(header)frame.append(head);frame.append(root,footer);overlay.append(frame);(doc.body||doc.documentElement).append(overlay);
     overlay.addEventListener('keydown',e=>{
       if(e.key==='Escape'){e.stopPropagation();e.preventDefault();close();return;}
-      this.tab(frame,e);
+      if(className!=='cl-settings')this.tab(frame,e);
     });frame.focus();
     return {root,frame,footer,overlay,close,setBusy(value){busy=value;dismiss.disabled=value;const back=head.querySelector('.cl-back');if(back)back.disabled=value;frame.setAttribute('aria-busy',String(value));}};
   },
@@ -562,7 +562,7 @@ var CiteLensUI = {
     root._clOpen=true;root._clSetOpen=visible=>{if(disposed)return;win.cancelAnimationFrame(openingFrame);root._clOpen=visible;toolbarState(visible);if(!visible)doc._clAbstract?.close(true);if(motion)motion.show(visible);else if(!visible)dispose();};
     const close=(restoreFocus=true)=>{restoreOnClose=restoreFocus;root._clSetOpen(false);};root._clClose=close;
     const dismiss=this.quiet(doc,'×',close);dismiss.classList.add('cl-dismiss');dismiss.setAttribute('aria-label','关闭文献清单');
-    const controls=this.el(doc,'div',null,'cl-header-tools');controls.append(this.iconButton(doc,'文献网络','network',()=>CiteLens.showNetwork(reader)),this.iconButton(doc,'设置','settings',()=>this.settingsDialog(doc)),dismiss);const brand=this.el(doc,'div','Paper Nexus','cl-brand');brand.prepend(this.logo(doc,24));row.append(brand,controls);
+    const controls=this.el(doc,'div',null,'cl-header-tools');const networkEntry=this.iconButton(doc,'文献网络','network',()=>CiteLens.showNetwork(reader));networkEntry.dataset.networkEntry='true';networkEntry.hidden=CiteLensServices.state.settings.networkEnabled!==true;controls.append(networkEntry,this.iconButton(doc,'设置','settings',()=>this.settingsDialog(doc)),dismiss);const brand=this.el(doc,'div','Paper Nexus','cl-brand');brand.prepend(this.logo(doc,24));row.append(brand,controls);
     const subtitle=this.el(doc,'div','阅读与关联','cl-subtitle'),tabs=this.el(doc,'div',null,'cl-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','文献范围');
     search.type='search';search.placeholder='搜索题名、作者、年份或 DOI';search.setAttribute('aria-label','搜索参考文献');
     head.append(row,tabs,search);root.append(head,body,footer);doc.body.append(root);
@@ -575,8 +575,13 @@ var CiteLensUI = {
     body.id='cl-panel-body-'+(++this.sequence);body.setAttribute('role','tabpanel');
     let view='references',selected=options.record?{record:options.record,context:options.context}:null,generation=0,scroll=0;
     const queries={references:'',queue:''};
+    const presenceCallbacks=new WeakMap(),presenceQueue=[];let checkingPresence=false;
+    const drainPresence=async()=>{if(checkingPresence)return;checkingPresence=true;try{while(!disposed&&presenceQueue.length){const node=presenceQueue.shift();if(node.isConnected)try{await presenceCallbacks.get(node)?.();}catch(e){Zotero.logError(e);}await new Promise(resolve=>win.setTimeout(resolve,12));}}finally{checkingPresence=false;}};
+    const presenceObserver=new win.IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){presenceObserver.unobserve(entry.target);presenceQueue.push(entry.target);}drainPresence();},{root:body,rootMargin:'60px'});
+    cleanups.push(()=>{presenceObserver.disconnect();presenceQueue.length=0;});
+
     const render=async()=>{
-      const ticket=++generation;body.replaceChildren();footer.replaceChildren();body.setAttribute('aria-busy','true');
+      const ticket=++generation;presenceObserver.disconnect();presenceQueue.length=0;body.replaceChildren();footer.replaceChildren();body.setAttribute('aria-busy','true');
       const queueCount=CiteLensServices.state.queue.filter(x=>x.status!=='saved').length;
       for(const b of tabs.children){const active=b.dataset.view===view;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;if(active)body.setAttribute('aria-labelledby',b.id);if(b.dataset.view==='queue'){const count=b.querySelector('.cl-tab-count');count.textContent=String(queueCount);count.hidden=!queueCount;}}
       root.classList.toggle('cl-selected',!!selected);search.hidden=!!selected;tabs.hidden=!!selected;subtitle.textContent=selected?'文献详情':'本篇引用与本地阅读清单';
@@ -615,17 +620,33 @@ var CiteLensUI = {
             for(const open of body.querySelectorAll('.cl-inline-detail')){open.parentElement.querySelector('.cl-row-title')?.setAttribute('aria-expanded','false');open.remove();}
             const detail=this.el(doc,'div',null,'cl-inline-detail');const card=this.card(doc,entry.record,reader,{detailed:true,context:entry.context,onRecord:r=>{entry.record=r;title.replaceChildren(this.title(doc,r,'span'));const byline=item.querySelector(':scope > .cl-byline');if(byline)byline.textContent=this.byline(r)+(r.journal?' · '+r.journal:'');},onChange:()=>{},onCollapse:()=>{detail.remove();title.setAttribute('aria-expanded','false');title.focus();}});detail.append(card);item.append(detail);title.setAttribute('aria-expanded','true');card.querySelector('.cl-collapse-detail').focus();
           });title.className='cl-row-title';title.append(this.title(doc,record,'span'));title.setAttribute('aria-expanded','false');
+          this.bindAbstract(doc,item,title,()=>entry.record,{activateOnClick:false});
           item.append(title,this.el(doc,'div',this.byline(record)+(record.journal?' · '+record.journal:''),'cl-byline'));
           const meta=this.el(doc,'div',null,'cl-list-meta');meta.append(this.el(doc,'span',this.type(record),'cl-chip'));
           const metric=CiteLensServices.metricFor(record);
           if(metric.status==='available'){const brief=this.el(doc,'span',`IF ${metric.jif===null?'未提供':metric.jif} · ${metric.categories.map(x=>x.quartile).filter(q=>/^Q[1-4]$/.test(q)).sort()[0]||'分区未提供'}`,'cl-muted');brief.title=(metric.metricYear?metric.metricYear+' 指标年':'年份未标注')+' · 最佳学科分区\n'+metric.categories.map(x=>x.name+' '+(x.quartile||'未提供')).join('\n');meta.append(brief);}
-          if(view==='references')meta.append(this.citationControl(doc,item,reader,record,{onJump:close}));
-          if(view==='queue')meta.append(this.quiet(doc,'移出清单',async()=>{
+          const rowActions=this.el(doc,'div',null,'cl-list-tools');rowActions.setAttribute('aria-label','文献操作');
+          if(view==='references')rowActions.append(this.citationControl(doc,item,reader,record,{onJump:close}));
+          let located=[];const refreshPresence=async()=>{const found=await CiteLensServices.locate(entry.record);if(!item.isConnected||ticket!==generation)return;located=found;this.setButtonLabel(save,found.length?'打开 Zotero 条目':'保存到 Zotero',found.length?'open':'save');};
+          const save=this.iconButton(doc,'保存到 Zotero','save',()=>located.length?located.length===1?Zotero.getActiveZoteroPane().selectItem(located[0].item.id):this.existingDialog(doc,located):this.saveDialog(doc,entry.record,entry.context,()=>refreshPresence()));rowActions.append(save);presenceCallbacks.set(item,refreshPresence);
+
+          if(view==='queue')rowActions.append(this.iconButton(doc,'移出清单','remove',async()=>{
             await CiteLensServices.removeQueue(entry.key);await render();
             const undo=this.button(doc,'撤销移出',async()=>{await CiteLensServices.enqueue(record,entry.context);render();});footer.replaceChildren(this.el(doc,'span','已移出阅读清单','cl-muted'),undo);
           }));
-          else meta.append(this.iconButton(doc,this.queued(record)?'已在清单':'稍后读',this.queued(record)?'bookmarked':'bookmark',async b=>{await CiteLensServices.enqueue(record,entry.context);this.setButtonLabel(b,'已在清单','bookmarked');const tab=tabs.querySelector('[data-view=queue]');const count=tab.querySelector('.cl-tab-count');count.textContent=String(CiteLensServices.state.queue.filter(x=>x.status!=='saved').length);count.hidden=false;}));
-          item.append(meta);body.append(item);
+          else rowActions.append(this.iconButton(doc,this.queued(record)?'已在清单':'稍后读',this.queued(record)?'bookmarked':'bookmark',async b=>{await CiteLensServices.enqueue(record,entry.context);this.setButtonLabel(b,'已在清单','bookmarked');const tab=tabs.querySelector('[data-view=queue]');const count=tab.querySelector('.cl-tab-count');count.textContent=String(CiteLensServices.state.queue.filter(x=>x.status!=='saved').length);count.hidden=false;}));
+          const copy=this.iconButton(doc,'复制引文','copy',async()=>{Zotero.Utilities.Internal.copyTextToClipboard(await CiteLensCitationFormat.format(entry.record));this.status(footer,'已复制引用');});
+          const refresh=this.iconButton(doc,'更新信息','retry',async b=>{
+            b.disabled=true;try{
+              const result=await CiteLensServices.lookup(entry.record,{force:true});if(!item.isConnected||ticket!==generation)return;
+              const apply=async next=>{entry.record={...entry.record,...next,raw:entry.record.raw,position:entry.record.position};if(this.queued(record))await CiteLensServices.enqueue(entry.record,entry.context);scroll=body.scrollTop;await render();};
+              if(result.status==='matched')await apply(result.ranked[0].record);
+              else if(result.status==='review')this.candidates(doc,entry.record,result.ranked,apply);
+              else this.status(footer,'未找到相符文献，已保留原始条目。');
+            }finally{b.disabled=false;}
+          });rowActions.append(copy,refresh);meta.append(rowActions);
+          item.append(meta);body.append(item);presenceObserver.observe(item);
+
         }
         count+=limit;if(count<rows.length){const b=this.button(doc,`继续显示 ${Math.min(limit,rows.length-count)} 条`,()=>{b.remove();appendPage();});b.style.margin='14px 18px';body.append(b);}
       };await appendPage();if(ticket===generation&&root.isConnected){body.scrollTop=scroll;body.setAttribute('aria-busy','false');}
@@ -654,7 +675,7 @@ var CiteLensUI = {
     const S=CiteLensServices,existing=doc.querySelector('.cl-settings');if(existing){existing.focus();return;}
     let unsubscribe=()=>{},unsubscribeModels=()=>{},testTicket=0;
     const {root,footer,close}=this.dialog(doc,'Paper Nexus',{className:'cl-settings',onClose:()=>{testTicket++;unsubscribe();unsubscribeModels();}}),status=this.el(doc,'div','','cl-status');
-    const version=this.quiet(doc,'v'+CiteLens.version,()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));version.title='版本说明与手动下载安装包';version.classList.add('cl-version');
+    const version=this.quiet(doc,'v'+CiteLens.version,()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));version.title='版本说明与插件下载';version.classList.add('cl-version');
     const update=this.quiet(doc,'检查更新',()=>CiteLensUpdater.phase==='available'?CiteLensUpdater.apply():CiteLensUpdater.check()),updateStatus=this.el(doc,'div','','cl-status');updateStatus.dataset.updateStatus='true';updateStatus.setAttribute('role','status');updateStatus.setAttribute('aria-live','polite');updateStatus.setAttribute('aria-atomic','true');
     const release=this.quiet(doc,'打开发布页',()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));release.hidden=true;
     footer.classList.add('cl-update-footer');
@@ -669,12 +690,12 @@ var CiteLensUI = {
     };
     const tabs=this.el(doc,'nav',null,'cl-tabs cl-settings-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','设置分类');root.before(tabs);
     const panes={};let active='general';
-    const activate=key=>{active=key;footer.hidden=key!=='network';for(const [id,pane] of Object.entries(panes)){pane.hidden=id!==key;const b=tabs.querySelector('[data-pane="'+id+'"]');b.setAttribute('aria-selected',String(id===key));b.tabIndex=id===key?0:-1;}root.scrollTop=0;status.textContent='';};
-    for(const [key,label] of [['general','阅读'],['network','网络'],['appearance','外观']]){
+    const activate=key=>{active=key;footer.hidden=key!=='general';for(const [id,pane] of Object.entries(panes)){pane.hidden=id!==key;const b=tabs.querySelector('[data-pane="'+id+'"]');b.setAttribute('aria-selected',String(id===key));b.tabIndex=id===key?0:-1;}root.scrollTop=0;status.textContent='';};
+    for(const [key,label] of [['general','阅读'],['appearance','外观']]){
       const pane=this.el(doc,'section',null,'cl-settings-pane'),b=this.button(doc,label,()=>activate(key));pane.id='cl-settings-pane-'+this.sequence+'-'+key;pane.setAttribute('role','tabpanel');b.id=pane.id+'-tab';b.setAttribute('role','tab');b.setAttribute('aria-controls',pane.id);pane.setAttribute('aria-labelledby',b.id);b.dataset.pane=key;panes[key]=pane;tabs.append(b);root.append(pane);
     }
     tabs.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();const list=[...tabs.children],i=list.indexOf(e.target),n=e.key==='Home'?0:e.key==='End'?list.length-1:(i+(e.key==='ArrowRight'?1:-1)+list.length)%list.length;list[n].click();list[n].focus();});
-    const appearance=panes.appearance,network=panes.network,data=this.el(doc,'div',null,'cl-general-data'),translation=this.el(doc,'div',null,'cl-translation-settings');panes.general.append(data,translation);
+    const appearance=panes.appearance,data=this.el(doc,'div',null,'cl-general-data'),translation=this.el(doc,'div',null,'cl-translation-settings');panes.general.append(data,translation);
     const themeGrid=this.el(doc,'div',null,'cl-theme-grid');themeGrid.setAttribute('role','group');themeGrid.setAttribute('aria-label','主题配色');
     let expandedThemes=false;
     const syncThemes=()=>{const current=CiteLensThemes.resolve(S.state.settings.theme);for(const b of themeGrid.children){b.setAttribute('aria-pressed',String(!S.state.settings.customThemeImage&&b.dataset.themeChoice===current.id));b.hidden=!expandedThemes&&![...CiteLensThemes.themes.slice(0,4).map(t=>t.id),CiteLensThemes.themes.slice(0,5).some(t=>t.id===current.id)?CiteLensThemes.themes[4].id:current.id].includes(b.dataset.themeChoice);}};
@@ -699,23 +720,6 @@ var CiteLensUI = {
     main.append(configure);
     const target=translationSelect(main,'译文语言','translationTarget',T.languages,'zh-Hans');
     const size=this.el(doc,'select');size.setAttribute('aria-label','译文字号');size.dataset.translationSetting='translationSize';for(const n of [10,11,12,13,14,15,16,18,20]){const o=this.el(doc,'option',n+' px');o.value=n;size.append(o);}size.value=T.get('translationSize','13');size.addEventListener('change',()=>{T.set('translationSize',size.value);CiteLensThemes.refresh();});row(main,'译文字号','translationSize',size);
-    const models=CiteLensModels,modelControls=this.el(doc,'div',null,'pn-model-controls'),localModel=this.el(doc,'select'),modelStatus=this.el(doc,'span','','pn-model-status'),modelProgress=this.el(doc,'progress');
-    let switchingModel=false;
-    localModel.dataset.localModel='true';localModel.setAttribute('aria-label','主题分析');modelProgress.max=100;modelProgress.setAttribute('aria-label','下载进度');
-    const modelCheck=this.iconButton(doc,'检查分析资源更新','retry',async()=>{try{await CiteLens.prepareModels();if(!await models.refreshLocation())return;await models.refreshInstalled();await models.check();}catch(e){models.emit('error',e.message);}});modelCheck.dataset.modelCheck='true';modelControls.append(localModel,modelCheck);row(network,'主题分析','localModel',modelControls);
-    const downloads=this.el(doc,'div',null,'cl-setting-row'),downloadLabel=this.el(doc,'label','添加方案'),downloadControls=this.el(doc,'div',null,'pn-model-controls'),downloadChoice=this.el(doc,'select'),downloadAction=this.quiet(doc,'下载',async()=>{try{await models.install(downloadChoice.value);}catch(e){models.emit('error',e.message);}});downloads.hidden=true;downloadChoice.id='cl-download-analysis';downloadLabel.htmlFor=downloadChoice.id;downloadChoice.setAttribute('aria-label','添加方案');downloadChoice.dataset.modelDownloadChoice='true';downloadControls.append(downloadChoice,downloadAction);downloads.append(downloadLabel,downloadControls);network.append(downloads);
-    const modelCancel=this.quiet(doc,'取消',()=>models.cancel()),feedback=this.el(doc,'div',null,'pn-model-feedback');feedback.append(modelStatus,modelProgress,modelCancel);network.append(feedback);modelStatus.setAttribute('role','status');
-    const syncLocalModel=state=>{
-      const populate=(input,rows,empty)=>{const signature=rows.map(m=>m.id+':'+models.displayName(m)).join('|');if(input.dataset.signature!==signature){input.replaceChildren();input.dataset.signature=signature;for(const m of rows){const o=this.el(doc,'option',models.displayName(m));o.value=m.id;input.append(o);}if(!rows.length){const o=this.el(doc,'option',empty);o.value='';input.append(o);}}};
-      populate(localModel,state.models.filter(m=>m.installed),'未安装');localModel.value=state.models.some(m=>m.installed&&m.id===state.selected)?state.selected:'';
-      const available=state.models.filter(m=>!m.installed||m.update),previous=downloadChoice.value;populate(downloadChoice,available,'');downloadChoice.value=available.some(m=>m.id===previous)?previous:available[0]?.id||'';downloads.hidden=!available.length;
-      const updating=available.find(m=>m.id===downloadChoice.value)?.installed;downloadLabel.textContent=updating?'更新方案':'添加方案';downloadAction.textContent=updating?'更新':'下载';
-      localModel.disabled=state.busy||switchingModel||!state.models.some(m=>m.installed);downloadChoice.disabled=downloadAction.disabled=state.busy||switchingModel||!available.length;modelCheck.disabled=state.busy||switchingModel||state.phase==='checking';modelCancel.hidden=!state.busy;modelProgress.hidden=!state.busy;modelProgress.value=Math.round(state.ratio*100);feedback.hidden=!state.busy&&!switchingModel&&!['error','checking','checked'].includes(state.phase);this.status(modelStatus,switchingModel?'切换中…':state.busy||['error','checking','checked'].includes(state.phase)?state.message:'',state.phase==='error');CiteLensThemes.refresh();
-    };
-    downloadChoice.addEventListener('change',()=>syncLocalModel(models.snapshot()));
-    localModel.addEventListener('change',async()=>{if(switchingModel)return;const id=localModel.value;switchingModel=true;syncLocalModel(models.snapshot());try{await models.activate(id);}catch(e){models.emit('error',e.message);}finally{switchingModel=false;syncLocalModel(models.snapshot());}});
-    unsubscribeModels=models.subscribe(syncLocalModel);CiteLens.prepareModels().then(()=>models.refreshLocation()).then(()=>models.refreshInstalled()).catch(e=>models.emit('error',e.message));
-
     const buildModelPage=(task,origin,paneKey)=>{
       const llm=this.el(doc,'div',null,'cl-llm-settings');llm.dataset.task=task;llm.hidden=true;root.append(llm);
       let busy=false,visit=0;

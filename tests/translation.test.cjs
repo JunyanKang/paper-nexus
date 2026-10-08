@@ -80,13 +80,36 @@ test('discovery excludes unsupported modalities and Responses-only models withou
 });
 
 
-function nextCatalog(p){const value=JSON.parse(JSON.stringify(p.modelCatalog()));value.version='2026-10-06.3';for(const row of value.providers){row.model+='-new';}return value;}
+function nextCatalog(p){const value=JSON.parse(JSON.stringify(p.modelCatalog()));value.version='2026-10-07.2';for(const row of value.providers){row.model+='-new';}return value;}
 
 test('retired network settings and dedicated keys are removed while translation survives',async()=>{
  const s=setup();await s.p.legacyNetworkCleanup;await ready(s,'openai');const before=s.p.llmKey(s.p.llmConfig());s.prefs.set('networkEngine','llm');s.prefs.set('networkLLMConfigs','{"custom":{"model":"old-network"}}');s.prefs.set('llmConfigs',JSON.stringify({openai:{endpoint:s.p.llmConfig().endpoint,model:'test-model',clusterModel:'old-shared'}}));
  s.logins.push({httpRealm:'Paper Nexus Network API',password:'network-fixture'},{httpRealm:'Other Plugin API',password:'other-fixture'});await s.p.removeLegacyNetwork();
- assert.equal(s.prefs.has('networkEngine'),false);assert.equal(s.prefs.has('networkLLMConfigs'),false);assert.ok(!s.prefs.get('llmConfigs').includes('clusterModel'));assert.equal(s.p.llmKey(s.p.llmConfig()),before);assert.ok(s.logins.some(l=>l.httpRealm==='Other Plugin API'));assert.ok(!s.logins.some(l=>l.httpRealm==='Paper Nexus Network API'));assert.equal(s.p.clusterLLM,undefined);assert.equal(s.p.groupAuthorsLLM,undefined);assert.throws(()=>s.p.llmTaskConfig('clustering'),/仅用于摘要翻译/);await s.p.removeLegacyNetwork();assert.equal(s.p.llmKey(s.p.llmConfig()),before);
+ assert.equal(s.prefs.has('networkEngine'),false);assert.equal(s.prefs.has('networkLLMConfigs'),false);assert.ok(!s.prefs.get('llmConfigs').includes('clusterModel'));assert.equal(s.p.llmKey(s.p.llmConfig()),before);assert.ok(s.logins.some(l=>l.httpRealm==='Other Plugin API'));assert.ok(!s.logins.some(l=>l.httpRealm==='Paper Nexus Network API'));assert.equal(s.p.clusterLLM,undefined);assert.equal(s.p.groupAuthorsLLM,undefined);assert.throws(()=>s.p.llmTaskConfig('clustering'),/不支持的模型任务/);await s.p.removeLegacyNetwork();assert.equal(s.p.llmKey(s.p.llmConfig()),before);
 });
 test('translation setup and connection test preserve saved models and use only a sample sentence',async()=>{
  const s=setup();await ready(s,'openai');let sent;s.p.llmRequest=async(config,key,text)=>{sent={config,key,text};return{text:'基因表达调控视网膜发育。'};};const result=await s.p.testLLM(s.p.llmConfig());assert.equal(result.translation.ok,true);assert.equal(sent.config.model,'test-model');assert.equal(sent.text,'Gene expression regulates retinal development.');assert.ok(s.p.modelChoices('hunyuan','translation').includes('hy-mt2-pro'));
+});
+
+
+test('translation and knowledge models use independent credentials, model names and settings',async()=>{
+ const s=setup();await ready(s,'minimax','translation');const translation=s.p.llmConfig('minimax');assert.equal(s.p.llmKey(s.p.llmTaskConfig('network','minimax')),'');
+ await s.p.saveLLM({...s.p.llmTaskConfig('network','minimax'),model:'research-model'},'separate-research-fixture');assert.equal(s.p.llmKey(translation),'qa-key-not-real');assert.equal(s.p.llmConfig('minimax').model,'test-model');assert.equal(s.p.llmTaskConfig('network','minimax').model,'research-model');
+ assert.equal(s.p.llmKey(s.p.llmTaskConfig('network','minimax')),'separate-research-fixture');await s.p.removeLegacyNetwork();assert.equal(s.p.llmKey(s.p.llmTaskConfig('network','minimax')),'separate-research-fixture');
+ s.p.removeLLMKey(s.p.llmTaskConfig('network','minimax'));assert.equal(s.p.llmKey(translation),'qa-key-not-real');assert.ok(!JSON.stringify([...s.prefs]).includes('separate-research-fixture'));
+});
+
+test('network reasoning budget is separate from translation and network errors do not say translation',async()=>{
+ const s=setup(),config={...s.p.llmTaskConfig('network','minimax'),model:'MiniMax-M2.7-highspeed'},job=s.p.llmRequest(config,'fixture','{}','en'),x=s.requests[0];
+ assert.equal(x.timeout,180000);assert.equal(x.body.max_completion_tokens,8192);assert.equal(x.body.reasoning_split,true);assert.equal(x.body.stream_options.include_usage,true);assert.equal(x.body.thinking,undefined);
+ const rejected=assert.rejects(job,e=>e.code==='OUTPUT_LIMIT'&&!e.message.includes('译文'));x.end(JSON.stringify({choices:[{message:{content:''},finish_reason:'length'}]}));await rejected;
+ const controller=new AbortController(),next=s.p.llmRequest(config,'fixture','{}','en',null,{signal:controller.signal}),cancelled=assert.rejects(next,/取消/);controller.abort();await cancelled;assert.equal(s.p.llmRequests.size,0);
+});
+
+test('network reasoning is independent from fast translation and reserves output budget for analysis',async()=>{
+ const s=setup(),config={...s.p.llmTaskConfig('network','minimax'),model:'MiniMax-M3.1-Flash-Preview'};
+ const job=s.p.llmRequest(config,'fixture','{}',null,null,{maxTokens:8192,system:'Analyze supplied source evidence.'}),xhr=s.requests[0];assert.equal(xhr.body.reasoning_effort,'high');assert.equal(xhr.body.max_completion_tokens,16384);assert.equal(xhr.body.max_tokens,undefined);
+ xhr.end(JSON.stringify({choices:[{message:{content:'{}'},finish_reason:'stop'}]}));await job;
+ assert.equal(s.p.llmModelParameters(config,{reasoningEffort:'medium'}).reasoning_effort,'medium');assert.equal(s.p.llmModelParameters({...config,task:'translation'},{reasoningEffort:'max'}).reasoning_effort,'low');
+ assert.equal(s.p.llmModelParameters({...config,model:'MiniMax-M3'}).thinking.type,'enabled');
 });

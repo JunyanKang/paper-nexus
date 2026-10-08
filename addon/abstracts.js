@@ -4,11 +4,18 @@ var CiteLensAbstracts = (() => {
   const text=value=>String(value||'').replace(/<(?:\/?(?:jats:)?(?:p|title|sec|h[1-6])\b)[^>]*>/gi,'\n\n').split(/\n\s*\n/).map(C.plainTitle).filter(Boolean).join('\n\n').slice(0,30000);
   const later=(fn,ms)=>clock().setTimeout(fn,ms),clear=id=>clock().clearTimeout(id);
   function deadline(work,ms){let id;return Promise.race([work,new Promise((_,reject)=>{id=later(()=>reject(Error('timeout')),Math.max(1,ms));})]).finally(()=>clear(id));}
-  function placement(anchor,viewport,cardTop=anchor.top,height=360){
-    const gap=6,edge=8,right=viewport.width-anchor.right-gap-edge,left=anchor.left-gap-edge;
-    if(Math.max(left,right)<220)return {side:'inline'};
-    const side=right>=420||right>=left?'right':'left',width=Math.min(440,side==='right'?right:left),maxHeight=Math.max(90,Math.min(400,viewport.height*.6,viewport.height-58));
-    return {side,width,maxHeight,left:side==='right'?anchor.right+gap:anchor.left-gap-width,top:Math.max(42,Math.min(cardTop,viewport.height-Math.min(height,maxHeight)-edge))};
+  function placement(anchor,viewport,cardTop=anchor.top,height=360,options={}){
+    const sides=options.sides||['left','right','top','bottom'],right=viewport.width-anchor.right-8,left=anchor.left-8;
+    const side=sides.includes('right')&&(right>=420||right>=left)?'right':sides.includes('left')?'left':sides[0];
+    anchor={left:anchor.left,right:anchor.right,top:anchor.top,bottom:anchor.bottom??anchor.top};
+    for(const candidate of [side,...sides.filter(x=>x!==side)]){const p=dragPlacement(anchor,viewport,{width:440,height},{side:candidate,left:candidate==='right'?anchor.right:anchor.left-440,top:cardTop},false,options);if(p.side===candidate)return p;}
+    return options.sides?dragPlacement(anchor,viewport,{width:440,height},{left:8,top:cardTop},false,options):{side:'inline'};
+  }
+  // Keep the fixed source marker and the moving panel marker on the same projection.
+  // 12px corner + 8px breathing room + half of the 22px marker.
+  function linkPosition(target,panel){
+    const clamp=(value,length)=>Math.max(Math.min(31,length/2),Math.min(value,length-Math.min(31,length/2)));
+    return {x:clamp((target.left+target.right)/2-panel.left,panel.width),y:clamp((target.top+target.bottom)/2-panel.top,panel.height)};
   }
   // Shared pointer/keyboard geometry. Overlap is resolved by the longest crossed edge.
   function resizePlacement(rect,viewport,edge,dx,dy){
@@ -18,29 +25,33 @@ var CiteLensAbstracts = (() => {
     if(edge.includes('n'))top=clamp(top+dy,8,bottom-minH);if(edge.includes('s'))bottom=clamp(bottom+dy,top+minH,viewport.height-8);
     return{left,top,width:right-left,height:bottom-top};
   }
-  function dragPlacement(anchor,viewport,size,point,snap=true){
-    const edge=8,gap=6,width=Math.min(size.width,Math.max(1,viewport.width-2*edge)),maxHeight=Math.max(40,Math.min(size.userSized?viewport.height:400,viewport.height-2*edge)),height=Math.min(size.height,maxHeight);
+  function dragPlacement(anchor,viewport,size,point,snap=true,options={}){
+    const edge=8,gap=0,width=Math.min(size.width,Math.max(1,viewport.width-2*edge)),maxHeight=Math.max(40,Math.min(size.userSized?viewport.height:400,viewport.height-2*edge)),height=Math.min(size.height,maxHeight);
     const clamp=(v,min,max)=>Math.max(min,Math.min(v,Math.max(min,max)));
     const result={side:'free',width,maxHeight,left:clamp(point.left,edge,viewport.width-width-edge),top:clamp(point.top,edge,viewport.height-height-edge)};
     const right=result.left+width,bottom=result.top+height,overlapX=Math.max(0,Math.min(right,anchor.right)-Math.max(result.left,anchor.left)),overlapY=Math.max(0,Math.min(bottom,anchor.bottom)-Math.max(result.top,anchor.top));
+    const target=options.target||anchor,sides=options.sides||['left','right','top','bottom'];
+    const t={left:clamp(target.left,edge,viewport.width-edge),right:clamp(target.right,edge,viewport.width-edge),top:clamp(target.top,edge,viewport.height-edge),bottom:clamp(target.bottom??target.top,edge,viewport.height-edge)};
+    const cover=(value,start,end,length,limit)=>{const center=(start+end)/2;start=Math.max(edge,Math.min(start,center-31));end=Math.min(limit-edge,Math.max(end,center+31));return clamp(value,Math.max(edge,end-length),Math.min(start,limit-length-edge));};
     const docks=[];
-    for(const side of ['left','right','top','bottom']){
+    for(const side of sides){
       const horizontal=side==='left'||side==='right',space=side==='left'?anchor.left-edge-gap:side==='right'?viewport.width-anchor.right-edge-gap:side==='top'?anchor.top-edge-gap:viewport.height-anchor.bottom-edge-gap;
       if(space<(horizontal?Math.min(220,width):Math.min(90,height)))continue;
-      const w=horizontal?Math.min(width,space):width,m=horizontal?maxHeight:Math.min(maxHeight,space),h=Math.min(size.height,m);
-      const left=side==='left'?anchor.left-w-gap:side==='right'?anchor.right+gap:clamp(Math.abs(result.left-anchor.left)<=36?anchor.left:result.left,edge,viewport.width-w-edge);
-      const top=side==='top'?anchor.top-h-gap:side==='bottom'?anchor.bottom+gap:clamp(Math.abs(result.top-anchor.top)<=36?anchor.top:result.top,edge,viewport.height-h-edge);
+      const minHeight=horizontal?Math.max(t.bottom-t.top,Math.min(viewport.height-16,62)):0;
+      const w=horizontal?Math.min(width,space):Math.max(width,t.right-t.left),m=horizontal?Math.max(maxHeight,minHeight):Math.min(maxHeight,space),h=Math.max(Math.min(size.height,m),minHeight);
+      const left=side==='left'?anchor.left-w-gap:side==='right'?anchor.right+gap:cover(result.left,t.left,t.right,w,viewport.width);
+      const top=side==='top'?anchor.top-h-gap:side==='bottom'?anchor.bottom+gap:cover(result.top,t.top,t.bottom,h,viewport.height);
       const distance=side==='left'?Math.abs(right-anchor.left):side==='right'?Math.abs(result.left-anchor.right):side==='top'?Math.abs(bottom-anchor.top):Math.abs(result.top-anchor.bottom);
       const crossed=side==='left'?result.left<=anchor.left&&right>=anchor.left:side==='right'?result.left<=anchor.right&&right>=anchor.right:side==='top'?result.top<=anchor.top&&bottom>=anchor.top:result.top<=anchor.bottom&&bottom>=anchor.bottom;
-      docks.push({side,width:w,maxHeight:m,left,top,distance,score:horizontal?overlapY:overlapX,crossed});
+      docks.push({side,width:w,maxHeight:m,minHeight,left,top,distance,score:horizontal?overlapY:overlapX,crossed});
     }
-    const clean=p=>({side:p.side,width:p.width,maxHeight:p.maxHeight,left:p.left,top:p.top});
+    const clean=p=>({side:p.side,width:p.width,maxHeight:p.maxHeight,minHeight:p.minHeight,left:p.left,top:p.top});
     if(point.side&&point.side!=='free'){const dock=docks.find(d=>d.side===point.side);if(dock)return clean(dock);}
     if(!snap)return result;
     if(overlapX>0&&overlapY>0){
       const crossed=docks.filter(d=>d.crossed),candidates=crossed.length?crossed:docks;
       candidates.sort((a,b)=>b.score-a.score||a.distance-b.distance);
-      return candidates.length?clean(candidates[0]):{side:'inline'};
+      return candidates.length?clean(candidates[0]):(options.sides?result:{side:'inline'});
     }
     const near=docks.filter(d=>d.distance<=28&&d.score>16).sort((a,b)=>a.distance-b.distance);
     return near.length?clean(near[0]):result;
@@ -192,11 +203,30 @@ var CiteLensAbstracts = (() => {
   async function crossref(ctx,input){const doi=C.doi(input.DOI);if(!doi&&C.plainTitle(input.title).length<12)return null;const url=doi?'https://api.crossref.org/works/'+encodeURIComponent(doi):'https://api.crossref.org/works?rows=3&query.bibliographic='+encodeURIComponent((input.raw||C.citation(input)).slice(0,1200));const data=JSON.parse(await request(ctx,url)).message,r=select(input,doi?[C.fromCrossref(data)]:(data?.items||[]).map(C.fromCrossref));if(r?.abstract)return found(r,'Crossref','https://doi.org/'+C.doi(r.DOI));return null;}
   // One stored abstract, multiple verified bibliographic entry points. The derived
   // index is rebuilt lazily after writes, and is never persisted as duplicate text.
-  const cacheIndexes=new WeakMap();
+  // Crossref abstracts parsed before version 1 may have lost comparison text.
+  // Re-fetch only that provider's old copies; other providers and user notes remain usable.
+  const current=result=>result?.source!=='Crossref'||result.record?.abstractParserVersion===1;
+  const cacheIndexes=new WeakMap(),metadataIndexes=new WeakMap();
   function identityKeys(r){const ids=A.ids(r),keys=Object.entries(ids).filter(([,v])=>v).map(([k,v])=>k.toLowerCase()+':'+v);const title=C.norm(r.title);if(title)keys.push('title:'+title);return keys;}
   function cached(S,input){
-    const cache=S.state.abstractCache;if(!cache)return null;const direct=cache[A.key(input)],valid=e=>e&&[3,4].includes(e.version)&&e.expires>Date.now()&&e.value?.status==='available'&&select(input,[e.value.record]);
+    const cache=S.state.abstractCache||{};const direct=cache[A.key(input)],valid=e=>e&&[3,4].includes(e.version)&&e.expires>Date.now()&&e.value?.status==='available'&&current(e.value)&&select(input,[e.value.record]);
     if(valid(direct))return direct.value;
+    // Reading metadata already carries many abstracts. Reuse that same verified
+    // record before asking any provider again, including from the network panel.
+    const metadataCache=S.state.cache;
+    if(metadataCache){
+      let indexed=metadataIndexes.get(metadataCache);
+      if(!indexed||indexed.generation!==(S.cacheGeneration||0)){
+        const keys=new Map();for(const entry of Object.values(metadataCache))if(entry.value?.status==='matched'){
+          const record=entry.value.ranked?.[0]?.record;if(!record||!text(record.abstract))continue;
+          for(const key of identityKeys(record)){if(!keys.has(key))keys.set(key,new Set());keys.get(key).add(entry);}
+        }
+        indexed={generation:S.cacheGeneration||0,keys};metadataIndexes.set(metadataCache,indexed);
+      }
+      const entries=new Set();for(const key of identityKeys(input))for(const entry of indexed.keys.get(key)||[])if(entry.time>Date.now()-7*86400000)entries.add(entry);
+      const record=select(input,[...entries].map(entry=>entry.value.ranked[0].record));
+      if(record&&current({source:record.source,record}))return found(record,record.source||'文献记录',C.recordDOI(record)?'https://doi.org/'+C.recordDOI(record):'');
+    }
     let index=cacheIndexes.get(cache);if(!index){index=new Map();for(const entry of Object.values(cache)){if(entry?.value?.status!=='available'||![3,4].includes(entry.version))continue;for(const key of identityKeys(entry.value.record||{})){if(!index.has(key))index.set(key,new Set());index.get(key).add(entry);}}cacheIndexes.set(cache,index);}
     const candidates=new Set();for(const key of identityKeys(input))for(const e of index.get(key)||[])if(valid(e))candidates.add(e);
     const rows=[...new Map([...candidates].sort((a,b)=>b.expires-a.expires).map(e=>[A.key(e.value.record),e])).values()];if(rows.length){const record=select(input,rows.map(e=>e.value.record));if(record)return rows.find(e=>e.value.record===record)?.value||null;}
@@ -204,7 +234,7 @@ var CiteLensAbstracts = (() => {
   }
   async function lookup(S,input,{force=false,budget=12000}={}){
     if(S.dead)return {status:'offline'};
-    if(text(input.abstract))return found(input,input.source||'文献记录',C.doi(input.DOI)?'https://doi.org/'+C.doi(input.DOI):'');
+    if(text(input.abstract)&&current({source:input.source,record:input}))return found(input,input.source||'文献记录',C.doi(input.DOI)?'https://doi.org/'+C.doi(input.DOI):'');
     const key=A.key(input),hit=!force&&cached(S,input);if(hit)return hit;
     const flightKey=JSON.stringify([key,C.norm(input.title),input.year||'',input.creators||[],input.author||'']);
     if(pending.has(flightKey))return pending.get(flightKey);
@@ -227,6 +257,6 @@ var CiteLensAbstracts = (() => {
       if(!S.dead){S.state.abstractCache||={};cacheIndexes.delete(S.state.abstractCache);S.state.abstractCache[key]={version:4,strategy:typeof CiteLensNetwork!=='undefined'?CiteLensNetwork.revisions.abstracts:'abstracts-5',value:result,expires:Date.now()+(result.status==='available'?30*86400000:result.status==='offline'?15000:3600000)};for(const stale of Object.keys(S.state.abstractCache).sort((a,b)=>S.state.abstractCache[b].expires-S.state.abstractCache[a].expires).slice(500))delete S.state.abstractCache[stale];S.persist().catch(()=>{});}return result;
     }).finally(()=>{ctx.done=true;for(const abort of ctx.abort)abort();pending.delete(flightKey);});pending.set(flightKey,bounded);return bounded;
   }
-  const api={text,placement,dragPlacement,resizePlacement,apiKey,testConnection,transport,invertedAbstract,pubmedRecords,pmcRecords,referenceRecords,referenceList,select,cached,lookup};return api;
+  const api={current,text,placement,dragPlacement,resizePlacement,linkPosition,apiKey,testConnection,transport,invertedAbstract,pubmedRecords,pmcRecords,referenceRecords,referenceList,select,cached,lookup};return api;
 })();
 if(typeof module!=='undefined')module.exports=CiteLensAbstracts;

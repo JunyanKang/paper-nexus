@@ -47,3 +47,8 @@ test('question-terminated titles do not swallow the journal volume and pages',()
  assert.equal(r.title,title);assert.equal(r.journal,'Ophthalmology');assert.equal(r.volume,'118');assert.equal(r.pages,'1653–1660');assert.equal(r.creators.length,6);
  const internal=C.parse('Smith, A., 2020. What changes? Retinal development after birth. Nature 10, 10–20.');assert.equal(internal.title,'What changes? Retinal development after birth');assert.equal(internal.journal,'Nature');
 });
+test('Crossref abstracts preserve literal and encoded comparisons between real markup',()=>{
+ const raw='<jats:p>High (>10%) versus low (<5%) positivity differed. Concentration was >20 units &amp; P &lt; 0.05.</jats:p>';
+ const row=C.fromCrossref({abstract:raw});assert.equal(row.abstract,'High (>10%) versus low (<5%) positivity differed. Concentration was >20 units & P < 0.05.');assert.equal(row.abstractParserVersion,1);
+ assert.equal(C.researchRecord({title:'Study',abstract:'<h4>Results</h4>Null response.<h4>Conclusions</h4>No effect.'}).abstract,'Results Null response. Conclusions No effect.');
+});

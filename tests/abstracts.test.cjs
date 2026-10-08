@@ -11,7 +11,7 @@ test('unresponsive providers and library cannot leave preview loading indefinite
 test('force retry ignores transient failure cache',async()=>{const {A,S}=setup(async()=>{throw Error('offline');});assert.equal((await A.lookup(S,record)).status,'offline');A.transport=async url=>JSON.stringify(url.includes('europepmc')?{resultList:{result:[article]}}:{esearchresult:{idlist:[]}});assert.equal((await A.lookup(S,record,{force:true})).status,'available');});
 test('conflicting library abstracts do not arbitrarily select the first copy',async()=>{const {A,S}=setup();S.locate=async()=>['First local','Second local'].map(text=>({item:{getField:()=>text}}));assert.equal((await A.lookup(S,record)).source,'Europe PMC');});
 test('API key stays in local preferences and NCBI POST body, never URLs or state',async()=>{const calls=[],{A,S}=setup(async(url,opts)=>{calls.push([url,opts]);return JSON.stringify(url.includes('europepmc')?{resultList:{result:[article]}}:{esearchresult:{idlist:[]}});}),secret='synthetic-test-key-12345678';A.apiKey(secret);await A.lookup(S,record);assert.ok(calls.some(([url,o])=>url.includes('ncbi')&&o.body.includes('api_key='+secret)));assert.ok(calls.every(([url,o])=>!url.includes(secret)&&(!url.includes('europepmc')||!o.body)));assert.ok(!JSON.stringify(S.state).includes(secret));A.apiKey('');assert.equal(A.apiKey(),'');});
-test('abstract side placement is joined, bounded and nonoverlapping',()=>{const {A}=setup();for(const width of [360,620,900,1400])for(const x of [8,180,width-428]){if(x<0||x+420>width)continue;const anchor={left:x,right:x+420,top:450},p=A.placement(anchor,{width,height:700},450,380);if(p.side==='inline')continue;assert.ok(p.left>=8&&p.left+p.width<=width-8);assert.ok(p.left+p.width<=anchor.left||p.left>=anchor.right);assert.ok(p.top>=42&&p.top+Math.min(380,p.maxHeight)<=692);}});
+test('abstract side placement is joined, bounded and nonoverlapping',()=>{const {A}=setup();for(const width of [360,620,900,1400])for(const x of [8,180,width-428]){if(x<0||x+420>width)continue;const anchor={left:x,right:x+420,top:450,bottom:580},p=A.placement(anchor,{width,height:700},450,380);if(p.side==='inline')continue;assert.ok(p.left>=8&&p.left+p.width<=width-8);assert.ok(p.left+p.width<=anchor.left||p.left>=anchor.right||p.top+Math.min(380,p.maxHeight)<=anchor.top||p.top>=anchor.bottom);assert.ok(p.top>=8&&p.top+Math.max(p.minHeight||0,Math.min(380,p.maxHeight))<=692);}});
 
 test('cached abstract is rechecked against a changed title or year sharing the DOI',async()=>{const {A,S}=setup();assert.equal((await A.lookup(S,record)).status,'available');A.transport=async url=>JSON.stringify(url.includes('esearch')?{esearchresult:{idlist:[]}}:url.includes('europepmc')?{resultList:{result:[]}}:{message:{DOI:record.DOI,title:[record.title],abstract:'Old abstract',published:{'date-parts':[[2020]]},author:[{family:'Smith'}]}});assert.equal((await A.lookup(S,{...record,title:'Completely different geological and volcanic findings',year:'1990'})).status,'missing');});
 test('title-only abstract lookup reaches Europe PMC and revalidates title author and year',async()=>{const queries=[],{A,S}=setup(async(url)=>{queries.push(url);return JSON.stringify(url.includes('europepmc')?{resultList:{result:[article]}}:{esearchresult:{idlist:[]}});});const r=await A.lookup(S,{title:record.title,year:'2020',author:'Smith'});assert.equal(r.status,'available');assert.equal(r.record.PMID,'123');assert.ok(queries.some(url=>decodeURIComponent(url).includes('TITLE:"'+record.title+'"')));assert.ok(r.url.endsWith('/MED/123'));});
@@ -22,7 +22,7 @@ test('E-utilities connection test supports no key and sends configured credentia
 test('E-utilities test rejects error payloads and unexpected data without disclosing credentials',async()=>{for(const response of [{error:'API key invalid synthetic-test-key-12345678'},{einforesult:{}},{einforesult:{dbinfo:[{dbname:'gene'}]}}]){const {A}=setup(async()=>JSON.stringify(response));await assert.rejects(A.testConnection(),e=>!e.message.includes('synthetic')&&/NCBI/.test(e.message));}});
 test('E-utilities connection deadline also aborts an unresponsive transport',async()=>{let aborted=false;const {A}=setup(async(u,o)=>{o.signal.add(()=>aborted=true);return new Promise(()=>{});});const start=Date.now();await assert.rejects(A.testConnection({budget:20}),/连接失败/);assert.ok(Date.now()-start<250);assert.ok(aborted);});
 
-test('drag docking joins either edge only when it fits and overlaps the reference vertically',()=>{const {A}=setup(),anchor={left:500,right:900,top:100,bottom:340},viewport={width:1400,height:800},size={width:440,height:260};for(const [left,side,expected] of [[70,'left',54],[885,'right',906],[300,'bottom',300]]){const p=A.dragPlacement(anchor,viewport,size,{left,top:115});assert.equal(p.side,side);assert.equal(p.left,expected);if(['left','right'].includes(side))assert.equal(p.top,100);}assert.equal(A.dragPlacement(anchor,viewport,size,{left:900,top:420}).side,'free');const constrained=A.dragPlacement(anchor,{width:1120,height:800},size,{left:900,top:115});assert.ok(['top','bottom','left'].includes(constrained.side));});
+test('drag docking joins either edge only when it fits and overlaps the reference vertically',()=>{const {A}=setup(),anchor={left:500,right:900,top:100,bottom:340},viewport={width:1400,height:800},size={width:440,height:260};for(const [left,side,expected] of [[70,'left',60],[885,'right',900],[300,'bottom',460]]){const p=A.dragPlacement(anchor,viewport,size,{left,top:115});assert.equal(p.side,side);assert.equal(p.left,expected);if(['left','right'].includes(side))assert.equal(p.top,100);}assert.equal(A.dragPlacement(anchor,viewport,size,{left:900,top:420}).side,'free');const constrained=A.dragPlacement(anchor,{width:1120,height:800},size,{left:900,top:115});assert.ok(['top','bottom','left'].includes(constrained.side));});
 test('dragging remains reachable on small viewports and can detach from either edge',()=>{const {A}=setup(),anchor={left:8,right:300,top:50,bottom:200};for(const width of [320,620,1400])for(const point of [{left:-300,top:-500},{left:2000,top:3000}]){const p=A.dragPlacement(anchor,{width,height:480},{width:440,height:600},point,false);assert.equal(p.side,'free');assert.ok(p.left>=8&&p.left+p.width<=width-8);assert.ok(p.top>=8&&p.top+p.maxHeight<=472);}});
 
 test('overlap docks to the longest crossed edge, including top and bottom',()=>{const {A}=setup(),anchor={left:450,right:850,top:300,bottom:500},viewport={width:1400,height:900},size={width:440,height:220};for(const [point,side] of [[{left:450,top:160},'top'],[{left:450,top:420},'bottom'],[{left:40,top:310},'left'],[{left:825,top:310},'right']]){const p=A.dragPlacement(anchor,viewport,size,point);assert.equal(p.side,side);assert.ok(p.left+p.width<=anchor.left||p.left>=anchor.right||p.top+Math.min(size.height,p.maxHeight)<=anchor.top||p.top>=anchor.bottom);}});
@@ -93,4 +93,47 @@ test('DOI PMID and exact bibliographic aliases reuse one persisted abstract acro
  assert.equal(calls,before);assert.equal(Object.keys(S.state.abstractCache).length,1);
  const restored=setup(async()=>{throw Error('cache should survive restart');});restored.S.state.abstractCache=JSON.parse(JSON.stringify(S.state.abstractCache));assert.equal((await restored.A.lookup(restored.S,{PMID:'123'})).text,first.text);
  assert.equal(A.cached(S,{PMID:'123',title:'Completely unrelated geological findings',year:'1990'}),null);
+});
+test('obsolete Crossref-only abstracts are refetched without invalidating other providers',async()=>{
+ const {A,S}=setup(),key='doi:'+record.DOI,old={status:'available',text:'Previously truncated text.',source:'Crossref',record:{...record,abstract:'Previously truncated text.'}};
+ S.state.abstractCache={[key]:{version:4,expires:Date.now()+86400000,value:old}};assert.equal(A.cached(S,record),null);assert.equal(A.current(old),false);
+ const renewed=await A.lookup(S,record);assert.equal(renewed.source,'Europe PMC');assert.equal(A.cached(S,record).text,renewed.text);
+ assert.equal(A.current({...old,source:'PubMed'}),true);assert.equal(A.current({...old,record:{...old.record,abstractParserVersion:1}}),true);
+});
+
+test('reading and network share verified metadata abstracts without another provider request',async()=>{
+ let calls=0;const {A,S}=setup(async()=>{calls++;throw Error('No remote lookup expected');}),resolved={...record,abstract:'Published retinal study abstract with source details.',source:'Crossref',abstractParserVersion:1};
+ S.state.cache={'legacy-title-key':{time:Date.now(),value:{status:'matched',ranked:[{record:resolved}]}}};
+ assert.equal(A.cached(S,record).text,resolved.abstract);assert.equal((await A.lookup(S,record)).source,'Crossref');assert.equal(calls,0);
+ assert.equal(A.cached(S,{...record,title:'Unrelated geological study of a volcanic eruption'}),null);
+ resolved.abstractParserVersion=0;assert.equal(A.cached(S,record),null);resolved.abstractParserVersion=1;S.state.cache['legacy-title-key'].time=1;assert.equal(A.cached(S,record),null);
+});
+
+test('side docks cover the selected card rather than center-aligning the whole host',()=>{
+ const {A}=setup(),host={left:500,right:900,top:80,bottom:700},v={width:1400,height:900};
+ for(const target of [{left:500,right:900,top:90,bottom:310},{left:500,right:900,top:400,bottom:680}])for(const side of ['left','right'])for(const top of [8,180,690]){
+  const p=A.dragPlacement(host,v,{width:400,height:140},{side,left:60,top},false,{target}),h=Math.max(p.minHeight,Math.min(140,p.maxHeight));
+  assert.equal(p.side,side);assert.ok(p.top<=target.top&&p.top+h>=target.bottom);assert.ok(p.top>=8&&p.top+h<=892);
+  const link=A.linkPosition(target,{...p,height:h});assert.equal(p.top+link.y,(target.top+target.bottom)/2);assert.ok(link.y-11>=20&&link.y+11<=h-20);
+ }
+});
+test('top and bottom docking cover the target projection touching the host',()=>{
+ const {A}=setup(),host={left:400,right:840,top:300,bottom:550},target={left:420,right:820,top:350,bottom:480},v={width:1400,height:900};
+ for(const side of ['top','bottom'])for(const left of [8,450,1100]){
+  const p=A.dragPlacement(host,v,{width:280,height:200},{side,left,top:300},false,{target});assert.equal(p.side,side);assert.ok(p.left<=target.left&&p.left+p.width>=target.right);
+  assert.equal(side==='top'?host.top-(p.top+200):p.top-host.bottom,0);
+  const link=A.linkPosition(target,{...p,height:200});assert.equal(p.left+link.x,620);assert.ok(link.x-11>=20&&link.x+11<=p.width-20);
+ }
+});
+test('list summaries only dock on the left, for initial placement, overlap and explicit side requests',()=>{
+ const {A}=setup(),host={left:950,right:1290,top:80,bottom:700},target={left:950,right:1290,top:300,bottom:420},v={width:1400,height:900},options={target,sides:['left']};
+ assert.equal(A.placement(host,v,300,300,options).side,'left');
+ for(const side of ['left','right','top','bottom','free'])for(const point of [{left:850,top:350},{left:400,top:100},{left:960,top:600}]){const p=A.dragPlacement(host,v,{width:400,height:300},{...point,side},true,options);assert.ok(['left','free'].includes(p.side));}
+});
+test('indicator endpoints keep an extra 8px beyond rounded corners even at extreme offsets',()=>{
+ const {A}=setup();for(const center of [-100,0,100,999]){const p=A.linkPosition({left:center,right:center,top:center,bottom:center},{left:0,top:0,width:240,height:180});assert.ok(p.x-11>=20&&p.x+11<=220);assert.ok(p.y-11>=20&&p.y+11<=160);}
+});
+test('initial placement accepts browser DOMRect properties inherited through getters',()=>{
+ const {A}=setup(),rect=Object.create({left:600,right:980,top:42,bottom:550}),target=Object.create({left:612,right:968,top:160,bottom:250});
+ const p=A.placement(rect,{width:1000,height:600},160,300,{target,sides:['left']});assert.equal(p.side,'left');assert.equal(p.left+p.width,600);assert.ok(Number.isFinite(p.top+p.width));
 });

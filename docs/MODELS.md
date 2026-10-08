@@ -1,8 +1,8 @@
-# 配置大模型翻译
+# 配置摘要翻译
 
 [设置与服务](SETTINGS.md) · [摘要阅读](GUIDE.md)
 
-大模型服务用于摘要翻译，文献网络无需配置。
+选择自己的大模型服务翻译摘要，在原文、译文与双语之间自由切换。
 
 ## 开始使用
 
@@ -11,7 +11,7 @@
 3. 从下拉列表选择模型，也可输入账号可用的模型名称。
 4. 点击 **保存并测试**，连接成功后回到摘要选择译文或双语。
 
-![翻译设置](images/translation-settings.png)
+<p align="center"><img src="images/translation-settings.png" width="360" alt="摘要翻译服务设置"></p>
 
 可选择 MiniMax、DeepSeek、通义千问、豆包、智谱、Kimi、混元、千帆、OpenAI、Anthropic 和 Gemini。接口权限与费用由所选服务商决定。
 

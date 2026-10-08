@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2026-10-06.2",
+  "version": "2026-10-07.1",
   "providers": [
     {
       "id": "minimax",
@@ -10,6 +10,7 @@
       "models": [
         "MiniMax-M2.7-highspeed",
         "MiniMax-M3",
+        "MiniMax-M3.1-Flash-Preview",
         "MiniMax-M2.7",
         "MiniMax-M2.5-highspeed"
       ],

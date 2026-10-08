@@ -2,14 +2,27 @@ var CiteLens = {
   id:'cite-lens@local.research',name:'Paper Nexus',label:'Paper Nexus',homepage:'https://github.com/JunyanKang/paper-nexus',toolbarNodes:new WeakMap(),readers:new Map(),panels:new Map(),windows:new Map(),dead:false,
   async start() {
     this.dead=false;this.stopTask=null;this.assetResource='paper-nexus-'+this.version.replace(/\./g,'-')+'-'+Services.uuid.generateUUID().toString().replace(/[{}]/g,'');this.ensureAssets();
-    await Zotero.uiReadyPromise;await CiteLensServices.init();CiteLensTranslation.init();await CiteLensThemes.initialize();this.dead=false;CiteLensSemantic.start();CiteLensUpdater.start(this).catch(e=>Zotero.logError(e));this.prepareNetwork().catch(e=>Zotero.logError(e));this.prepareModels().catch(e=>Zotero.logError(e));Promise.all([this.prepareNetwork(),this.prepareModels()]).then(()=>{if(!this.dead)CiteLensNetwork.scheduleWarmup(12000);}).catch(e=>Zotero.logError(e));
+    await Zotero.uiReadyPromise;await CiteLensServices.init();CiteLensTranslation.init();await CiteLensThemes.initialize();this.dead=false;CiteLensUpdater.start(this).catch(e=>Zotero.logError(e));this.setNetworkEnabled(CiteLensServices.state.settings.networkEnabled===true,{persist:false}).catch(e=>Zotero.logError(e));
     this.toolbarHandler=e=>{if(this.dead)return;const button=this.toolbar(e.doc,e.reader);if(!button.isConnected)e.append(button);this.normalizeToolbar(e.doc);e.doc.defaultView.setTimeout(()=>{if(!this.dead)this.normalizeToolbar(e.doc);},0);};
     Zotero.Reader.registerEventListener('renderToolbar',this.toolbarHandler,this.id);
     for(const win of Zotero.getMainWindows())this.addWindow(win);
     this.scan();this.timer=Zotero.getMainWindow().setInterval(()=>this.scan(),1200);Zotero.CiteLens=this;
   },
   prepareNetwork(){return this.networkReady ||= CiteLensNetwork.start().catch(e=>{this.networkReady=null;throw e;});},
-  prepareModels(){return this.modelsReady ||= CiteLensModels.start().catch(e=>{this.modelsReady=null;CiteLensModels.emit('error','模型暂不可用，请重试',0);throw e;});},
+  async setNetworkEnabled(enabled,{persist=true}={}){
+    enabled=enabled===true;CiteLensServices.state.settings.networkEnabled=enabled;
+    this.refreshNetworkEntries();
+    const ticket=(this.networkToggleTicket||0)+1;this.networkToggleTicket=ticket;
+    if(!enabled)CiteLensNetwork.cancelNetworkWork();
+    if(persist)await CiteLensServices.persist();
+    await this.prepareNetwork();if(this.dead||ticket!==this.networkToggleTicket)return;
+    await CiteLensNetwork.setEnabled(enabled);
+    if(!this.dead&&enabled&&ticket===this.networkToggleTicket){CiteLensNetwork.scheduleWarmup(12000);}
+  },
+  refreshNetworkEntries(){
+    const documents=new Set([...this.windows.keys()].map(w=>w.document));for(const s of this.readers.values())documents.add(s.doc);for(const p of this.panels.values())documents.add(p.ownerDocument);
+    for(const doc of documents)try{for(const b of doc?.querySelectorAll('[data-network-entry]')||[])b.hidden=CiteLensServices.state.settings.networkEnabled!==true;}catch(_){}
+  },
   ensureAssets(){if(this.dead||!this.rootURI)return;const resources=Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler);if(!resources.hasSubstitution(this.assetResource))resources.setSubstitutionWithFlags(this.assetResource,Services.io.newURI(this.rootURI),resources.ALLOW_CONTENT_ACCESS);this.assetURI='resource://'+this.assetResource+'/assets/';},
   addWindow(win) {if(this.windows.has(win))return;const e=win.document.createXULElement('menuitem');e.id='cite-lens-tools';e.setAttribute('class','menuitem-iconic');e.setAttribute('image',this.assetURI+'nexus.png');e.setAttribute('label','Paper Nexus');e.addEventListener('command',()=>{const reader=Zotero.Reader.getByTabID(win.Zotero_Tabs.selectedID);this.showNetwork(reader);});win.document.getElementById('menu_ToolsPopup')?.append(e);this.windows.set(win,e);},
   removeWindow(win) {this.windows.get(win)?.remove();this.windows.delete(win);CiteLensThemes.release(win.document);},
@@ -166,7 +179,7 @@ var CiteLens = {
     for(const old of pdfwin.document.querySelectorAll('.cl-citation-flash'))old.remove();
     for(const r of location.position.rects){const rect=page.viewport.convertToViewportRectangle(Components.utils.cloneInto(Array.from(r),pdfwin)),flash=pdfwin.document.createElement('div');flash.className='cl-citation-flash';flash.style.cssText='position:absolute;pointer-events:none;border-radius:3px;z-index:3;left:'+Math.min(rect[0],rect[2])+'px;top:'+Math.min(rect[1],rect[3])+'px;width:'+Math.abs(rect[2]-rect[0])+'px;height:'+Math.abs(rect[3]-rect[1])+'px;background:'+CiteLensThemes.resolve(CiteLensServices.state.settings.theme).highlight;page.div.append(flash);pdfwin.setTimeout(()=>flash.remove(),2400);}
   },
-  showNetwork(reader=null){const panel=this.panels.get(reader),focused=panel?.ownerDocument.activeElement;if(panel){panel.hidden=true;panel.inert=true;}return CiteLensNetworkUI.open(reader,{onClose:()=>{if(panel?.isConnected){panel.hidden=false;panel.inert=false;focused?.focus();}}});},
+  showNetwork(reader=null){if(CiteLensServices.state.settings.networkEnabled!==true){CiteLensUI.settingsDialog(reader?._iframeWindow?.document||Zotero.getMainWindow().document);return;}const panel=this.panels.get(reader),focused=panel?.ownerDocument.activeElement;if(panel){panel.hidden=true;panel.inert=true;}return CiteLensNetworkUI.open(reader,{onClose:()=>{if(panel?.isConnected){panel.hidden=false;panel.inert=false;focused?.focus();}}});},
   togglePanel(reader){const panel=this.panels.get(reader);if(panel?.isConnected){panel._clSetOpen?.(!panel._clOpen);return panel;}return this.showPanel(reader);},
   showPanel(reader,options={}) {this.panels.get(reader)?.remove();const doc=reader._iframeWindow.document,panel=CiteLensUI.panel(doc,reader,options);this.panels.set(reader,panel);return panel;},
   refreshMetrics() {for(const reader of this.readers.keys()){const doc=reader._iframeWindow.document;for(const card of doc.querySelectorAll('[data-cite-lens=card]'))card.dispatchEvent(new doc.defaultView.Event('cl-metrics-changed'));this.enhance(reader);doc.querySelector('.cl-root')?.dispatchEvent(new doc.defaultView.Event('cl-metrics-changed'));}},
@@ -195,5 +208,5 @@ var CiteLens = {
     }}catch(_){}
     if(s?.doc)CiteLensThemes.release(s.doc);this.readers.delete(reader);
   },
-  stop() {if(this.stopTask)return this.stopTask;this.dead=true;return this.stopTask=(async()=>{CiteLensThemes.stop();CiteLensTranslation.stop();CiteLensUpdater.stop();await CiteLensNetwork.stop();await CiteLensSemantic.stop();await CiteLensModels.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();if(Zotero.CiteLens===this)delete Zotero.CiteLens;})();}
+  stop() {if(this.stopTask)return this.stopTask;this.dead=true;return this.stopTask=(async()=>{CiteLensThemes.stop();CiteLensTranslation.stop();CiteLensUpdater.stop();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();if(Zotero.CiteLens===this)delete Zotero.CiteLens;})();}
 };

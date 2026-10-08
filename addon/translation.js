@@ -12,6 +12,7 @@ var CiteLensTranslationLLM = {
     "models": [
       "MiniMax-M2.7-highspeed",
       "MiniMax-M3",
+      "MiniMax-M3.1-Flash-Preview",
       "MiniMax-M2.7",
       "MiniMax-M2.5-highspeed"
     ],
@@ -159,7 +160,7 @@ var CiteLensTranslationLLM = {
     "model": "",
   }
 ],
- modelCatalogVersion:"2026-10-06.2",
+ modelCatalogVersion:"2026-10-07.1",
  modelCatalogURL:'https://raw.githubusercontent.com/JunyanKang/paper-nexus/main/model-presets.json',
  // Remote catalogues can update defaults, never install protocols/code or introduce hosts.
  modelEndpointHosts:{minimax:['api.minimax.cn','api.minimaxi.com','api.minimax.io'],deepseek:['api.deepseek.com'],qwen:['dashscope.aliyuncs.com','dashscope-intl.aliyuncs.com'],doubao:['ark.cn-beijing.volces.com'],glm:['open.bigmodel.cn'],kimi:['api.moonshot.cn','api.moonshot.ai','api.kimi.com'],hunyuan:['tokenhub.tencentmaas.com'],qianfan:['qianfan.baidubce.com'],openai:['api.openai.com'],anthropic:['api.anthropic.com'],gemini:['generativelanguage.googleapis.com']},
@@ -251,19 +252,20 @@ var CiteLensTranslationLLM = {
   })();this.catalogFlight=job;try{return await job;}finally{this.catalogFlight=null;}
  },
  llmStorage(task='translation') {
-  if(task!=='translation')throw Error('此接口仅用于摘要翻译');
+  if(task==='network')return {task:'network',provider:'knowledgeLLMProvider',configs:'knowledgeLLMConfigs',realm:'Paper Nexus Knowledge API',revision:'knowledgeLLMRevision',discovered:'knowledgeLLMDiscoveredModels'};
+  if(task!=='translation')throw Error('不支持的模型任务');
   return {task:'translation',provider:'llmProvider',configs:'llmConfigs',realm:'Paper Nexus API',revision:'llmRevision',discovered:'llmDiscoveredModels'};
  },
  llmConfig(id,task='translation') {
   const storage=this.llmStorage(task),preset=this.llmPreset(id||this.get(storage.provider,'minimax'));let saved={};
   try{saved=JSON.parse(this.get(storage.configs,'{}'))[preset.id]||{};}catch(_){}
   // Existing translation settings and credentials retain their endpoint identity.
-  return {...preset,...saved,id:preset.id,task:storage.task,model:saved.model||preset.model||''};
+  return {...preset,...saved,id:preset.id,task:storage.task,model:saved.model||(task==='network'&&preset.id==='minimax'?'MiniMax-M3.1-Flash-Preview':preset.model)||''};
  },
  llmTaskConfig(task='translation',id) {return this.llmConfig(id,task);},
  invalidateLLM(task) {
   const storage=this.llmStorage(task);this.set(storage.revision,Number(this.get(storage.revision,0))+1);
-  this.translationCache.clear();this.translationTicket++;
+  if(task==='translation'){this.translationCache.clear();this.translationTicket++;}else if(typeof CiteLensNetwork!=='undefined'){CiteLensNetwork.clearGraphJobs('topics');CiteLensNetwork.scheduleWarmup();}
  },
  validateLLM(config) {
   let url;try{url=new this.host.URL(config.endpoint);}catch(_){throw new Error('请输入有效的 API 地址');}
@@ -312,9 +314,10 @@ var CiteLensTranslationLLM = {
   const completion=()=>{params.max_completion_tokens=options.maxTokens||4096;};
   if(config.protocol==='anthropic')return params;
   if(id==='minimax'){
-   if(/^MiniMax-M3$/i.test(m))params.thinking={type:'disabled'};
-   if(/^MiniMax-M3\.1-Flash-Preview$/i.test(m))params.reasoning_effort='low';
-   if(/^MiniMax-M3(?:$|\.1-Flash-Preview$)/i.test(m)){completion();params.stream_options={include_usage:true};}
+   if(config.task==='network'&&/^MiniMax-M(?:2(?:\.[157])?(?:-highspeed)?|3|3\.1-Flash-Preview)$/i.test(m)){completion();params.reasoning_split=true;params.stream_options={include_usage:true};}
+   if(/^MiniMax-M3$/i.test(m))params.thinking={type:config.task==='network'?'enabled':'disabled'};
+   if(/^MiniMax-M3\.1-Flash-Preview$/i.test(m))params.reasoning_effort=config.task==='network'?(['medium','high','xhigh','max'].includes(options.reasoningEffort)?options.reasoningEffort:'high'):'low';
+   if(/^MiniMax-M3(?:$|\.1-Flash-Preview$)/i.test(m)){completion();if(config.task==='network')params.max_completion_tokens=Math.max(params.max_completion_tokens,16384);params.stream_options={include_usage:true};}
   }
   if(id==='deepseek'&&/^(deepseek-flash|deepseek-v4-(?:flash|pro)(?:-\d{4})?)$/.test(m))params.thinking={type:'disabled'};
   if(id==='qwen'&&/^(?:qwen3\.8-flash|qwen3\.7-(?:plus|flash)(?:-\d{4}-\d{2}-\d{2})?)$/.test(m))params.enable_thinking=false;
@@ -345,6 +348,8 @@ var CiteLensTranslationLLM = {
   Object.assign(body,this.llmModelParameters(config,options));
   if(body.max_completion_tokens!==undefined)delete body.max_tokens;
   const suffix=anthropic?'/messages':'/chat/completions',url=config.endpoint.endsWith(suffix)?config.endpoint:config.endpoint+suffix;
+  const network=config.task==='network',budget=network?8192:4096;
+  if(!options.maxTokens){if(body.max_completion_tokens!==undefined)body.max_completion_tokens=budget;else body.max_tokens=budget;}
   const started=Date.now();let firstTextMs=null;
   return new Promise((resolve,reject)=>{
    const xhr=new this.host.XMLHttpRequest();this.llmRequests ||= new Set();this.llmRequests.add(xhr);
@@ -362,9 +367,9 @@ var CiteLensTranslationLLM = {
     const part=anthropic?(event.type==='content_block_delta'&&event.delta?.type==='text_delta'?event.delta.text:''):choice?.delta?.content;
     if(typeof part==='string'&&part){translated+=part;if(firstTextMs===null)firstTextMs=Date.now()-started;onPartial?.(clean(translated));}
    };
-   const progress=()=>{const fresh=xhr.responseText.slice(read);read=xhr.responseText.length;buffer+=fresh;const lines=buffer.split(/\r?\n/);buffer=lines.pop();for(const line of lines)consume(line);};
+   const progress=()=>{if(xhr.responseText.length>2*1024*1024){settle(Object.assign(new Error('模型响应超出大小限制'),{code:'RESPONSE_LIMIT'}));xhr.abort();return;}const fresh=xhr.responseText.slice(read);read=xhr.responseText.length;buffer+=fresh;const lines=buffer.split(/\r?\n/);buffer=lines.pop();for(const line of lines)consume(line);};
    const settle=(error,result)=>{if(finished)return;finished=true;this.host.clearTimeout(idleTimer);this.llmRequests.delete(xhr);options.signal?.removeEventListener('abort',abort);xhr.onload=xhr.onerror=xhr.ontimeout=xhr.onabort=xhr.onprogress=null;error?reject(error):resolve(result);};
-   const abort=()=>xhr.abort();options.signal?.addEventListener('abort',abort,{once:true});xhr.open('POST',url,true);xhr.timeout=45000;xhr.setRequestHeader('Content-Type','application/json');
+   const abort=()=>xhr.abort();options.signal?.addEventListener('abort',abort,{once:true});xhr.open('POST',url,true);xhr.timeout=network?180000:45000;xhr.setRequestHeader('Content-Type','application/json');
    if(anthropic){xhr.setRequestHeader('x-api-key',key);xhr.setRequestHeader('anthropic-version','2023-06-01');}else xhr.setRequestHeader('Authorization','Bearer '+key);
    // Refuse redirects rather than sending credentials to a different endpoint.
    try{xhr.channel.notificationCallbacks={QueryInterface:ChromeUtils.generateQI(['nsIInterfaceRequestor','nsIChannelEventSink']),getInterface(iid){return this.QueryInterface(iid);},asyncOnChannelRedirect(oldChannel,newChannel,flags,callback){callback.onRedirectVerifyCallback(Components.results.NS_ERROR_ABORT);}};}catch(_){xhr.abort();settle(new Error('无法建立安全的模型连接'));return;}
@@ -372,11 +377,11 @@ var CiteLensTranslationLLM = {
    xhr.onload=()=>{
     if(xhr.status!==200){settle(this.llmError(xhr.status));return;}
     try{
-     if(!/^\s*\{/.test(xhr.responseText)){progress();consume(buffer);if(!ended)throw new Error('译文接收不完整，请重试');}
+     if(!/^\s*\{/.test(xhr.responseText)){progress();consume(buffer);if(!ended)throw new Error(network?'研究内容接收不完整，请重试':'译文接收不完整，请重试');}
      else{const data=JSON.parse(xhr.responseText),choice=data.choices?.[0];translated=anthropic?data.content?.filter(c=>c.type==='text').map(c=>c.text).join(''):choice?.message?.content;truncated=choice?.finish_reason==='length'||data.stop_reason==='max_tokens';streamError=!!data.error;usage=data.usage||null;}
      if(streamError)throw new Error('模型返回错误，请检查服务设置');
-     if(truncated)throw Object.assign(new Error('译文过长，请缩小范围后重试'),{code:'OUTPUT_LIMIT'});
-     translated=clean(translated||'');if(!translated)throw new Error('模型未返回译文，请检查模型设置');
+     if(truncated)throw Object.assign(new Error(network?'研究内容超出模型输出预算，请重试或更换模型':'译文过长，请缩小范围后重试'),{code:'OUTPUT_LIMIT'});
+     translated=clean(translated||'');if(!translated)throw new Error(network?'模型未返回研究内容，请检查模型设置':'模型未返回译文，请检查模型设置');
      settle(null,{text:translated,usage,source:config.name+' · '+config.model,firstTextMs:firstTextMs??Date.now()-started,totalMs:Date.now()-started});
     }catch(error){settle(error);}
    };

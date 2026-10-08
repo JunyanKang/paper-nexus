@@ -16,9 +16,7 @@ python3 scripts/check_syntax.py
 npm run build
 ```
 
-生成的 XPI 位于 `dist/`。模型包由 [构建脚本](scripts/build_models.py) 和 [资源目录](model-catalog.json) 独立构建。安装器构建使用 macOS 的 Swift 工具链或 Windows 的 .NET Framework 编译器，详见 [持续集成配置](.github/workflows/build.yml)。
-
-macOS 构建前，在构建环境中运行 `python3 -m pip install -r installers/macos/requirements.txt`。DMG 的中英文背景由原生字体生成，同时包含普通和 Retina 分辨率；这些构建依赖不会安装到用户电脑。
+生成的 XPI 位于 `dist/`，可在 Zotero 的插件管理页从文件安装。
 
 ## 公开文件范围
 
@@ -30,4 +28,4 @@ macOS 构建前，在构建环境中运行 `python3 -m pip install -r installers
 python3 scripts/audit_release.py
 ```
 
-此检查核对文件清单、内部文件类型、凭据模式和文档链接。XPI 仅包含清单中的插件运行文件；发布页只提供 macOS 与 Windows 安装器。
+此检查核对文件清单、内部文件类型、凭据模式和文档链接。XPI 仅包含清单中的插件运行文件；发布页仅提供一个 XPI，macOS 与 Windows 共用。

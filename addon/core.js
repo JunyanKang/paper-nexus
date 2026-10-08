@@ -10,7 +10,7 @@ var CiteLensCore = (() => {
     const styles={i:'i',italic:'i',em:'i',b:'b',bold:'b',strong:'b',sub:'sub',sup:'sup'},stack=[],parts=[];
     for(const part of text.split(/(<\/?[a-z][\w:-]*(?:\s+[^<>]*?)?\s*\/?>)/gi)){
       const tag=part.match(/^<(\/?)([a-z][\w:-]*)(?:\s+[^<>]*?)?\s*\/?>$/i);
-      if(tag){const name=tag[2].toLowerCase().replace(/^(?:jats|mml):/,''),style=styles[name];if(style){if(tag[1]){const i=stack.lastIndexOf(style);if(i>=0)stack.splice(i);}else if(stack.length<8&&!part.endsWith('/>'))stack.push(style);}else if(['br','p','title'].includes(name))parts.push({text:' ',styles:[]});continue;}
+      if(tag){const name=tag[2].toLowerCase().replace(/^(?:jats|mml):/,''),style=styles[name];if(style){if(tag[1]){const i=stack.lastIndexOf(style);if(i>=0)stack.splice(i);}else if(stack.length<8&&!part.endsWith('/>'))stack.push(style);}else if(['br','p','title','div','section','sec','li','h1','h2','h3','h4','h5','h6'].includes(name))parts.push({text:' ',styles:[]});continue;}
       if(part)parts.push({text:part,styles:[...stack]});
     }
     return parts;
@@ -72,10 +72,10 @@ var CiteLensCore = (() => {
     const parsed=parse(record.raw||title),candidate=plainTitle(parsed.title);
     return parsed.year&&candidate.length>=12&&!authorList.test(candidate)?candidate:'';
   }
-  // Shared scientific record for local embeddings and research content.
+  // Shared title/abstract record for research analysis and source evidence.
   // Identity/creator evidence for author graphs is carried separately by coauthor edges.
   function researchRecord(record) {
-    let title=researchTitle(record);const abstract=plainTitle(record.abstract||record.abstractNote||''),container=plainTitle(record.containerTitle||record.bookTitle||(record.type==='bookSection'?record.journal:''));
+    let title=researchTitle(record);const abstract=plainTitle(record.abstract||record.abstractNote||record.abstractText||''),container=plainTitle(record.containerTitle||record.bookTitle||(record.type==='bookSection'?record.journal:''));
     if(container&&/^(?:data analysis|introduction|methods?|results?|discussion|conclusions?|preface|appendix)$/i.test(title))title=container+' '+title.toLowerCase();
     return {schema:'nexus-paper/1',id:record.id,title,abstract,evidence:abstract?'provided-abstract':'title-only'};
   }
@@ -84,7 +84,7 @@ var CiteLensCore = (() => {
   function fromCrossref(m) {
     const types={'book':'book','monograph':'book','edited-book':'book','book-chapter':'bookSection','proceedings-article':'conferencePaper','posted-content':'preprint'};
     const date=(m.published||m['published-print']||m['published-online']||m.issued)?.['date-parts']?.[0];
-    return {title:plainTitle(m.title?.[0]),titleMarkup:clean(m.title?.[0]),DOI:doi(m.DOI),type:types[m.type]||'journalArticle',year:String(date?.[0]||''),date:date?.join('-')||'',journal:clean(m['container-title']?.[0]),ISSN:(m.ISSN||[]).join(', '),ISBN:(m.ISBN||[]).join(', '),volume:clean(m.volume),issue:clean(m.issue),pages:clean(m.page),publisher:clean(m.publisher),url:m.URL||'',creators:(m.author||[]).map(a=>({firstName:clean(a.given),lastName:clean(a.family||a.name),creatorType:'author',...(a.ORCID?{ORCID:clean(a.ORCID)}:{}),...(a.affiliation?.length?{affiliations:a.affiliation.map(x=>clean(x.name)).filter(Boolean)}:{})})),author:clean(m.author?.[0]?.family),abstract:clean((m.abstract||'').replace(/<[^>]*>/g,'')),updates:m['update-to']||[],source:'Crossref',fetchedAt:new Date().toISOString(),verified:true};
+    return {title:plainTitle(m.title?.[0]),titleMarkup:clean(m.title?.[0]),DOI:doi(m.DOI),type:types[m.type]||'journalArticle',year:String(date?.[0]||''),date:date?.join('-')||'',journal:clean(m['container-title']?.[0]),ISSN:(m.ISSN||[]).join(', '),ISBN:(m.ISBN||[]).join(', '),volume:clean(m.volume),issue:clean(m.issue),pages:clean(m.page),publisher:clean(m.publisher),url:m.URL||'',creators:(m.author||[]).map(a=>({firstName:clean(a.given),lastName:clean(a.family||a.name),creatorType:'author',...(a.ORCID?{ORCID:clean(a.ORCID)}:{}),...(a.affiliation?.length?{affiliations:a.affiliation.map(x=>clean(x.name)).filter(Boolean)}:{})})),author:clean(m.author?.[0]?.family),abstract:plainTitle(m.abstract||''),abstractParserVersion:1,updates:m['update-to']||[],source:'Crossref',fetchedAt:new Date().toISOString(),verified:true};
   }
   function compatibility(input,r) {
     const title=similarity(input.title,r.title),leftDOI=recordDOI(input),rightDOI=recordDOI(r),exact=!!leftDOI&&leftDOI===rightDOI;

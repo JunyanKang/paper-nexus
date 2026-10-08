@@ -41,3 +41,29 @@ test('overview group previews retain real members and edges without exposing ind
  const nodes=Array.from({length:40},(_,i)=>({id:'a'+i,kind:'author',title:'Person '+i,x:i,y:i%4,degree:40-i,members:['p']})),edges=nodes.slice(1).map(n=>({source:'a0',target:n.id,kind:'coauthor',evidence:[{paperID:'p'}]})),model={mode:'authors',nodes,edges,communities:[{id:'community:a',title:'Person 0',members:nodes.map(n=>n.id),x:20,y:2,color:0}]},scene=V.scene(model,V.index(model));
  assert.equal(scene.nodes.length,1);assert.equal(scene.contextNodes.length,24);assert.ok(scene.contextEdges.length>0);assert.ok(scene.contextEdges.every(e=>edges.includes(e)));assert.ok(!scene.index.byID.has('a1'));assert.equal(scene.contextOwner.get('a1'),'community:a');
 });
+test('source evidence groups passages by paper without repeating titles or inventing text',()=>{
+ const named=[{paperID:'p1',source:{text:'First original passage.'}},{paperID:'p1',source:{text:'Second original passage.'}},{paperID:'p1',source:{text:'First original passage.'}},{paperID:'p2',source:{text:'Another source.'}}];
+ const expected=[{paperID:'p1',quotes:['First original passage.','Second original passage.']},{paperID:'p2',quotes:['Another source.']}];assert.deepEqual(V.evidenceGroups(named),expected);
+ const shared=[{kind:'shared-source',sources:named.map(x=>({paperID:x.paperID,quote:x.source.text}))}];assert.deepEqual(V.evidenceGroups(shared),expected);assert.deepEqual(V.evidenceGroups([{paperID:'p',question:'Generated explanation is not an original passage'}]),[]);
+});
+
+test('contextual relationship descriptions remain separate from source quotations and same-question evidence',()=>{
+ const evidence=[{kind:'research-link',relation:'related-context',question:' Shared therapeutic context ',sources:[{paperID:'p',quote:'Original outcome.'}]},{kind:'research-link',relation:'same-question',question:'A narrower scientific question'},{kind:'shared-source',question:'Not an inferred relationship'},{kind:'research-link',relation:'related-context',question:'Shared therapeutic context'}];
+ assert.deepEqual(V.contextDescriptions(evidence),['Shared therapeutic context']);assert.deepEqual(V.evidenceGroups(evidence),[{paperID:'p',quotes:['Original outcome.']}]);assert.deepEqual(V.contextDescriptions([{kind:'research-link',relation:'related-context',question:'x'.repeat(301)}]),[]);
+});
+
+test('scientific labels wrap within measured bounds and preserve full short phrases',()=>{
+ const measure=s=>Array.from(s).length*7,title='Epigenetic and SIRT1 control of ferroptosis in sepsis-associated AKI',lines=V.textLines(title,measure,245,3);assert.equal(lines.length,3);assert.equal(lines.join(' '),title);assert.ok(lines.every(s=>measure(s)<=245));
+ const clipped=V.textLines(title,measure,126,2);assert.equal(clipped.length,2);assert.ok(clipped[1].endsWith('…'));assert.ok(clipped.every(s=>measure(s)<=126));
+ const unicode=V.textLines('小胶质细胞与神经回路重塑',measure,49,3);assert.equal(unicode.join(''),'小胶质细胞与神经回路重塑');assert.ok(unicode.every(s=>measure(s)<=49));
+ assert.deepEqual(V.textLines('',measure,40,2),[]);
+});
+
+test('hover attenuation is a smooth local circle and leaves distant nodes untouched',()=>{
+ const c={x:100,y:150},r=200,at=d=>V.hoverOpacity({x:100+d,y:150},c,r);
+ assert.equal(at(0),.32);assert.ok(at(50)<at(100)&&at(100)<at(150));assert.equal(at(200),1);assert.equal(at(2000),1);assert.equal(V.hoverOpacity({x:100,y:250},c,r),at(100));assert.equal(V.hoverOpacity({x:0,y:0},null,r),1);assert.ok(at(200)-at(199)<.001);
+});
+test('overview lines retain full distinct-publication counts independently of sparsified author links',()=>{
+ const model={mode:'authors',nodes:[{id:'a',kind:'author',title:'A',members:['p1','p2']},{id:'b',kind:'author',title:'B',members:['p1','p2']}],edges:[],communities:[{id:'ga',members:['a']},{id:'gb',members:['b']}],communityEdges:[{source:'ga',target:'gb',evidence:[{paperID:'p1'},{paperID:'p2'}]}]};
+ const s=V.scene(model,V.index(model));assert.equal(s.edges.length,1);assert.equal(s.edges[0].count,2);assert.equal(s.edges[0].source,'a');assert.equal(s.edges[0].target,'b');assert.ok(V.lineWidth(4)>V.lineWidth(1));
+});

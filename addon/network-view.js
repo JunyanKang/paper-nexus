@@ -1,12 +1,36 @@
 /* Screen-space navigation and level of detail. Independent of Zotero and the renderer. */
 var CiteLensNetworkView=(()=>{
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ function evidenceGroups(evidence){
+  const groups=new Map();
+  for(const item of evidence||[])for(const source of item.sources||[{paperID:item.paperID,quote:item.source?.text}]){
+   if(!source.paperID||typeof source.quote!=='string'||!source.quote.trim())continue;
+   if(!groups.has(source.paperID))groups.set(source.paperID,{paperID:source.paperID,quotes:[]});
+   const group=groups.get(source.paperID);if(!group.quotes.includes(source.quote))group.quotes.push(source.quote);
+  }
+  return [...groups.values()];
+ }
+ function contextDescriptions(evidence){
+  return [...new Set((evidence||[]).filter(e=>e.kind==='research-link'&&e.relation==='related-context'&&typeof e.question==='string').map(e=>e.question.trim()).filter(text=>text&&text.length<=300))];
+ }
  function nodeLabel(node,mode='topics',max=52){
   const title=String(node.title||'').replace(/\s+/g,' ').trim();
   const text=node.kind==='paper'?String(node.topicTitle??title):title;
   const chars=Array.from(text);if(chars.length<=max)return text;
   let short=chars.slice(0,max-1).join('');const boundary=short.lastIndexOf(' ');if(boundary>max*.65)short=short.slice(0,boundary);
   return short+'…';
+ }
+ function textLines(text,measure,maxWidth,maxLines=2){
+  let rest=String(text||'').replace(/\s+/g,' ').trim();const lines=[];
+  while(rest&&lines.length<maxLines){
+   if(measure(rest)<=maxWidth){lines.push(rest);break;}
+   const last=lines.length===maxLines-1,suffix=last?'…':'',chars=Array.from(rest);let lo=0,hi=chars.length;
+   while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(measure(chars.slice(0,mid).join('')+suffix)<=maxWidth)lo=mid;else hi=mid-1;}
+   if(!lo){if(measure('…')<=maxWidth)lines.push('…');break;}
+   let part=chars.slice(0,lo).join(''),boundary=part.lastIndexOf(' ');if(boundary>0){part=part.slice(0,boundary);lo=Array.from(part).length;}
+   lines.push(part.trimEnd()+suffix);rest=chars.slice(lo).join('').trimStart();if(last)break;
+  }
+  return lines;
  }
  function wheel(e,height=600){
   const unit=e.deltaMode===1?16:e.deltaMode===2?height:1,dx=e.deltaX*unit,dy=e.deltaY*unit;
@@ -54,6 +78,7 @@ var CiteLensNetworkView=(()=>{
    }
    const combined=new Map(),sourceEdges=index.detail?[...model.edges.filter(e=>e.source!==index.detail.id&&e.target!==index.detail.id),...index.detail.relations]:model.edges;
    for(const e of sourceEdges){const a=owner.get(e.source),b=owner.get(e.target);if(!a||!b||a===b)continue;const pair=[a,b].sort(),key=JSON.stringify(pair);if(!combined.has(key))combined.set(key,{source:pair[0],target:pair[1],kind:e.kind,kinds:new Set(),directions:[],signals:new Set()});const edge=combined.get(key);edge.kinds.add(e.kind);for(const proof of e.evidence||[])edge.signals.add(proof.paperID||JSON.stringify([proof.sourcePaper,proof.targetPaper].sort()));if(!e.evidence?.length)edge.signals.add(JSON.stringify([e.source,e.target].sort()));}
+   if(!community&&model.communityEdges){combined.clear();for(const e of model.communityEdges){const a=owner.get(byCommunity.get(e.source)?.members[0]),b=owner.get(byCommunity.get(e.target)?.members[0]);if(!a||!b||a===b)continue;combined.set(JSON.stringify([a,b].sort()),{source:a,target:b,kind:'coauthor',kinds:new Set(['coauthor']),directions:[],signals:new Set(e.evidence.map(p=>p.paperID))});}}
    const edges=[...combined.values()].map(e=>({...e,kinds:[...e.kinds],count:e.signals.size}));for(const e of edges)delete e.signals;edges.sort((a,b)=>b.count-a.count||a.source.localeCompare(b.source));
    const contextEdges=sourceEdges.filter(e=>contextOwner.has(e.source)&&contextOwner.get(e.source)===contextOwner.get(e.target)).slice(0,1800);projected={nodes,edges,owner,contextNodes,contextEdges,contextOwner,contextByID:new Map(contextNodes.map(n=>[n.id,n])),index:windowlessIndex(nodes,edges)};index.projections.set(key,projected);
   }
@@ -86,6 +111,9 @@ var CiteLensNetworkView=(()=>{
   }return pending;
  }
  function opacity(current,target,dt=16,reduced=false){const value=reduced?target:current+(target-current)*(1-Math.exp(-clamp(dt,1,40)/85));return Math.abs(value-target)<.004?target:value;}
+ function hoverOpacity(point,center,radius=240,floor=.32){
+  if(!center||radius<=0)return 1;const t=clamp(Math.hypot(point.x-center.x,point.y-center.y)/radius,0,1);return floor+(1-floor)*t*t*(3-2*t);
+ }
  function lineWidth(count,active=false){return Math.min(3.2,.75+Math.log2(Math.max(1,count))*.55)+(active?.45:0);}
  function labels(candidates,width,height){
   const grid=new Map(),accepted=[],cell=48;
@@ -96,6 +124,6 @@ var CiteLensNetworkView=(()=>{
   }
   return accepted;
  }
- return{nearest,magnetic,opacity,wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,emphasis,detail};
+ return{contextDescriptions,evidenceGroups,nearest,magnetic,opacity,hoverOpacity,wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,textLines,emphasis,detail};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkView;

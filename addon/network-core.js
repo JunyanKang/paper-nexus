@@ -197,26 +197,24 @@ var CiteLensNetworkCore=(()=>{
     if(total)for(let pass=0;pass<24;pass++){let moves=0;for(const id of ordered){const k=degree.get(id);if(!k)continue;const previous=labels.get(id),weights=new Map();for(const [other,w] of adj.get(id)){const c=labels.get(other);weights.set(c,(weights.get(c)||0)+w);}volume.set(previous,volume.get(previous)-k);const score=c=>(weights.get(c)||0)-resolution*k*(volume.get(c)||0)/total;let best=previous,gain=score(previous);for(const c of [...weights.keys()].sort()){const value=score(c);if(value>gain+1e-9){best=c;gain=value;}}labels.set(id,best);volume.set(best,(volume.get(best)||0)+k);if(best!==previous)moves++;}if(!moves)break;}
     const seen=new Set(),groups=[];for(const id of ordered){if(seen.has(id))continue;const members=[],queue=[id];seen.add(id);for(let i=0;i<queue.length;i++){const current=queue[i];members.push(current);for(const other of adj.get(current).keys())if(!seen.has(other)&&labels.get(other)===labels.get(id)){seen.add(other);queue.push(other);}}groups.push(members.sort());}return groups.sort((a,b)=>b.length-a.length||a[0].localeCompare(b[0]));
   }
-  function topics(nodes){
-    const docs=[],df=new Map();for(const n of [...nodes].sort((a,b)=>a.id.localeCompare(b.id))){const tokens=[...terms(n.title),...terms(n.title),...terms(n.abstract||'')],tf=new Map();for(const t of tokens)tf.set(t,(tf.get(t)||0)+1);for(const t of tf.keys())df.set(t,(df.get(t)||0)+1);docs.push({node:n,tf});}
-    const index=new Map();for(const d of docs){d.vector=new Map();let norm=0;for(const [t,f] of d.tf){const w=(1+Math.log(f))*(1+Math.log((1+nodes.length)/(1+df.get(t))));d.vector.set(t,w);norm+=w*w;}for(const [t,w] of d.vector){d.vector.set(t,w/Math.sqrt(norm||1));if(!index.has(t))index.set(t,[]);index.get(t).push(d);}}
-    // A sparse nearest-neighbour graph avoids attaching every document to the
-    // first broad review. High-frequency terms have bounded candidate lists.
-    const links=new Map();for(const d of docs){const candidates=new Set(),features=[...d.vector].sort((a,b)=>b[1]-a[1]).slice(0,32);for(const [t] of features){const list=index.get(t),stride=Math.max(1,Math.ceil(list.length/256));for(let i=0;i<list.length;i+=stride)candidates.add(list[i]);}const ranked=[];for(const other of candidates){if(other===d)continue;let dot=0;for(const [t,w] of d.vector)dot+=w*(other.vector.get(t)||0);if(dot>=.24)ranked.push({other,dot});}ranked.sort((a,b)=>b.dot-a.dot||a.other.node.id.localeCompare(b.other.node.id));for(const {other,dot} of ranked.slice(0,8)){const pair=[d.node.id,other.node.id].sort(),key=JSON.stringify(pair);links.set(key,{source:pair[0],target:pair[1],weight:dot*dot});}}
-    const byID=new Map(docs.map(d=>[d.node.id,d]));return communities(docs.map(d=>d.node.id),[...links.values()],1.1).filter(g=>g.length>1).map(ids=>{const members=ids.map(id=>byID.get(id)),weights=new Map();for(const d of members)for(const [t,w] of d.vector)weights.set(t,(weights.get(t)||0)+w);const keywords=[...weights].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,3).map(x=>x[0]);return {id:ids[0],keywords,nodes:members.map(d=>d.node),abstracts:members.filter(d=>!!d.node.abstract).length,links:[...links.values()].filter(e=>ids.includes(e.source)||ids.includes(e.target))};});
-  }
  // Multilevel weighted modularity with self-loop-preserving aggregation.
  // Each level operates on the sparse neighbour graph, never on all paper pairs.
- function multilevelCommunities(ids,edges,resolution=1.05){
+ function multilevelCommunities(ids,edges,resolution=1.05,certificate=null){
   let members=[...ids].sort().map(id=>[id]),positions=new Map(members.map((m,i)=>[m[0],i])),adj=members.map(()=>new Map());
   for(const e of edges){const a=positions.get(e.source),b=positions.get(e.target),w=Number(e.weight)||1;if(a===undefined||b===undefined||a===b||w<=0)continue;adj[a].set(b,(adj[a].get(b)||0)+w);adj[b].set(a,(adj[b].get(a)||0)+w);}
   for(let level=0;level<8;level++){
-   const degree=adj.map(row=>[...row.values()].reduce((s,w)=>s+w,0)),total=degree.reduce((s,w)=>s+w,0);if(!total)break;
+   const degree=adj.map(row=>[...row.values()].reduce((s,w)=>s+w,0)),total=certificate?.total??degree.reduce((s,w)=>s+w,0);if(!total)break;
    const label=members.map((_,i)=>i),volume=[...degree];let moved=false;
    for(let pass=0;pass<24;pass++){let moves=0;for(let i=0;i<members.length;i++){
     const k=degree[i];if(!k)continue;const old=label[i],weights=new Map();for(const [j,w] of adj[i])if(j!==i)weights.set(label[j],(weights.get(label[j])||0)+w);
     volume[old]-=k;const score=c=>(weights.get(c)||0)-(level?Math.max(2,resolution):resolution)*k*volume[c]/total;let best=old,gain=score(old);
-    for(const c of [...weights.keys()].sort((a,b)=>a-b)){const value=score(c);if(value>gain+1e-10){best=c;gain=value;}}
+    for(const c of [...weights.keys()].sort((a,b)=>a-b)){const value=score(c),take=value>gain+1e-10;
+     if(certificate){const a=(weights.get(c)||0)-(weights.get(best)||0)-1e-10,b=(level?Math.max(2,resolution):resolution)*k*(volume[c]-volume[best]);
+      // Every decision is a linear inequality in global graph volume. A cached
+      // component is reusable only while all observed decisions remain identical.
+      if(a!==0){const bound=b/a;if((a>0)===take)certificate.lower=Math.max(certificate.lower,bound);else certificate.upper=Math.min(certificate.upper,bound);}
+     }
+     if(take){best=c;gain=value;}}
     label[i]=best;volume[best]+=k;if(best!==old){moves++;moved=true;}
    }if(!moves)break;}
    const groups=new Map(),seen=new Set();for(let i=0;i<members.length;i++){if(seen.has(i))continue;const block=[i];seen.add(i);for(let at=0;at<block.length;at++)for(const j of adj[block[at]].keys())if(!seen.has(j)&&label[j]===label[i]){seen.add(j);block.push(j);}groups.set(i,block);}if(!moved||groups.size===members.length)break;
@@ -227,7 +225,28 @@ var CiteLensNetworkCore=(()=>{
   return members.sort((a,b)=>b.length-a.length||a[0].localeCompare(b[0]));
  }
 
+ // Exact component-local recomputation at the original global modularity scale.
+ // Certificates also invalidate unchanged components if a global-volume change
+ // can alter any local-move decision. A bridge or split changes its full component.
+ function incrementalCommunities(ids,edges,resolution=1.05,previous=null){
+  const ordered=[...ids].sort(),adj=new Map(ordered.map(id=>[id,[]])),valid=[];
+  let total=0;for(const e of edges){const weight=Number(e.weight)||1;if(e.source===e.target||!adj.has(e.source)||!adj.has(e.target)||weight<=0)continue;adj.get(e.source).push(e.target);adj.get(e.target).push(e.source);valid.push({...e,weight});total+=2*weight;}
+  const seen=new Set(),owner=new Map(),blocks=[];
+  for(const id of ordered){if(seen.has(id))continue;const queue=[id];seen.add(id);for(let i=0;i<queue.length;i++)for(const next of adj.get(queue[i]))if(!seen.has(next)){seen.add(next);queue.push(next);}queue.sort();for(const member of queue)owner.set(member,blocks.length);blocks.push({ids:queue,edges:[]});}
+  for(const e of valid)blocks[owner.get(e.source)].edges.push(e);
+  const prior=new Map(previous?.version===1&&previous.resolution===resolution?(previous.blocks||[]).map(b=>[b.ids[0],b]):[]),state=[],groups=[],stats={reusedComponents:0,recomputedComponents:0,reusedNodes:0,recomputedNodes:0};
+  for(const block of blocks){
+   const signature=JSON.stringify([block.ids,block.edges.map(e=>{const pair=[e.source,e.target].sort();return [...pair,e.weight];}).sort((a,b)=>a[0].localeCompare(b[0])||a[1].localeCompare(b[1])||a[2]-b[2])]),old=prior.get(block.ids[0]);
+   let result,lower=0,upper=Number.MAX_VALUE;
+   const cachedIDs=old?.groups?.flat();
+   if(old?.signature===signature&&total>old.lower&&total<old.upper&&Array.isArray(cachedIDs)&&cachedIDs.length===block.ids.length&&new Set(cachedIDs).size===block.ids.length&&cachedIDs.every(id=>owner.get(id)===owner.get(block.ids[0]))){result=old.groups;lower=old.lower;upper=old.upper;stats.reusedComponents++;stats.reusedNodes+=block.ids.length;}
+   else{const certificate={total,lower,upper};result=multilevelCommunities(block.ids,block.edges,resolution,certificate);lower=certificate.lower;upper=certificate.upper;stats.recomputedComponents++;stats.recomputedNodes+=block.ids.length;}
+   groups.push(...result);state.push({ids:block.ids,signature,groups:result,lower,upper});
+  }
+  groups.sort((a,b)=>b.length-a.length||a[0].localeCompare(b[0]));
+  return {groups,state:{version:1,resolution,blocks:state},stats};
+ }
 
-  return {multilevelCommunities,id,authorKey,orcid,enrichCreators,authorIdentities,build,neighbors,search,consolidate,workspace,topics,communities,terms,searchIndex,queryIndex,authorConnections,authorNeighborhood};
+  return {incrementalCommunities,multilevelCommunities,id,authorKey,orcid,enrichCreators,authorIdentities,build,neighbors,search,consolidate,workspace,communities,terms,searchIndex,queryIndex,authorConnections,authorNeighborhood};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkCore;

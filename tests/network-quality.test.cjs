@@ -1,5 +1,5 @@
-const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),C=require('../addon/core.js'),SC=require('../addon/semantic-core.js');
-const ctx={CiteLensCore:C,CiteLensSemanticCore:SC};vm.createContext(ctx);for(const f of ['network-core.js','topic-lexicon.js','topic-concepts.js','vendor/compromise/compromise-two.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+f),'utf8'),ctx);const N=ctx.CiteLensNetworkCore,M=ctx.CiteLensNetworkMap;
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),C=require('../addon/core.js');
+const ctx={CiteLensCore:C};vm.createContext(ctx);for(const f of ['network-core.js','network-map.js'])vm.runInContext(fs.readFileSync(require.resolve('../addon/'+f),'utf8'),ctx);const N=ctx.CiteLensNetworkCore,M=ctx.CiteLensNetworkMap;
 const person=(firstName,lastName,extra={})=>({firstName,lastName,...extra}),paper=(id,title,creators)=>({id,title,creators,local:true}),build=nodes=>M.build({nodes,edges:[],references:[],mode:'authors'});
 test('ORCID checksum, normalization and hard identity conflicts',()=>{
  const a='0000-0002-1825-0097',b='0000-0001-5109-3700';assert.equal(N.orcid('https://orcid.org/'+a),a);assert.equal(N.orcid(a.slice(0,-1)+'8'),'');assert.equal(N.orcid(b),b);
@@ -23,22 +23,6 @@ test('missing identity evidence remains provisional rather than fabricating veri
 test('large same-name blocks have bounded evidence comparisons and stable output',()=>{
  const co=[person('Alice','Jones'),person('Robert','Brown')],papers=Array.from({length:500},(_,i)=>paper('p'+i,'Retinal development',[person('Wei','Li'),...co])),a=build(papers),b=build([...papers].reverse());assert.ok(a.identityMetrics.comparisons<=papers.length*3*32);assert.deepEqual(a.nodes.map(n=>[n.id,[...n.members].sort()]),b.nodes.map(n=>[n.id,[...n.members].sort()]));
 });
-test('representative evidence covers central content without alphabetical outlier bias',()=>{
- const nodes=Array.from({length:12},(_,i)=>({id:'p'+i,title:i===0?'A peripheral report':'Retinal development'})),vectors=nodes.map((_,i)=>i===0?[0,1]:[1,0]);const ids=SC.representatives(nodes,vectors,8);assert.equal(ids.length,8);assert.notEqual(ids[0],'p0');assert.equal(new Set(ids).size,8);assert.deepEqual(ids,SC.representatives([...nodes].reverse(),[...vectors].reverse(),8));
-});
-test('topic contrast prefers a distinguishing biological phrase over generic recurring methods',()=>{
- const groups=[['Single cell sequencing of retinal ganglion cells','Single cell sequencing during retinal ganglion cell development'],['Single cell sequencing of immune cells','Single cell sequencing during immune cell activation'],['Single cell sequencing of cancer cells','Single cell sequencing of tumor cell invasion']],nodes=groups.flatMap((g,i)=>g.map((title,j)=>paper(i+':'+j,title,[]))),vectors=nodes.map((_,i)=>[0,1,2].map(k=>Number(k===Math.floor(i/2))));const g=M.topics(M.build({nodes,edges:[],references:[],mode:'topics'}),{vectors});assert.ok(g.nodes.every(n=>!/^Single cell sequencing$/i.test(n.title)));assert.equal(new Set(g.nodes.map(n=>n.title)).size,3);assert.ok(g.groups.every(n=>n.representatives.length<=8));
-});
-test('topic labels do not concatenate fragments across title punctuation',()=>{
- const nodes=[paper('a','Primate fovea. Structure, function and development',[])],g=M.topics(M.build({nodes,edges:[],references:[],mode:'topics'}),{vectors:[[1,0]]});assert.equal(g.nodes[0].title,'Primate fovea');
-});
-
-test('shared disease or compound names outrank isolated generic phrases',()=>{
- const titles=['Calcified neurocysticercosis among patients with primary headache','Neurocysticercosis and oncogenesis','Neurocysticercosis: an enigmatic disease','Cognitive changes in neurocysticercosis'],nodes=titles.map((title,i)=>paper('n'+i,title,[])),graph=M.topics(M.build({nodes,edges:[],references:[],mode:'topics'}),{vectors:nodes.map(()=>[1,0])});assert.match(graph.nodes[0].title,/neurocysticercosis/i);assert.doesNotMatch(graph.nodes[0].title,/enigmatic/i);
- const more=['Curcumin for osteoarthritis management','Curcumin and obesity','Curcumin effects on cognitive disorders'].map((title,i)=>paper('c'+i,title,[])),g=M.topics(M.build({nodes:more,edges:[],references:[],mode:'topics'}),{vectors:more.map(()=>[1,0])});assert.match(g.nodes[0].title,/curcumin/i);
-});
-test('scientific possessives stay readable in extracted topic phrases',()=>{const nodes=[paper('p1',"Cow's milk protein allergy",[]),paper('p2',"Cow's milk protein intolerance",[])],g=M.topics(M.build({nodes,edges:[],references:[],mode:'topics'}),{vectors:nodes.map(()=>[1,0])});assert.match(g.nodes[0].title,/Cow's milk protein/i);assert.doesNotMatch(g.nodes[0].title,/Cow s/i);});
-
 test('ambiguous evidence chains cannot inherit an arbitrary ORCID or depend on input order',()=>{
  const co=[person('Alice','Jones'),person('Robert','Brown')],papers=[paper('a','Retinal development',[person('Wei','Li',{orcid:'0000-0002-1825-0097'}),...co]),paper('b','Retinal development',[person('Wei','Li'),...co]),paper('c','Retinal development',[person('Wei','Li'),...co]),paper('d','Retinal development',[person('Wei','Li',{orcid:'0000-0001-5109-3700'}),...co])];
  const rows=g=>Array.from(g.nodes.filter(n=>n.title==='Wei Li'),n=>[n.identity,Array.from(n.members).sort()]).sort();const a=build(papers),b=build([...papers].reverse());assert.deepEqual(rows(a),rows(b));const unknown=a.nodes.find(n=>n.members.includes('b')&&n.title==='Wei Li');assert.equal(unknown.identity,'unresolved');assert.deepEqual(Array.from(unknown.members).sort(),['b','c']);
@@ -71,25 +55,6 @@ test('metadata alignment rejects duplicate same-name authors and conflicting ide
  const duplicate=N.enrichCreators([person('J.','Smith'),person('Jane','Smith')],[known]);assert.ok(duplicate.every(r=>!r.ORCID));
 });
 
-test('specific shared concepts reconnect sparse semantic neighbors but never unrelated homonyms',()=>{
- const nodes=[paper('a','Retinal ganglion cell regeneration',[]),paper('b','Retinal ganglion cell repair',[]),paper('c','Retinal ganglion cell microscopy',[])],vectors=[[1,0,0],[.48,Math.sqrt(1-.48**2),0],[0,0,1]],g=M.topics(M.build({nodes,edges:[],mode:'topics'}),{vectors});
- assert.ok(g.groups.some(x=>x.members.includes('a')&&x.members.includes('b')));assert.ok(!g.groups.some(x=>x.members.includes('a')&&x.members.includes('c')));
-});
-test('sibling concepts avoid generic and repeated labels without numeric suffixes',()=>{
- const nodes=['Light adaptation in retinal ganglion cells','Light damage in photoreceptor outer segments','Light responses in visual cortex'].map((title,i)=>paper('p'+i,title,[])),vectors=[[1,0,0],[0,1,0],[0,0,1]],g=M.topics(M.build({nodes,edges:[],mode:'topics'}),{vectors});
- assert.equal(new Set(g.nodes.map(n=>n.title.toLowerCase())).size,3);assert.ok(g.nodes.every(n=>n.title&&!/^Light$|Unclassified research|\s\d+$/.test(n.title)));assert.ok(g.nodes.every(n=>nodes.some(p=>p.title.toLowerCase().includes(n.title.toLowerCase()))));
-});
-test('ontology acronyms retain source case and cannot turn stem cells into microscopy',()=>{
- const concepts=ctx.CiteLensTopicConcepts;
- assert.ok(concepts.lookup('STEM').some(c=>/Microscopy/.test(c.title)));assert.ok(!concepts.lookup('stem').some(c=>/Microscopy/.test(c.title)));
- const nodes=[paper('stem','Early human development and stem cell-based human embryo models',[])],g=M.topics(M.build({nodes,edges:[],mode:'topics'}),{vectors:[[1,0]]});assert.doesNotMatch(g.nodes[0].title,/microscop/i);
-});
-test('topic scope is grounded in the same title and never labels a finite verb as a concept',()=>{
- const nodes=[paper('a','Retinoic acid regulates foveal development in the human retina',[]),paper('b','Retinoic acid controls foveal development in retinal organoids',[])],g=M.topics(M.build({nodes,edges:[],mode:'topics'}),{vectors:[[1,0],[1,0]]});
- assert.match(g.nodes[0].title,/retinoic acid.*foveal development/i);assert.ok(g.groups[0].namingEvidence.length>=2);
- const one=[paper('c','NRF1-mediated innate immune response drives inflammaging',[])],h=M.topics(M.build({nodes:one,edges:[],mode:'topics'}),{vectors:[[1,0]]});assert.doesNotMatch(h.nodes[0].title,/drives?$/i);assert.match(h.nodes[0].title,/immune|immun/i);
-});
-
 test('multilevel communities preserve sparse boundaries, isolates and input-order stability',()=>{
  const ids=Array.from({length:17},(_,i)=>'p'+String(i).padStart(2,'0')),edges=[];
  for(let group=0;group<2;group++)for(let i=0;i<8;i++)for(let j=i+1;j<8;j++)edges.push({source:ids[group*8+i],target:ids[group*8+j],weight:1});
@@ -104,25 +69,24 @@ test('multilevel aggregation joins local fragments while each final community st
  for(const group of groups){const seen=new Set([group[0]]);for(let pass=0;pass<group.length;pass++)for(const e of edges)if(group.includes(e.source)&&group.includes(e.target)){if(seen.has(e.source))seen.add(e.target);if(seen.has(e.target))seen.add(e.source);}assert.equal(seen.size,group.length);}
  assert.ok(groups.length>=6);
 });
-test('high embedding similarity alone cannot collapse unrelated overview subjects',()=>{
- const titles=['Pulmonary fibrosis','T cell exhaustion','Tryptophan metabolism','Stem cell differentiation'],nodes=titles.map((title,i)=>({id:'topic:'+i,title,kind:'topic',members:[],local:true})),edges=[];for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++)edges.push({source:nodes[i].id,target:nodes[j].id,kind:'topic-relation',evidence:[{kind:'semantic-centroid',score:.9}]});
- const graph=M.layout({mode:'topics',nodes,edges,groups:[],paperNodes:[],stats:{}});assert.equal(graph.communities.length,4);assert.equal(graph.edges.length,6);
-});
-test('related scientific subtopics form a visible overview group without inventing edges',()=>{
- const nodes=['Cellular senescence','Cellular senescence in renal ischemia','Macular degeneration'].map((title,i)=>({id:'topic:'+i,title,kind:'topic',members:[],local:true})),edges=[{source:'topic:0',target:'topic:1',kind:'topic-relation',evidence:[{kind:'semantic-centroid',score:.8}]}],g=M.layout({mode:'topics',nodes,edges,groups:[],paperNodes:[],stats:{}});assert.ok(g.communities.some(c=>c.members.length===2));assert.equal(g.edges.length,1);
-});
-
 test('group affinity uses cross-team evidence without favoring team size or repeated scaling',()=>{
  const groups=['a','b','c'].map(id=>({id,members:[id+'1',id+'2']})),links=groups.map(g=>({source:g.members[0],target:g.members[1],weight:10}));
  links.push({source:'a1',target:'b1',weight:4},{source:'a2',target:'c1',weight:.2});
  const a=M.communityRelations(groups,links,'authors'),b=M.communityRelations(groups,links.map(e=>({...e,weight:e.weight*10})),'authors');
  assert.ok(a[0].affinity>a[1].affinity);assert.ok(a[0].gap<a[1].gap);a.forEach((r,i)=>assert.ok(Math.abs(r.affinity-b[i].affinity)<1e-9));
 });
-test('distinct topic communities stay separate but stronger scientific similarity brings them closer',()=>{
- const g={mode:'topics',nodes:['Retinal maturation','Synaptic pruning','Neuroinflammation'].map((title,i)=>({id:'t'+i,title,kind:'topic',members:[]})),edges:[{source:'t0',target:'t1',kind:'topic-relation',evidence:[{kind:'semantic-centroid',score:.92}]},{source:'t0',target:'t2',kind:'topic-relation',evidence:[{kind:'semantic-centroid',score:.42}]}],groups:[],paperNodes:[],stats:{}};
- M.layout(g);assert.equal(g.communities.length,3);const [a,b,c]=g.nodes,d=(x,y)=>Math.hypot(x.x-y.x,x.y-y.y);assert.ok(d(a,b)<d(a,c)*.8,`${d(a,b)} / ${d(a,c)}`);
-});
 test('author groups with repeated cross-team collaboration sit closer than weakly linked teams',()=>{
  const nodes=[],edges=[];for(let k=0;k<3;k++)for(let i=0;i<8;i++){nodes.push({id:k+':'+i,title:'Team '+k+' Author '+i,kind:'author',members:['p'+k]});for(let j=0;j<i;j++)edges.push({source:k+':'+i,target:k+':'+j,kind:'coauthor',strength:3});}
  edges.push({source:'0:0',target:'1:0',kind:'coauthor',strength:2},{source:'0:1',target:'1:1',kind:'coauthor',strength:2},{source:'0:0',target:'2:0',kind:'coauthor',strength:.1});const g=M.layout({mode:'authors',nodes,edges,groups:[],stats:{}}),group=k=>g.communities.find(c=>c.members.includes(k+':0')),d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);assert.equal(g.communities.length,3);assert.ok(d(group(0),group(1))<d(group(0),group(2))*.8);
+});
+
+test('overview affinity counts distinct shared papers, not author pair multiplicity',()=>{
+ const groups=['a','b','c'].map(id=>({id,members:[id+'1',id+'2']})),nodes=groups.flatMap(g=>g.members.map(id=>({id,members:g.id==='a'?['ab1','ab2','ab3','ac1']:g.id==='b'?['ab1','ab2','ab3']:['ac1']}))),relations=M.publicationRelations(groups,nodes),ab=relations.find(e=>e.b.id==='b'),ac=relations.find(e=>e.b.id==='c');
+ assert.equal(ab.count,3);assert.equal(ac.count,1);assert.ok(ab.gap<ac.gap);assert.ok(ab.affinity>ac.affinity);
+ const duplicateAuthors=groups.map(g=>({...g,members:[...g.members,g.members[0]]}));assert.deepEqual(M.publicationRelations(duplicateAuthors,nodes).map(e=>e.count),relations.map(e=>e.count));
+});
+test('complete publication membership affects overview even without display bridges',()=>{
+ const nodes=[],groups=[];for(let k=0;k<3;k++){const members=[];for(let i=0;i<4;i++){const id=k+':'+i;members.push(id);nodes.push({id,title:id,kind:'author',members:k===0?['ab1','ab2','ab3','ab4','ac']:k===1?['ab1','ab2','ab3','ab4']:['ac']});}groups.push(members);}
+ const graph=M.layout({mode:'authors',nodes,edges:[],authorCommunities:groups,authorship:{},stats:{}}),g=k=>graph.communities.find(g=>g.members.includes(k+':0')),d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+ assert.equal(graph.communityEdges.length,2);assert.deepEqual(Array.from(graph.communityEdges,e=>e.count).sort(),[1,4]);assert.ok(d(g(0),g(1))<d(g(0),g(2))*.9);
 });

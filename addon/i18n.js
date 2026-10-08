@@ -2,6 +2,23 @@
 var CiteLensI18n = {
  catalogs:{
   "en": {
+    "朋友圈自动整理本地文献中的作者与合作关系。":"Coauthor networks automatically organize authors and collaborations in your library.",
+    "主题网络 · 开发中":"Topic network · Coming soon",
+    "主题网络入口暂不可启用，成熟后将随插件更新开放。":"Topic networks will be available in a future update.",
+    "主题网络正在开发中":"Topic networks are not available yet",
+    "版本说明与插件下载":"Release notes and plugin download",
+    "启用文献网络":"Enable literature network",
+    "启用后在后台整理研究主题与合作关系。关闭后保留已有网络。":"Build topics and collaborations in the background. Turning this off keeps your saved network.",
+    "大模型根据题目和摘要整理研究问题、关联与主题。仅在启用后发送至你配置的服务商；与翻译配置独立。":"Organize research questions, connections and topics from titles and abstracts. Sent to your provider only when enabled; separate from translation.",
+    "研究理解":"Research analysis",
+    "相关方向的论文":"Papers from related topics",
+    "本地分析":"On-device",
+    "大模型增强":"AI-assisted",
+    "配置网络大模型":"Configure research AI",
+    "将题目和摘要发送至你配置的服务商，用于提取研究内容与提炼主题。与翻译配置独立。":"Send titles and abstracts to your chosen provider to extract research evidence and name topics. Separate from translation.",
+    "整理研究证据":"Organizing research evidence",
+    "网络大模型":"Research AI",
+
     "网络暂未就绪":"Network not ready yet",
     "可重试，或先继续阅读论文":"Retry, or continue reading for now",
     "准备已暂停":"Preparation paused",
@@ -1583,6 +1600,7 @@ for(const [source,values] of Object.entries({
 }))['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);
 
 for(const [source,values] of Object.entries({
+ "共同研究背景":["Shared research context","共通の研究背景","Contexte de recherche commun","Gemeinsamer Forschungskontext"],
  "主题分析":["Topic analysis","トピック分析","Analyse thématique","Themenanalyse"],
  "本地模型":["Local model","ローカルモデル","Modèle local","Lokales Modell"],
  "正在理解文献":["Reading research content","研究内容を解析中","Analyse des articles","Inhalte werden analysiert"],
@@ -1648,6 +1666,7 @@ for(const [source,values] of Object.entries({
 })){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
 
 for(const [source,values] of Object.entries({
+ "共同研究背景":["Shared research context","共通の研究背景","Contexte de recherche commun","Gemeinsamer Forschungskontext"],
  "主题分析":["Topic analysis","トピック分析","Analyse thématique","Themenanalyse"],
  "通用语义":["General semantics","汎用意味解析","Sémantique générale","Allgemeine Semantik"],
  "医学语义":["Biomedical semantics","医学意味解析","Sémantique biomédicale","Biomedizinische Semantik"],

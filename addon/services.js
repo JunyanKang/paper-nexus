@@ -1,5 +1,5 @@
 var CiteLensServices = {
-  state:{schema:1,queue:[],metrics:[],cache:{},settings:{autoLookup:true,autoAuthors:true,networkConsent:true,networkEnhanceEnabled:false,metricYear:''}},
+  state:{schema:1,queue:[],metrics:[],cache:{},settings:{autoLookup:true,autoAuthors:true,networkConsent:true,networkEnabled:true,metricYear:''}},
   inFlight:new Map(), locks:new Map(), active:0, waiting:[], dead:false,
   async init() {
     this.path=PathUtils.join(Zotero.DataDirectory.dir,'cite-lens','state.json');
@@ -10,7 +10,8 @@ var CiteLensServices = {
     }
     // Current-item enrichment is automatic, including installations with older opt-out switches.
     Object.assign(this.state.settings,{autoLookup:true,autoAuthors:true,networkConsent:true,preferInstalledMetrics:true,easyPubMedEnabled:true,metricYear:''});
-    this.state.settings.networkEnhanceEnabled=this.state.settings.networkEnhanceEnabled===true;
+    this.state.settings.networkEnabled=true;
+    delete this.state.settings.networkEnhanceEnabled;
     delete this.state.settings.themeArtwork;
     this.dead=false;
     this.state.authorCache||={};this.authorGeneration=(this.authorGeneration||0)+1;
@@ -39,14 +40,14 @@ var CiteLensServices = {
     }catch(e){const status=e.status||e.xmlhttp?.status;if(status===429)throw Error('Crossref 请求繁忙，请稍后重试');if(status===404)throw Error('Crossref 未收录此 DOI');throw Error('暂时无法连接 Crossref；原始参考文献仍可使用');}
     finally{this.active--;this.waiting.shift()?.();}
   },
-  async lookup(record) {
+  async lookup(record,{force=false}={}) {
     const C=CiteLensCore,key=C.identity(record),cached=this.state.cache[key];
-    if(cached&&Date.now()-cached.time<7*86400000)return {...C.decide(record,(cached.value.ranked||[]).map(x=>x.record)),cached:true};
+    if(!force&&cached&&Date.now()-cached.time<7*86400000)return {...C.decide(record,(cached.value.ranked||[]).map(x=>x.record)),cached:true};
     if(this.inFlight.has(key))return this.inFlight.get(key);
     const work=(async()=>{
       const url=record.DOI?'https://api.crossref.org/works/'+encodeURIComponent(C.doi(record.DOI)):'https://api.crossref.org/works?rows=5&query.bibliographic='+encodeURIComponent((record.raw||C.citation(record)).slice(0,1800));
       const m=await this.request(url),candidates=record.DOI?[C.fromCrossref(m)]:(m.items||[]).map(C.fromCrossref),result=C.decide(record,candidates);
-      if(!this.dead){this.state.cache[key]={time:Date.now(),value:result};const keys=Object.keys(this.state.cache).sort((a,b)=>this.state.cache[b].time-this.state.cache[a].time);for(const k of keys.slice(500))delete this.state.cache[k];await this.persist();}
+      if(!this.dead){this.state.cache[key]={time:Date.now(),value:result};this.cacheGeneration=(this.cacheGeneration||0)+1;const keys=Object.keys(this.state.cache).sort((a,b)=>this.state.cache[b].time-this.state.cache[a].time);for(const k of keys.slice(500))delete this.state.cache[k];await this.persist();}
       return result;
     })();this.inFlight.set(key,work);try{return await work;}finally{this.inFlight.delete(key);}
   },
