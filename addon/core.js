@@ -18,7 +18,7 @@ var CiteLensCore = (() => {
   const plainTitle = value => clean(titleParts(value).map(p=>p.text).join(''));
   const norm = s => plainTitle(s).normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
   function doi(s) {
-    let text=clean(s);try{text=decodeURIComponent(text);}catch(_){}
+    let text=clean(s).replace(/10\.\s+(?=\d{4,9}\/)/g,'10.');try{text=decodeURIComponent(text);}catch(_){}
     const m=text.match(/10\.\d{4,9}\/(?:[^\s<>"#]|<\d+::[a-z0-9._;:-]+>)+/i); if(!m)return '';
     let d=m[0].replace(/[.,;:]+$/,'');
     while(d.endsWith(')')&&(d.match(/\)/g)||[]).length>(d.match(/\(/g)||[]).length)d=d.slice(0,-1);
@@ -37,7 +37,7 @@ var CiteLensCore = (() => {
     return String(text??'').replace(/([\p{L}])\s*([\p{M}´`¨ˆ˜])\s*(?=[\p{L}])/gu,(_,letter,mark)=>letter+(marks[mark]||mark)).normalize('NFC');
   }
   function parse(raw,position=null) {
-    raw=clean(repairPDFAccents(raw));const yearMatch=raw.match(/\b(1[6-9]\d{2}|20\d{2})(?:F(?=[a-z][.)]))?([a-z])?(?:[–-](?:(?:19|20)\d{2}|\d{2}))?\b/);
+    raw=clean(repairPDFAccents(raw)).replace(/(10\.\d{4,9}\/[^\s]*[-/])\s+(?=[a-z0-9])/gi,'$1');const yearMatch=raw.match(/\b(1[6-9]\d{2}|20\d{2})([a-z])?\)(?=[.\s]|$)/)||raw.match(/\b(1[6-9]\d{2}|20\d{2})(?:F(?=[a-z][.)]))?([a-z])?(?:[–-](?:(?:19|20)\d{2}|\d{2}))?\b/);
     const year=yearMatch?.[1]||'', suffix=yearMatch?.[2]||'';
     const before=yearMatch?raw.slice(0,yearMatch.index).replace(/^\[?\d+\]?[.)]?\s*/, '').trim():'';
     let author=before.split(',')[0].replace(/\(\s*$/,'').trim();
@@ -45,7 +45,7 @@ var CiteLensCore = (() => {
     const parts=tail.split(/\.\s+(?=[\p{Lu}\d])/u);
     let title=parts[0]||raw,creatorText=before;
     // Vancouver places the year after journal/title. Only split at initials-to-title boundary.
-    if (yearMatch && (title.length<12 || /^\d/.test(title))) {
+    if (yearMatch && (title.length<12 || /^(?:\d|https?:\/\/)/.test(title))) {
       const vm=raw.match(/^(?:\[?\d+\]?[.)]?\s*)?(.+?)\.\s+(.{12,}?)\.\s+(.+?)\s+(?:19|20)\d{2}/);
       if(vm){title=vm[2];creatorText=vm[1];author=creatorText.split(',')[0].replace(/\s+[A-Z]{1,5}$/,'').trim();}else title=raw;
     }
@@ -56,7 +56,7 @@ var CiteLensCore = (() => {
     // Require a journal + volume + page tail, so internal questions stay in the title.
     if(!book&&!chapter){const end=tail.match(/^(.{12,}[?!])\s+([\p{Lu}][\p{L}\s.&’'–-]{1,100}?)\s+(\d+)(?:\s*\([^)]*\))?[,;:]\s*\d+(?:[-–]\d+)?[.]?$/u);if(end&&(!journal||/^(?:[A-Z][a-z]{0,5}\.\s*){1,8}$/.test(end[2]))){title=end[1];journal=clean(end[2]).replace(/[.,]+$/,'');}}
     const creators=[];
-    const rx=/([\p{L}][\p{L}'’\- ]+),\s*((?:[A-Z]\.\s*){1,5})/gu;
+    const rx=/([\p{L}][\p{L}'’\- ]+(?:\s+(?:Jr|Sr)\.)?),\s*((?:[A-Z]\.\s*){1,5})/gu;
     const authorMatches=[...creatorText.matchAll(rx)];
     for(const m of authorMatches)creators.push({lastName:m[1].trim().replace(/^(?:and|&)\s+/i,''),firstName:m[2].replace(/\s+/g,''),creatorType:'author'});
     if(title===raw&&authorMatches.length){const last=authorMatches.at(-1),rest=creatorText.slice(last.index+last[0].length).replace(/^[\s,&]+/,'').replace(/^et al\.\s*/,'');const split=rest.match(/^(.{12,}?)\.\s+(.+)$/);if(split){title=split[1];journal=split[2].replace(/\s+\d.*$/,'').replace(/[.,(\s]+$/,'');}}
@@ -88,7 +88,7 @@ var CiteLensCore = (() => {
   function fromCrossref(m) {
     const types={'book':'book','monograph':'book','edited-book':'book','book-chapter':'bookSection','proceedings-article':'conferencePaper','posted-content':'preprint'};
     const date=(m['published-print']||m.published||m['published-online']||m.issued)?.['date-parts']?.[0];
-    return {title:plainTitle(m.title?.[0]),titleMarkup:clean(m.title?.[0]),DOI:doi(m.DOI),type:types[m.type]||'journalArticle',year:String(date?.[0]||''),date:date?.join('-')||'',journal:clean(m['container-title']?.[0]),journalAbbreviation:clean(m['short-container-title']?.[0]),bookTitle:types[m.type]==='bookSection'?clean(m['container-title']?.[0]):'',edition:clean(m.edition),bibliographyVersion:2,ISSN:(m.ISSN||[]).join(', '),ISBN:(m.ISBN||[]).join(', '),volume:clean(m.volume),issue:clean(m.issue),pages:clean(m.page),publisher:clean(m.publisher),url:m.URL||'',creators:(m.author||[]).map(a=>({firstName:clean(a.given),lastName:clean(a.family||a.name),creatorType:'author',...(a.ORCID?{ORCID:clean(a.ORCID)}:{}),...(a.affiliation?.length?{affiliations:a.affiliation.map(x=>clean(x.name)).filter(Boolean)}:{})})),author:clean(m.author?.[0]?.family),abstract:plainTitle(m.abstract||''),abstractParserVersion:1,updates:m['update-to']||[],source:'Crossref',fetchedAt:new Date().toISOString(),verified:true};
+    return {title:plainTitle(m.title?.[0]),titleMarkup:clean(m.title?.[0]),DOI:doi(m.DOI),type:types[m.type]||'journalArticle',year:String(date?.[0]||''),date:date?.join('-')||'',journal:clean(m['container-title']?.[0]),journalAbbreviation:clean(m['short-container-title']?.[0]),bookTitle:types[m.type]==='bookSection'?clean(m['container-title']?.[0]):'',edition:clean(m.edition),bibliographyVersion:2,repository:m.type==='posted-content'?clean(m.institution?.[0]?.name):'',preprintMetadataVersion:1,ISSN:(m.ISSN||[]).join(', '),ISBN:(m.ISBN||[]).join(', '),volume:clean(m.volume),issue:clean(m.issue),pages:clean(m.page),publisher:clean(m.publisher),url:m.URL||'',creators:(m.author||[]).map(a=>({firstName:clean(a.given),lastName:clean(a.family||a.name),creatorType:'author',...(a.ORCID?{ORCID:clean(a.ORCID)}:{}),...(a.affiliation?.length?{affiliations:a.affiliation.map(x=>clean(x.name)).filter(Boolean)}:{})})),author:clean(m.author?.[0]?.family),abstract:plainTitle(m.abstract||''),abstractParserVersion:1,updates:m['update-to']||[],source:'Crossref',fetchedAt:new Date().toISOString(),verified:true};
   }
   function compatibility(input,r) {
     const title=similarity(input.title,r.title),leftDOI=recordDOI(input),rightDOI=recordDOI(r),exact=!!leftDOI&&leftDOI===rightDOI;
@@ -175,6 +175,7 @@ var CiteLensCore = (() => {
     const years="((?:1[6-9]|20)\\d{2}[a-z]?(?:\\s*,\\s*(?:(?:1[6-9]|20)\\d{2}[a-z]?|[a-z](?![\\p{L}\\p{N}])))*)(?![\\d])";
     const rx=new RegExp(authors+"\\s*[,（(\\[]?\\s*"+years,'gu');
     for(const m of text.matchAll(rx)){
+      if(/^(?:January|February|March|April|May|June|July|August|September|October|November|December)$/.test(m[1]))continue;
       const keys=[];let year='';for(const token of m[3].split(/\s*,\s*/)){const y=token.match(/^(\d{4})([a-z])?$/);if(y)year=y[1];keys.push({author:repairPDFAccents(m[1]),second:repairPDFAccents(m[2]||''),etal:/et\s+al/.test(m[0]),year,suffix:y?y[2]||'':token});}
       out.push({start:m.index,end:m.index+m[0].length,text:m[0],keys});
     }
@@ -183,7 +184,8 @@ var CiteLensCore = (() => {
   function resolveMention(mention,refs) {
     const records=[],unresolved=[];
     for(const key of mention?.keys||[]){
-      const hits=refs.filter(r=>key.number!==undefined?Number(r.number)===key.number:norm(r.author).replace(/ /g,'')===norm(key.author).replace(/ /g,'')&&String(r.year)===key.year&&(!key.suffix||r.suffix===key.suffix)&&(!key.second||norm(r.creators?.[1]?.lastName).replace(/ /g,'')===norm(key.second).replace(/ /g,''))&&(!key.etal||r.creators?.length>=3||/et\s+al/.test(r.raw||'')||!r.creators?.length));
+      let hits=refs.filter(r=>key.number!==undefined?Number(r.number)===key.number:norm(r.author).replace(/ /g,'')===norm(key.author).replace(/ /g,'')&&String(r.year)===key.year&&(!key.suffix||r.suffix===key.suffix)&&(!key.second||norm(r.creators?.[1]?.lastName).replace(/ /g,'')===norm(key.second).replace(/ /g,''))&&(!key.etal||r.creators?.length>=3||/et\s+al/.test(r.raw||'')||!r.creators?.length));
+      if(hits.length>1&&key.author&&!key.etal&&!key.second){const single=hits.filter(r=>r.creators?.length===1);if(single.length===1)hits=single;}
       const unique=[...new Map(hits.map(r=>[identity(r),r])).values()];
       if(unique.length===1)records.push(unique[0]);else unresolved.push({...key,reason:unique.length?'ambiguous':'missing'});
     }
@@ -200,6 +202,7 @@ var CiteLensCore = (() => {
   }
   function publicationLine(r) {
     const journal=plainTitle(r.journal||r.publicationTitle||r.bookTitle||''),year=clean(r.year||String(r.date||'').match(/\b(?:18|19|20)\d{2}\b/)?.[0]),volume=clean(r.volume),issue=clean(r.issue),pages=clean(r.pages);
+    if(r.type==='preprint'){const repository=plainTitle(r.repository||r.journal||r.publisher||''),date=clean(r.date||year).replace(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?$/,(_,y,m,d)=>y+'-'+m.padStart(2,'0')+(d?'-'+d.padStart(2,'0'):''));return [repository?repository+' [Preprint]':'Preprint',date].filter(Boolean).join('. ');}
     if(['book','bookSection'].includes(r.type)){
       const container=r.type==='bookSection'?plainTitle(r.bookTitle||r.containerTitle||r.journal||''):'',publisher=plainTitle(r.publisher||''),place=plainTitle(r.place||''),edition=plainTitle(r.edition||'');
       const editionLabel=/^\d+$/.test(edition)?edition+([11,12,13].includes(Number(edition)%100)?'th':({1:'st',2:'nd',3:'rd'}[Number(edition)%10]||'th'))+' ed.':edition;

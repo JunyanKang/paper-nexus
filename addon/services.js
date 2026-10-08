@@ -64,11 +64,11 @@ var CiteLensServices = {
     // Online-first and issue dates can differ. Fill missing venue fields only;
     // retain the existing year and never relax title/author/DOI conflict checks.
     if(CiteLensCore.decide(record,[remote]).status!=='matched'&&!sameWorkDifferentDate)return record;
-    const enriched={...record,verified:true};for(const key of ['journal','year','volume','issue','pages','DOI','PMID','PMCID','ISSN','ISBN','publisher','bookTitle','edition','place','journalAbbreviation','bibliographyVersion','creators'])if((!enriched[key]||Array.isArray(enriched[key])&&!enriched[key].length)&&remote[key])enriched[key]=remote[key];return enriched;
+    const enriched={...record,verified:true};for(const key of ['journal','year','volume','issue','pages','DOI','PMID','PMCID','ISSN','ISBN','publisher','bookTitle','edition','place','repository','preprintMetadataVersion','journalAbbreviation','bibliographyVersion','creators'])if((!enriched[key]||Array.isArray(enriched[key])&&!enriched[key].length)&&remote[key])enriched[key]=remote[key];if(!enriched.type||enriched.type==='document'||match.exact&&remote.type==='preprint')enriched.type=remote.type;if(!enriched.date&&remote.date&&(!enriched.year||enriched.year===remote.year))enriched.date=remote.date;return enriched;
   },
   async lookup(record,{force=false}={}) {
     const C=CiteLensCore,key=C.identity(record),cached=this.state.cache[key];
-    if(!force&&cached&&Date.now()-cached.time<7*86400000)return {...C.decide(record,(cached.value.ranked||[]).map(x=>x.record)),...(cached.value.doiRecord?{doiRecord:cached.value.doiRecord}:{}),cached:true};
+    const oldPreprint=(cached?.value?.doiRecord||cached?.value?.ranked?.[0]?.record);if(!force&&cached&&!(oldPreprint?.type==='preprint'&&!oldPreprint.preprintMetadataVersion)&&Date.now()-cached.time<7*86400000)return {...C.decide(record,(cached.value.ranked||[]).map(x=>x.record)),...(cached.value.doiRecord?{doiRecord:cached.value.doiRecord}:{}),cached:true};
     if(this.inFlight.has(key))return this.inFlight.get(key);
     const work=(async()=>{
       const url=record.DOI?'https://api.crossref.org/works/'+encodeURIComponent(C.doi(record.DOI)):'https://api.crossref.org/works?rows=5&query.bibliographic='+encodeURIComponent((record.raw||C.citation(record)).slice(0,1800));
@@ -128,7 +128,7 @@ var CiteLensServices = {
         if(name){const children=parent?Zotero.Collections.getByParent(parent.id):Zotero.Collections.getByLibrary(libraryID);let col=children.find(c=>c.name===name&&!c.deleted);if(!col){col=new Zotero.Collection();col.libraryID=libraryID;col.name=name;if(parent)col.parentID=parent.id;await col.save();}collectionID=col.id;}
         let item=matches[0],created=!item;
         if(!item){item=new Zotero.Item(record.type||'journalArticle');item.libraryID=libraryID;
-          const fields={title:C.plainTitle(record.title),date:record.date||record.year,DOI:C.recordDOI(record),publicationTitle:record.journal,bookTitle:record.type==='bookSection'?(record.bookTitle||record.journal):undefined,edition:record.edition,place:record.place,journalAbbreviation:record.journalAbbreviation,ISSN:record.ISSN,ISBN:record.ISBN,volume:record.volume,issue:record.issue,pages:record.pages,publisher:record.publisher,url:record.DOI?'https://doi.org/'+C.doi(record.DOI):record.url,abstractNote:record.abstract};
+          const fields={title:C.plainTitle(record.title),date:record.date||record.year,DOI:C.recordDOI(record),publicationTitle:record.journal,repository:record.repository,bookTitle:record.type==='bookSection'?(record.bookTitle||record.journal):undefined,edition:record.edition,place:record.place,journalAbbreviation:record.journalAbbreviation,ISSN:record.ISSN,ISBN:record.ISBN,volume:record.volume,issue:record.issue,pages:record.pages,publisher:record.publisher,url:record.DOI?'https://doi.org/'+C.doi(record.DOI):record.url,abstractNote:record.abstract};
           for(const [field,value] of Object.entries(fields))if(value&&Zotero.ItemFields.isValidForType(Zotero.ItemFields.getID(field),item.itemTypeID))item.setField(field,C.clean(value));
           item.setCreators(record.creators||[]);item.setField('extra',`CiteLens source: ${record.source||'PDF'}\nCiteLens checked: ${record.verified?'metadata reviewed':'manual review'}\nOriginal reference: ${record.raw||''}`);await item.save();
         }

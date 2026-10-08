@@ -59,3 +59,13 @@ test('book and chapter publication lines distinguish publishers from journals',(
  assert.equal(C.publicationLine({type:'book',title:'A Book',year:'2021',journal:'A Book'}),'2021');
 });
 test('journal issue date takes precedence over earlier online publication date',()=>{const r=C.fromCrossref({DOI:'10.1038/sj.bjc.6606011',title:['Mst1/2 signalling to Yap'],published:{'date-parts':[[2010,11,23]]},'published-online':{'date-parts':[[2010,11,23]]},'published-print':{'date-parts':[[2011,1]]}});assert.equal(r.year,'2011');assert.equal(r.date,'2011-1');});
+test('preprint publication lines use the registered repository and full posted date',()=>{
+ const r=C.fromCrossref({DOI:'10.1101/2021.04.12.21253357',type:'posted-content',title:['One-Seq'],institution:[{name:'medRxiv'}],publisher:'openRxiv',published:{'date-parts':[[2021,4,14]]}});
+ assert.equal(C.publicationLine(r),'medRxiv [Preprint]. 2021-04-14');assert.equal(r.journal,'');assert.equal(r.type,'preprint');assert.equal(C.publicationLine({...r,repository:'bioRxiv',date:'2022-3-19'}),'bioRxiv [Preprint]. 2022-03-19');
+});
+
+test('publication year is not taken from a wrapped DOI and suffix authors are retained',()=>{
+ const r=C.parse('39. Langmead, B., Trapnell, C., Pop, M. & Salzberg, S. L. Ultrafast and memory-efficient alignment of short DNA sequences to the human genome. Genome Biol. 10, R25 https://doi.org/10.1186/gb-2009-10- 3-r25 (2009).');assert.equal(r.title,'Ultrafast and memory-efficient alignment of short DNA sequences to the human genome');assert.equal(r.DOI,'10.1186/gb-2009-10-3-r25');
+ const a=C.parse('Lamb, T.D., Collin, S.P., Pugh Jr., E.N., 2007. Evolution of the vertebrate eye: opsins, photoreceptors, retina and eye cup. Nat. Rev. Neurosci. 8, 960–976.');assert.equal(a.creators.length,3);assert.equal(a.creators[2].lastName,'Pugh Jr.');
+ assert.equal(C.doi('https://doi.org/10. 1093/nar/gkz114'),'10.1093/nar/gkz114');
+});

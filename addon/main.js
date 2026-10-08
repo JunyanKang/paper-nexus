@@ -67,19 +67,31 @@ var CiteLens = {
       let timer,last='',hoverEpoch=0;const move=e=>{
         if(e.buttons||doc.querySelector('.cl-overlay')||e.target.closest?.('.cl-root,.cl-card,.cl-overlay'))return;
         let position,overlay;try{position=view.pointerEventToPosition?.(e);overlay=view._getSelectableOverlay?.(position);}catch(_){}
+        const pointed=position&&CiteLensCitationLinks.pointed(state.citationPages?.get(position.pageIndex),position.rects?.[0],state.referenceList||[]);
+        const ownsCitation=!!pointed?.records.length&&(overlay?.type==='citation'||overlay?.type==='internal-link');
+        doc.documentElement.classList.toggle('cl-pointer-citation',ownsCitation);
+        if(pointed?.records.length)this.keepFloating(reader);
+        const pointerKey=pointed?position.pageIndex+':'+pointed.records.map(CiteLensCore.identity).join('|')+':'+pointed.unresolved.map(x=>JSON.stringify(x)).join('|'):'';
+        const changed=state.pointedCitation?.key!==pointerKey;
+        state.pointedCitation=pointed?{key:pointerKey,pageIndex:position.pageIndex,view,result:pointed}:null;
+        if(changed&&doc.querySelector('.cl-native-host'))this.enhance(reader);
+        if(ownsCitation){
+          const key='point:'+pointerKey;if(last===key)return;last=key;pdfdoc.defaultView.clearTimeout(timer);const ticket=++hoverEpoch,frame=view._iframeWindow.frameElement?.getBoundingClientRect(),xy={x:e.clientX+(frame?.left||0),y:e.clientY+(frame?.top||0)};
+          timer=pdfdoc.defaultView.setTimeout(()=>{if(ticket===hoverEpoch&&!this.dead)this.floating(doc,reader,pointed.records,xy,this.citationContext(reader,position));},320);return;
+        }
         // Native citation popups are enhanced by the observer. Bibliography entries need a small independent card.
         if(!overlay&&position){const refs=view._pdfPages?.[position.pageIndex]?.overlays||view._processedPageOverlays?.[position.pageIndex]||[];const point=position.rects?.[0];if(point)overlay=refs.find(x=>x.type==='reference'&&x.position?.rects?.some(r=>point[0]>=r[0]&&point[0]<=r[2]&&point[1]>=r[1]&&point[1]<=r[3]));}
         if(overlay?.type==='internal-link'&&CiteLensCitationLinks.internalLink(overlay,state.citationPages?.get(position?.pageIndex),state.referenceList||[])){hoverEpoch++;last='';pdfdoc.defaultView.clearTimeout(timer);this.dismissFloating(reader);return;}
         if(!overlay||overlay.type!=='reference'){
           const chars=view._pdfPages?.[position?.pageIndex]?.chars,point=position?.rects?.[0];
           const numeric=overlay?.type!=='citation'&&CiteLensCitationLinks.atPoint(state.citationPages?.get(position?.pageIndex),point,state.referenceList||[]);
-          if(numeric?.records?.length){const key=position.pageIndex+':sup:'+numeric.text;if(last===key)return;last=key;pdfdoc.defaultView.clearTimeout(timer);const ticket=++hoverEpoch,frame=view._iframeWindow.frameElement?.getBoundingClientRect(),xy={x:e.clientX+(frame?.left||0),y:e.clientY+(frame?.top||0)};timer=pdfdoc.defaultView.setTimeout(()=>{if(ticket===hoverEpoch&&!this.dead)this.floating(doc,reader,numeric.records,xy,this.citationContext(reader,position));},500);return;}
+          if(numeric?.records?.length){const key=position.pageIndex+':sup:'+numeric.records.map(CiteLensCore.identity).join('|');if(last===key)return;last=key;pdfdoc.defaultView.clearTimeout(timer);const ticket=++hoverEpoch,frame=view._iframeWindow.frameElement?.getBoundingClientRect(),xy={x:e.clientX+(frame?.left||0),y:e.clientY+(frame?.top||0)};timer=pdfdoc.defaultView.setTimeout(()=>{if(ticket===hoverEpoch&&!this.dead)this.floating(doc,reader,numeric.records,xy,this.citationContext(reader,position));},500);return;}
           if(overlay?.type!=='citation'&&chars?.length&&point){
             const index=chars.findIndex(c=>c.rect&&point[0]>=c.rect[0]&&point[0]<=c.rect[2]&&point[1]>=c.rect[1]&&point[1]<=c.rect[3]);
             if(index>=0){const start=Math.max(0,index-100),end=Math.min(chars.length,index+100);let text='',offset=0;for(let j=start;j<end;j++){if(j===index)offset=text.length;text+=chars[j].c+((chars[j].spaceAfter||chars[j].lineBreakAfter)?' ':'');}
               if(/(?:1[6-9]|20)\d{2}|\[\d/.test(text)){
                 const key=position.pageIndex+':'+index;if(last===key)return;last=key;pdfdoc.defaultView.clearTimeout(timer);const ticket=++hoverEpoch,frame=view._iframeWindow.frameElement?.getBoundingClientRect(),xy={x:e.clientX+(frame?.left||0),y:e.clientY+(frame?.top||0)};
-                timer=pdfdoc.defaultView.setTimeout(async()=>{try{const refs=await this.references(reader);if(ticket!==hoverEpoch||this.dead)return;const hits=CiteLensCore.citationAt(text,offset,refs);if(hits.length)this.floating(doc,reader,hits,xy,this.citationContext(reader,position,chars[index]?.offset));}catch(_){}},500);return;
+                timer=pdfdoc.defaultView.setTimeout(async()=>{try{const refs=await this.references(reader);if(ticket!==hoverEpoch||this.dead)return;const hits=pointed?.records||CiteLensCore.citationAt(text,offset,refs);if(hits.length)this.floating(doc,reader,hits,xy,this.citationContext(reader,position,chars[index]?.offset));}catch(_){}},500);return;
               }
             }
           }
@@ -88,13 +100,13 @@ var CiteLens = {
         const refs=overlay.references||[overlay],key=refs.map(CiteLensCore.charsText).join('|');if(!key||key===last)return;const ticket=++hoverEpoch;last=key;pdfdoc.defaultView.clearTimeout(timer);
         const frame=view._iframeWindow.frameElement?.getBoundingClientRect(),xy={x:e.clientX+(frame?.left||0),y:e.clientY+(frame?.top||0)};
         timer=pdfdoc.defaultView.setTimeout(async()=>{try{await this.references(reader);if(!this.dead&&ticket===hoverEpoch)this.floating(doc,reader,refs.map(ref=>this.referenceRecord(reader,ref)),xy);}catch(e){Zotero.logError(e);}},500);
-      };pdfdoc.addEventListener('pointermove',move,{passive:true});const cleanup=()=>{pdfdoc.removeEventListener('pointermove',move);pdfdoc.defaultView.clearTimeout(timer);};cleanup.doc=pdfdoc;state.hooks.push(cleanup);
+      };pdfdoc.addEventListener('pointermove',move,{passive:true});const cleanup=()=>{doc.documentElement.classList.remove('cl-pointer-citation');pdfdoc.removeEventListener('pointermove',move);pdfdoc.defaultView.clearTimeout(timer);};cleanup.doc=pdfdoc;state.hooks.push(cleanup);
     }
     if(!state.refPromise)this.references(reader).then(()=>{if(!this.dead)this.enhance(reader);}).catch(e=>Zotero.logError(e));
     this.enhance(reader);
   },
   enhance(reader) {
-    if(this.dead)return;const state=this.readers.get(reader),doc=state?.doc;if(!doc)return;
+    if(this.dead)return;const state=this.readers.get(reader),doc=state?.doc;if(!doc||doc.querySelector('.cl-floating:not([data-retained])'))return;
     const native=reader._internalReader?._state;
     for(const popup of doc.querySelectorAll('.citation-popup,.reference-popup,.preview-popup')) {
       if(popup._clRetained)continue;doc.querySelector('.cl-floating[data-retained]')?.remove();
@@ -102,28 +114,30 @@ var CiteLens = {
       const rows=[...popup.querySelectorAll('.inner .reference-row')];
       const sets=[native?.primaryViewOverlayPopup,native?.secondaryViewOverlayPopup].filter(x=>preview?x?.type==='internal-link':x?.references);
       const source=preview?(popup.closest('.secondary-view')?native?.secondaryViewOverlayPopup:native?.primaryViewOverlayPopup):sets.find(x=>x.references.length===rows.length&&CiteLensCore.norm(CiteLensCore.charsText(x.references[0]))===CiteLensCore.norm(rows[0]?.firstElementChild?.textContent))||sets.find(x=>x.references.length===rows.length);
+      const pointed=state.pointedCitation?.pageIndex===source?.position?.pageIndex&&state.pointedCitation?.view===(popup.closest('.secondary-view')?reader._internalReader?._secondaryView:reader._internalReader?._primaryView)?state.pointedCitation.result:null;
       const linked=preview?CiteLensCitationLinks.internalLink(source,state.citationPages?.get(source?.position?.pageIndex),state.referenceList||[]):null;
       if(preview&&!linked){popup.querySelector(':scope > [data-cite-lens="group"]')?.remove();if(popup.classList.contains('cl-native-host'))popup.classList.remove('cl-native-host');continue;}
-      const signature=(preview?JSON.stringify(source?.position):'')+rows.map(row=>row.firstElementChild?.textContent||'').join('\n')+'|'+(source?.offset??'')+'|'+(source?.position?.pageIndex??'')+'|'+!!state.referenceList;
+      const signature=(preview?JSON.stringify(source?.position):'')+rows.map(row=>row.firstElementChild?.textContent||'').join('\n')+'|'+(source?.offset??'')+'|'+(source?.position?.pageIndex??'')+'|'+!!state.referenceList+'|'+(pointed?state.pointedCitation.key:'');
       const old=popup.querySelector(':scope > [data-cite-lens="group"]');if(old?.dataset.raw===signature){if(!popup.classList.contains('cl-native-host'))popup.classList.add('cl-native-host');CiteLensUI.fitPopup(popup,doc);continue;}
       if(popup._clFailedSignature===signature)continue;
       let records=rows.map((row,i)=>{const raw=row.firstElementChild?.textContent||'',ref=source?.references[i],same=ref&&CiteLensCore.norm(CiteLensCore.charsText(ref))===CiteLensCore.norm(raw);return this.referenceRecord(reader,same?ref:{text:raw});});
       const citation=preview||popup.classList.contains('citation-popup');let audit;
-      if(citation){audit=linked||CiteLensCitationLinks.resolve(source,state.citationPages?.get(source?.position?.pageIndex),state.referenceList||[]);records=audit.records;}popup.classList.toggle('cl-non-citation',!!(citation&&state.referenceList&&audit.expected===0));
+      if(citation){audit=pointed||linked||CiteLensCitationLinks.resolve(source,state.citationPages?.get(source?.position?.pageIndex),state.referenceList||[]);records=audit.records;}popup.classList.toggle('cl-non-citation',!!(citation&&state.referenceList&&audit.expected===0));
       try {
         // Never paint a guessed destination while source-text verification is pending.
         const group=records.length?CiteLensUI.citationGroup(doc,records,reader,{context:citation?this.citationContext(reader,source?.position,source?.word?.[0]?.offset??source?.offset):CiteLensUI.context(reader,source?.position?.pageIndex)}):citation?CiteLensUI.el(doc,'div',state.referenceList?'未找到可确定对应的文献':'正在读取参考文献…','cl-citation-group cl-unresolved'):null;
         if(group&&citation){group.dataset.citeLens='group';group._citationAudit=audit;if(audit?.unresolved.length)group.append(CiteLensUI.el(doc,'div','另有 '+audit.unresolved.length+' 条引文未能确定对应','cl-match-note'));}
         if(group){group.dataset.raw=signature;if(old)old.replaceWith(group);else popup.append(group);popup.classList.add('cl-native-host');}
         else {old?.remove();popup.classList.remove('cl-native-host');}
-        popup.style.translate='';popup._clShift={x:0,y:0};CiteLensUI.fitPopup(popup,doc);
+        if(!popup._clPositioned){popup.style.visibility='hidden';doc.defaultView.requestAnimationFrame(()=>doc.defaultView.requestAnimationFrame(()=>{if(!popup.isConnected)return;CiteLensUI.fitPopup(popup,doc);popup.style.visibility='';popup._clPositioned=true;}));}CiteLensUI.fitPopup(popup,doc);
       } catch(e) {
         // A failed enhancement must restore the original, never keep a stale card.
         popup._clFailedSignature=signature;old?.remove();popup.classList.remove('cl-native-host','cl-non-citation');popup.style.translate='';Zotero.logError(e);
       }
     }
   },
-  dismissFloating(reader) {const state=this.readers.get(reader);if(!state)return;state.doc.defaultView.clearTimeout(state.floatingCloseTimer);state.floatingCloseTimer=state.doc.defaultView.setTimeout(()=>{if(!state.doc.querySelector('.cl-overlay')&&!state.doc.querySelector('.cl-floating:focus-within,.cl-floating:hover,.cl-summary:hover,.cl-citation-locations:hover')&&!state.doc._clAbstract)state.doc.querySelector('.cl-floating')?.remove();},550);},
+  keepFloating(reader){const state=this.readers.get(reader);if(state){state.doc.defaultView.clearTimeout(state.floatingCloseTimer);state.floatingCloseTimer=0;}},
+  dismissFloating(reader) {const state=this.readers.get(reader);if(!state||state.floatingCloseTimer)return;state.floatingCloseTimer=state.doc.defaultView.setTimeout(()=>{state.floatingCloseTimer=0;const doc=state.doc;if(!doc.querySelector('.cl-overlay:not([hidden]),.cl-floating:hover,.cl-floating :focus-visible,.cl-summary:hover,.cl-citation-locations:hover')){doc._clAbstract?.close(true);doc.querySelector('.cl-floating')?.remove();for(const view of [reader._internalReader?._primaryView,reader._internalReader?._secondaryView])view?._onSetOverlayPopup?.(null);}},240);},
   citationContext(reader,position,rawOffset){
     const context=CiteLensUI.context(reader,position?.pageIndex);if(!position)return context;
     context.citationPosition={pageIndex:position.pageIndex,rects:(position.rects||[]).map(r=>Array.from(r))};
@@ -139,12 +153,12 @@ var CiteLens = {
     const bounds=native.getBoundingClientRect(),root=CiteLensUI.el(doc,'section',null,'cl-floating');root.dataset.citeLens='floating';root.dataset.retained='true';root.setAttribute('aria-label','参考文献卡片');
     native._clRetained=true;doc.querySelector('.cl-floating')?.remove();root.style.cssText=`left:${bounds.left}px;top:${bounds.top}px;width:${bounds.width}px`;root.append(group);doc.body.append(root);
     for(const view of [reader._internalReader?._primaryView,reader._internalReader?._secondaryView])view?._onSetOverlayPopup?.(null);
-    const state=this.readers.get(reader);root.addEventListener('pointerenter',()=>doc.defaultView.clearTimeout(state?.floatingCloseTimer));root.addEventListener('pointerleave',()=>this.dismissFloating(reader));CiteLensUI.fitPopup(root,doc);
+    const state=this.readers.get(reader);root.addEventListener('pointerenter',()=>this.keepFloating(reader));root.addEventListener('pointerleave',()=>this.dismissFloating(reader));CiteLensUI.fitPopup(root,doc);
   },
   floating(doc,reader,records,xy,context=null) {
     doc.querySelector('.cl-floating')?.remove();const root=CiteLensUI.el(doc,'section',null,'cl-floating');root.dataset.citeLens='floating';root.setAttribute('aria-label','参考文献卡片');
-    root.append(CiteLensUI.citationGroup(doc,records.slice(0,100),reader,{context}));doc.body.append(root);const state=this.readers.get(reader);root.addEventListener('pointerenter',()=>doc.defaultView.clearTimeout(state?.floatingCloseTimer));root.addEventListener('pointerleave',()=>this.dismissFloating(reader));
-    root.style.left=Math.max(12,Math.min(xy.x,doc.defaultView.innerWidth-root.offsetWidth-12))+'px';root.style.top=Math.max(12,Math.min(xy.y+12,doc.defaultView.innerHeight-root.offsetHeight-12))+'px';
+    root.append(CiteLensUI.citationGroup(doc,records.slice(0,100),reader,{context}));root.style.visibility='hidden';doc.body.append(root);const state=this.readers.get(reader);root.addEventListener('pointerenter',()=>this.keepFloating(reader));root.addEventListener('pointerleave',()=>this.dismissFloating(reader));
+    root.style.left=Math.max(12,Math.min(xy.x,doc.defaultView.innerWidth-root.offsetWidth-12))+'px';root.style.top=Math.max(12,Math.min(xy.y+12,doc.defaultView.innerHeight-root.offsetHeight-12))+'px';root.style.visibility='';CiteLensUI.fitPopup(root,doc);
   },
   referenceRecord(reader,ref) {
     const state=this.readers.get(reader),record=CiteLensBibliography.fromReference(ref,state?.runningHeaders),matches=(state?.referenceList||[]).filter(r=>record.number?r.number===record.number:CiteLensCore.identity(r)===CiteLensCore.identity(record));return matches.length===1?matches[0]:record;
@@ -156,6 +170,7 @@ var CiteLens = {
       if(!pdf?.getProcessedData)throw Error('此 PDF 暂无法读取参考文献');
       let cacheKey=null;try{cacheKey=await CiteLensNetwork.referenceKey(reader,pdf);if(state)state.referenceCacheKey=cacheKey;const cached=await CiteLensNetwork.readCache('refs',cacheKey);if(cached?.refs?.length){if(state){state.runningHeaders=cached.runningHeaders;state.citationPages=cached.citationPages;}return cached.refs;}}catch(e){Zotero.logError(e);}
       const data=await pdf.getProcessedData(),refs=new Map(),runningHeaders=CiteLensBibliography.runningHeaders(data.pages);if(state)state.runningHeaders=runningHeaders;if(state){state.citationPages=new Map();let slice=Date.now();for(const [i,page] of Object.entries(data.pages||{})){state.citationPages.set(Number(i),CiteLensCitationLinks.page(page.chars,page.overlays));if(Date.now()-slice>=8){await Zotero.Promise.delay(0);slice=Date.now();if(this.dead)throw Error('已关闭');}}}
+      if(state)CiteLensCitationLinks.bridgePages(state.citationPages,runningHeaders);
       for(const [pageIndex,page] of Object.entries(data.pages||{}))for(const overlay of page.overlays||[]) {
         const list=overlay.references||(overlay.type==='reference'?[overlay]:[]);
         for(const ref of list){const r=CiteLensBibliography.fromReference(ref,runningHeaders);if(r.raw.length<12)continue;const key=CiteLensCore.identity(r);if(!refs.has(key))refs.set(key,r);}
@@ -163,13 +178,13 @@ var CiteLens = {
       // Discover the bibliography independently: native overlays can mistake late Methods prose for references.
       const native=[...refs.values()],pages=[];
       for(let n=0;n<pdf.numPages;n++) {if(this.dead)break;const page=Components.utils.waiveXrays(await pdf.getPage(n+1));pages.push({pageIndex:n,items:(await page.getTextContent()).items,width:Math.abs(page.view[2]-page.view[0]),height:Math.abs(page.view[3]-page.view[1])});await Zotero.Promise.delay(0);}
-      const local=await CiteLensNetwork.compute('bibliography',{pages,headers:runningHeaders}),validNative=local.length>=3?native.filter(r=>CiteLensBibliography.authorStart(r.raw.replace(/^\[?\d{1,4}\]?[.)]?\s+/,''))&&r.position?.pageIndex>=local[0].position.pageIndex&&r.position?.pageIndex<=local[local.length-1].position.pageIndex):native;
+      const local=await CiteLensNetwork.compute('bibliography',{pages,headers:{lines:[...(runningHeaders.lines||[])]}}),validNative=local.length>=3?native.filter(r=>CiteLensBibliography.authorStart(r.raw.replace(/^\[?\d{1,4}\]?[.)]?\s+/,''))&&r.position?.pageIndex>=local[0].position.pageIndex&&r.position?.pageIndex<=local[local.length-1].position.pageIndex):native;
       const result=CiteLensBibliography.merge(validNative,local).sort((a,b)=>(a.position?.pageIndex||0)-(b.position?.pageIndex||0)||Math.floor((a.position?.rects?.[0]?.[0]||0)/80)-Math.floor((b.position?.rects?.[0]?.[0]||0)/80)||(b.position?.rects?.[0]?.[3]||0)-(a.position?.rects?.[0]?.[3]||0));
       if(result.length&&cacheKey)(async()=>{await CiteLensNetwork.writeCache('refs',cacheKey,{refs:result,runningHeaders,citationPages:state?.citationPages?await this.compactCitationPages(state.citationPages):null});})().catch(e=>Zotero.logError(e));return result;
     })();if(state)state.refPromise=promise;
     try{const refs=await promise;if(state)state.referenceList=refs;CiteLensNetwork.remember(reader,refs).catch(e=>Zotero.logError(e));if(!refs.length&&state)state.refPromise=null;return refs;}catch(e){if(state)state.refPromise=null;throw e;}
   },
-  async compactCitationPages(citationPages){const pages=[];for(const [id,page] of citationPages){if(this.dead)throw Error('已关闭');const numeric=new Set((page.pointRuns||[]).flatMap(r=>r.offsets)),ranges=(page.mentions||[]).map(m=>[m.start,m.end]).sort((a,b)=>a[0]-b[0]),chars=[],offsets=new Map();let range=0;for(const c of page.chars||[]){const at=page.offsets.get(c.offset);while(range<ranges.length&&ranges[range][1]<=at)range++;if(numeric.has(c.offset)||range<ranges.length&&at>=ranges[range][0]&&at<ranges[range][1]){chars.push({offset:c.offset,ignorable:c.ignorable,rect:c.rect?Array.from(c.rect):null});offsets.set(c.offset,at);}}pages.push([id,{text:page.text,offsets,mentions:page.mentions,pointRuns:page.pointRuns,chars}]);await Zotero.Promise.delay(0);}return new Map(pages);},
+  async compactCitationPages(citationPages){const pages=[];for(const [id,page] of citationPages){if(this.dead)throw Error('已关闭');const numeric=new Set((page.numericRuns||page.pointRuns||[]).flatMap(r=>r.offsets)),ranges=(page.mentions||[]).map(m=>[m.start,m.end]).sort((a,b)=>a[0]-b[0]),chars=[],offsets=new Map();let range=0;for(const c of page.chars||[]){const at=page.offsets.get(c.offset);while(range<ranges.length&&ranges[range][1]<=at)range++;if(numeric.has(c.offset)||range<ranges.length&&at>=ranges[range][0]&&at<ranges[range][1]){chars.push({c:c.c,offset:c.offset,ignorable:c.ignorable,rect:c.rect?Array.from(c.rect):null});offsets.set(c.offset,at);}}pages.push([id,{text:page.text,offsets,mentions:page.mentions,pointRuns:page.pointRuns,numericRuns:page.numericRuns,chars}]);await Zotero.Promise.delay(0);}return new Map(pages);},
   async citationLocations(reader,record,{retry=false}={}){
     const refs=await this.references(reader),state=this.readers.get(reader);if(!state?.citationPages)return [];if(retry)state.locationError=null;if(state.locationError)throw state.locationError;
     if(!state.locationIndex){

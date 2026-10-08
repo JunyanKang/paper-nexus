@@ -1,57 +1,55 @@
-<p align="center"><img src="addon/assets/nexus.png" width="76" alt="Paper Nexus"></p>
-<h1 align="center">Paper Nexus</h1>
-<p align="center"><b>Turn a citation into your next research lead.</b></p>
-<p align="center">Explore citations · Read abstracts · Discover connections</p>
+<p align="center"><img src="docs/images/hero.png" width="880" alt="Paper Nexus — Read a paper. Discover the connections."></p>
+<p align="center"><b>From a citation to a research community.</b></p>
 <p align="center"><a href="README.md">简体中文</a> · <b>English</b></p>
-<p align="center"><a href="https://github.com/JunyanKang/paper-nexus/releases/latest"><b>Download Paper Nexus</b></a> · <a href="docs/INSTALL.md">Installation</a> · <a href="docs/GUIDE.md">Get started</a></p>
+<p align="center"><a href="https://github.com/JunyanKang/paper-nexus/releases/latest"><b>Download</b></a> · <a href="#get-started">Get started</a> · <a href="docs/GUIDE.md">User guide (中文)</a></p>
 
-Paper Nexus is a free Zotero plugin that brings citation details, abstract reading and research networks into one workspace. Follow the references behind a paper, then explore your library through the authors and collaborations that connect it.
+Paper Nexus is a free Zotero plugin for following research connections. Preview cited papers, read and translate abstracts, save papers for later, and explore the people behind your library.
 
-## Follow a citation without losing your place
+## Stay with the paper
 
-Which paper supports this sentence? Hover over a citation to see its title, authors, journal and available journal metrics. Open the source, revisit where it is cited, or save it for later—without repeatedly jumping to the bibliography.
+Hover over a citation to see the cited paper and its publication details. Hover over its title to read the abstract, then switch between **original, translated, and bilingual** views without leaving the page.
 
-<p align="center"><img src="docs/images/hover.png" width="440" alt="A cited journal article with author details, citation locations and save controls"></p>
-<p align="center"><sub>See the source behind a citation and keep useful papers within reach.</sub></p>
+<p align="center"><img src="docs/images/translation.png" width="680" alt="A reference card with a bilingual abstract beside it"></p>
 
-## Read the abstract before going deeper
+## Keep the next lead
 
-Hover over a paper title to open its abstract. Choose **original, translated or bilingual** reading, with sentence pairs that help you compare terminology, methods and findings. Move or resize the window to fit the way you read.
+Move between the current paper’s references and your reading list. Save a paper, open a library item, copy a formatted citation, or return to where it was cited. The same actions are available on papers in the network and career view.
 
-<p align="center"><img src="docs/images/translation.png" width="720" alt="A paper card beside its bilingual abstract, with three reading modes"></p>
-<p align="center"><sub>The original and translation of the same paper, side by side with its details.</sub></p>
+<p align="center"><img src="docs/images/hover.png" width="420" alt="Publication details and DOI, save, read-later, and citation actions"></p>
 
-## Start with a name, discover a collaboration
+## Explore a research community
 
-**Coauthor networks** connect the people in your library through their shared papers. Search a familiar name, explore direct collaborators or a second circle, then open the research they completed together.
+The **coauthor network** connects authors through papers in your Zotero library. Choose a collection, search for a name, explore collaborators, and read their papers. Shared publications determine the strength of connections.
 
-<p align="center"><img src="docs/images/network.png" width="700" alt="Author communities and their shared research"></p>
-<p align="center"><sub>See who worked together, then explore what they discovered.</sub></p>
+<p align="center"><img src="docs/images/network.png" width="700" alt="A coauthor network with the selected author’s local papers"></p>
 
-Click the career icon beside an author’s name in the graph to explore their public education, appointments and research along a timeline.
+## Follow an academic journey
 
-Your network prepares automatically, without an API account, and updates as you add papers. Customize the theme and interface language, or pair Nexus with [Paper Voice](https://github.com/JunyanKang/paper-voice) to listen as you read.
+Open the career view for an author with a linked ORCID. Browse public education, employment, funding, and research outputs over time, with papers from your own library alongside them.
+
+<p align="center"><img src="docs/images/career.png" width="700" alt="Public career events alongside papers in the local library"></p>
 
 ## Get started
 
-For **Zotero 10.0.5–10.0.x**. The same XPI works on macOS and Windows.
+Supports **Zotero 10.0.5–10.0.x**. macOS and Windows use the same **XPI** file.
 
-1. Download the **XPI** from the [official release page](https://github.com/JunyanKang/paper-nexus/releases/latest).
-2. In Zotero, choose **Tools → Plugins → gear → Install Plugin From File**, then select the XPI.
-3. Open a paper and hover over a citation.
+1. Download the XPI from [Releases](https://github.com/JunyanKang/paper-nexus/releases/latest). Do not unzip it.
+2. In Zotero, choose **Tools → Plugins → gear menu → Install Plugin From File**.
+3. Open a PDF and hover over a citation, or click the Nexus icon in the library toolbar to explore coauthors.
 
-[Installation guide →](docs/INSTALL.md)
+Reference previews and the coauthor network require no account. For abstract translation, choose a translation service or configure your own LLM API. Public abstracts and ORCID records vary in completeness. Screenshots show the Chinese interface; the interface language is configurable.
 
-## Documentation and support
+## Documentation
 
-The detailed guides below are currently in Chinese.
+The detailed guides are in Chinese.
 
 <table align="center">
-<tr><td align="center"><a href="docs/GUIDE.md">User guide</a></td><td>Read citations and save useful papers</td></tr>
-<tr><td align="center"><a href="docs/NETWORK.md">Research networks</a></td><td>Explore authors, collaborations and shared papers</td></tr>
-<tr><td align="center"><a href="docs/SETTINGS.md">Settings</a></td><td>Reading, translation and appearance</td></tr>
-<tr><td align="center"><a href="docs/FAQ.md">FAQ</a></td><td>Find help with common issues</td></tr>
+<tr><th align="left">Guide</th><th align="left">What it covers</th></tr>
+<tr><td><a href="docs/INSTALL.md">Installation</a></td><td>Download, install, and update</td></tr>
+<tr><td><a href="docs/GUIDE.md">Reading</a></td><td>References, abstracts, saving, and citations</td></tr>
+<tr><td><a href="docs/NETWORK.md">Coauthors and careers</a></td><td>Explore people, papers, and public records</td></tr>
+<tr><td><a href="docs/SETTINGS.md">Settings</a></td><td>Translation, citation styles, appearance, and language</td></tr>
+<tr><td><a href="docs/FAQ.md">FAQ</a></td><td>Recognition, missing information, and connection issues</td></tr>
 </table>
 
-<p align="center"><a href="docs/PRIVACY.md">Data and privacy</a> · <a href="CHANGELOG.md">What’s new</a> · <a href="https://github.com/JunyanKang/paper-nexus/issues">Feedback</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
-<p align="center">Created by <a href="https://github.com/JunyanKang">Junyan Kang</a> · <a href="LICENSE">MIT License</a></p>
+<p align="center"><a href="docs/PRIVACY.md">Privacy</a> · <a href="CHANGELOG.md">Release notes</a> · <a href="https://github.com/JunyanKang/paper-nexus/issues">Feedback</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="LICENSE">MIT License</a></p>

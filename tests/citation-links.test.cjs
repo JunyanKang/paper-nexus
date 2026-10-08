@@ -41,3 +41,20 @@ test('detached PDF accents preserve complete surnames and original source offset
  for(const surname of ['Gonza ́ lez-Billault','Gonza´ lez-Billault','González-Billault']){const text='Evidence (Wilson and '+surname+', 2015).',m=C.citationMentions(text)[0];assert.equal(m.keys[0].author,'Wilson');assert.equal(m.keys[0].second,'González-Billault');assert.deepEqual(C.resolveMention(m,[r]).records,[r]);assert.equal(text.slice(m.start,m.end).trim(),m.text.trim());}
  assert.equal(C.repairPDFAccents('van der Waals'),'van der Waals');assert.equal(C.repairPDFAccents('O’Connor'),'O’Connor');
 });
+
+test('pointer selects the exact author-year within a shared publisher link',()=>{
+ const text='Work (Andrews, 2007; Barnes, 1989; Carey et al., 2003; Geiser, 2004).',chars=[...text].map((c,offset)=>({c,offset,rect:[offset%35*5,100-Math.floor(offset/35)*12,offset%35*5+5,110-Math.floor(offset/35)*12]})),page=L.page(chars),refs=[ref('Andrews','2007'),ref('Barnes','1989'),{...ref('Carey','2003'),creators:[]},ref('Geiser','2004')];
+ for(const r of refs)for(const word of [r.author,r.year]){const c=chars[text.indexOf(word)+1];assert.deepEqual(L.pointed(page,[(c.rect[0]+c.rect[2])/2,(c.rect[1]+c.rect[3])/2],refs).records,[r]);}
+ assert.equal(L.pointed(page,[0,300],refs),null);
+});
+test('pointer distinguishes repeated years and suffixes but preserves ambiguous shared author',()=>{
+ const text='Smith, 2020a,b, 2021',refs=[ref('Smith','2020','a'),ref('Smith','2020','b'),ref('Smith','2021')],m=C.citationMentions(text)[0];
+ assert.deepEqual(L.precise(m,text.indexOf('2020'),refs).records,[refs[0]]);assert.deepEqual(L.precise(m,text.indexOf('b'),refs).records,[refs[1]]);assert.deepEqual(L.precise(m,text.indexOf('2021'),refs).records,[refs[2]]);assert.deepEqual(L.precise(m,2,refs).records,refs);
+});
+test('numeric pointer keeps dash range and selects individual printed numbers',()=>{
+ const m=C.citationMentions('[8–13, 20]')[0],refs=Array.from({length:20},(_,i)=>({number:i+1,title:'Paper '+(i+1)}));
+ assert.deepEqual(L.precise(m,1,refs).records,[refs[7]]);assert.deepEqual(L.precise(m,3,refs).records,[refs[12]]);assert.equal(L.precise(m,2,refs).records.length,7);assert.deepEqual(L.precise(m,7,refs).records,[refs[19]]);
+});
+test('citations divided by a page boundary retain the same paper on both pages',()=>{
+ const chars=(t)=>[...t].map((c,offset)=>({c,offset,rect:[offset,10,offset+1,20]})),pages=new Map([[0,L.page(chars('Evidence from Kolb '))],[1,L.page(chars('and Smith, 2001, shows this.'))]]);L.bridgePages(pages);const refs=[ref('Kolb','2001','','Smith')];assert.deepEqual(L.pointed(pages.get(0),[15.5,15],refs).records,refs);assert.deepEqual(L.pointed(pages.get(1),[6.5,15],refs).records,refs);
+});

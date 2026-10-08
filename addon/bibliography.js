@@ -4,8 +4,8 @@ var CiteLensBibliography = {
     const C=CiteLensCore,seen=new Map(),lines=[];
     for(const [index,page] of Object.entries(pages||{})){
       const top=page.viewBox?.[3]||800,rows=new Map();
-      for(const c of page.chars||[]){if(!c.rect||c.rect[1]<top-55&&c.rect[1]>40)continue;const y=Math.round(c.rect[1]/3)*3;if(!rows.has(y))rows.set(y,[]);rows.get(y).push(c);}
-      for(const chars of rows.values()){const text=C.charsText({chars}),doi=C.doi(text),key=doi||C.norm(text);if(key.length<12)continue;lines.push({chars,key,index});if(!seen.has(key))seen.set(key,new Set());seen.get(key).add(index);}
+      for(const c of page.chars||[]){if(!c.rect||c.rect[1]<top-80&&c.rect[1]>40)continue;const y=Math.round(c.rect[1]/3)*3;if(!rows.has(y))rows.set(y,[]);rows.get(y).push(c);}
+      for(const chars of rows.values()){const text=C.charsText({chars}),doi=C.doi(text),key=doi||C.norm(text);if(key.length<12&&!/^(?:article|research|review)$/i.test(key))continue;lines.push({chars,key,index});if(!seen.has(key))seen.set(key,new Set());seen.get(key).add(index);}
     }
     const repeated=lines.filter(x=>seen.get(x.key).size>=2),result=new Set(repeated.flatMap(x=>x.chars.map(c=>x.index+':'+c.offset)));result.lines=new Set(repeated.map(x=>x.key));return result;
   },
@@ -32,11 +32,11 @@ var CiteLensBibliography = {
     return out;
   },
   parse(pages,headers=null) {
-    const out=[];let active=false,current=null;
+    const out=[],headerLines=new Set(headers?.lines||[]);let active=false,current=null;
     const flush=()=>{if(!current)return;const raw=current.lines.map(l=>l.text).join(' ').replace(/([\p{L}])[-‐]\s+([a-z])/gu,'$1$2');const r=CiteLensCore.parse(raw,{pageIndex:current.lines[0].pageIndex,rects:current.lines.filter(l=>l.pageIndex===current.lines[0].pageIndex).map(l=>l.rect)});if(r.year&&r.author&&r.title.length>=8){r.source='PDF 本地分栏解析（需核对）';r.number=current.number;out.push(r);}current=null;};
-    for(const page of pages){const lines=this.lines(page.items,page.width,page.pageIndex),bases=new Map();
+    for(const page of pages){const items=page.items.filter(item=>{const text=CiteLensCore.clean(item.str),key=CiteLensCore.doi(text)||CiteLensCore.norm(text);return !(headerLines.has(key)&&(item.transform?.[5]>page.height-80||!!CiteLensCore.doi(text)));}),lines=this.lines(items,page.width,page.pageIndex),bases=new Map();
       for(const l of lines)if(l.y>40&&l.y<page.height-20)bases.set(l.column,Math.min(bases.get(l.column)??Infinity,l.x));
-      for(const l of lines){if(l.y<40||l.y>page.height-18)continue;if((l.y>page.height-55||l.y<40)&&headers?.lines?.has(CiteLensCore.doi(l.text)||CiteLensCore.norm(l.text)))continue;
+      for(const l of lines){if(l.y<40||l.y>page.height-18)continue;if((l.y>page.height-80||l.y<40)&&headerLines.has(CiteLensCore.doi(l.text)||CiteLensCore.norm(l.text)))continue;
         if(/^(references|bibliography|literature cited|参考文献)\s*$/i.test(l.text)){active=true;continue;}
         if(!active)continue;
         if(/^(appendix|supplement(?:ary material|al figures)|acknowledg(e)?ments|STAR\s*\+?\s*METHODS|Annual Review of|Contents)\b/i.test(l.text)){flush();active=false;continue;}
@@ -57,7 +57,7 @@ var CiteLensBibliography = {
       const i=out.findIndex(x=>{
         const samePlace=x.position?.pageIndex===r.position?.pageIndex&&Math.abs((x.position?.rects?.[0]?.[0]||0)-(r.position?.rects?.[0]?.[0]||0))<8;
         const a=C.norm(x.raw).replace(/ /g,''),b=C.norm(r.raw).replace(/ /g,'');
-        return (!(x.number&&r.number)||x.number===r.number)&&C.identity(x)===C.identity(r)||samePlace&&x.number&&x.number===r.number&&(a.startsWith(b)||b.startsWith(a))||C.norm(x.author)===C.norm(r.author)&&x.year===r.year&&x.suffix===r.suffix&&C.norm(x.title)===C.norm(r.title);
+        return (!(x.number&&r.number)||x.number===r.number)&&C.identity(x)===C.identity(r)||samePlace&&a===b||samePlace&&x.number&&x.number===r.number&&(a.startsWith(b)||b.startsWith(a))||C.norm(x.author)===C.norm(r.author)&&x.year===r.year&&x.suffix===r.suffix&&C.norm(x.title)===C.norm(r.title);
       });
       if(i<0)out.push(r);else if(r.raw.length>out[i].raw.length)out[i]=r;
     }

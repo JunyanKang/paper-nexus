@@ -26,6 +26,17 @@ var CiteLensCitationLinks={
     const pointRuns=numericRuns.filter(r=>ratios.some(ratio=>Math.abs(ratio-r.ratio)<.025));
     return {text,offsets,chars,overlays,mentions:CiteLensCore.citationMentions(text),numericRuns,pointRuns};
   },
+  bridgePages(pages,headers=new Set()){
+    for(const [id,left] of pages){const right=pages.get(id+1);if(!right)continue;
+      const tail=left.chars.filter(c=>!c.ignorable&&!headers.has(id+':'+c.offset)).slice(-180),head=right.chars.filter(c=>!c.ignorable&&!headers.has((id+1)+':'+c.offset)).slice(0,180);let text='',mapping=[];
+      for(const [page,chars] of [[left,tail],[right,head]])for(const c of chars){mapping.push({at:text.length,page,offset:page.offsets.get(c.offset)});text+=c.c+((c.spaceAfter||c.lineBreakAfter)?' ':'');}
+      const boundary=mapping.find(m=>m.page===right)?.at;if(!boundary)continue;
+      for(const mention of CiteLensCore.citationMentions(text)){if(mention.start>=boundary||mention.end<=boundary)continue;
+        for(const page of [left,right]){const points=mapping.filter(m=>m.page===page&&m.at>=mention.start&&m.at<mention.end);if(!points.length)continue;const start=points[0].offset,end=points.at(-1).offset+1;
+          page.mentions=page.mentions.filter(m=>m.end<=start||m.start>=end);page.mentions.push({...mention,start,end,textOffset:points[0].at-mention.start,crossPage:true});page.mentions.sort((a,b)=>a.start-b.start);}
+      }
+    }
+  },
   occurrences(pages,refs,progress=()=>{}){
     const C=CiteLensCore,index=new Map();let completed=0;
     for(const [pageIndex,page] of pages){
@@ -59,7 +70,30 @@ var CiteLensCitationLinks={
   atPoint(page,point,refs){
     if(!page||!point||!refs.some(r=>r.number))return null;
     const run=page.pointRuns?.find(run=>run.rects.some(r=>point[0]>=r[0]-.3&&point[0]<=r[2]+.3&&point[1]>=r[1]-.3&&point[1]<=r[3]+.3));
-    return run?this.result(CiteLensCore.citationMentions(run.text,{nativeNumeric:true}),refs):null;
+    if(!run)return null;const index=run.rects.findIndex(r=>point[0]>=r[0]-.3&&point[0]<=r[2]+.3&&point[1]>=r[1]-.3&&point[1]<=r[3]+.3);return this.precise(CiteLensCore.citationMentions(run.text,{nativeNumeric:true})[0],index,refs);
+  },
+  pointed(page,point,refs){
+    if(!page||!point)return null;
+    const glyph=(page.chars||[]).find(c=>!c.ignorable&&c.rect&&point[0]>=c.rect[0]&&point[0]<=c.rect[2]&&point[1]>=c.rect[1]&&point[1]<=c.rect[3]);
+    if(!glyph)return null;
+    const offset=page.offsets.get(glyph.offset),run=page.numericRuns?.find(r=>r.offsets.includes(glyph.offset));
+    if(run){const at=run.offsets.indexOf(glyph.offset);return this.precise(CiteLensCore.citationMentions(run.text,{nativeNumeric:true})[0],at,refs);}
+    const mention=page.mentions.find(m=>offset>=m.start&&offset<m.end);
+    return mention?this.precise(mention,offset-mention.start+(mention.textOffset||0),refs):null;
+  },
+  precise(mention,offset,refs){
+    if(!mention)return null;
+    let keys=mention.keys;
+    if(keys[0]?.number!==undefined){
+      // A printed number identifies a paper; a range dash represents the full range.
+      const token=[...mention.text.matchAll(/\d+/g)].find(m=>offset>=m.index&&offset<m.index+m[0].length);
+      if(token)keys=keys.filter(k=>k.number===Number(token[0]));
+    }else if(keys.length>1){
+      const years=[...mention.text.matchAll(/(?:1[6-9]|20)\d{2}[a-z]?|(?<=,)\s*[a-z](?![\p{L}\p{N}])/gu)];
+      const index=years.findIndex(m=>offset>=m.index&&offset<m.index+m[0].length);
+      if(index>=0&&keys[index])keys=[keys[index]];
+    }
+    return {...this.result([{...mention,keys}],refs),offset:mention.start+offset};
   },
   internalLinkCache:new WeakMap(),
   internalLink(overlay,page,refs){
