@@ -29,3 +29,15 @@ test('current citation distinguishes same-page occurrences and never guesses fro
  assert.equal(L.currentOccurrence(rows,{citationPosition:{pageIndex:2,rects:[]},citationRange:[0,45]}),null);
  assert.equal(L.currentOccurrence(rows,null),null);
 });
+
+test('publisher internal links resolve split author-year groups from source geometry, not target page',()=>{
+ const text='Work (Fedorov et al., 2014; Hampton et al., 2013). Figure 2A',chars=[...text].map((c,offset)=>({c,offset,rect:[(offset%25)*5,100-Math.floor(offset/25)*12,(offset%25)*5+5,110-Math.floor(offset/25)*12]})),page=L.page(chars),refs=[ref('Fedorov','2014','','Jones'),ref('Hampton','2013','','Jones')].map(r=>({...r,creators:[...r.creators,{lastName:'Brown'}]}));
+ for(const range of [[6,15],[26,38]]){const selected=chars.slice(...range),overlay={type:'internal-link',position:{rects:selected.map(c=>c.rect)},destinationPosition:{pageIndex:20}};assert.deepEqual(L.internalLink(overlay,page,refs).records,refs);}
+ assert.equal(L.internalLink({type:'internal-link',position:{rects:chars.slice(49).map(c=>c.rect)}},page,refs),null);
+ assert.equal(L.internalLink({type:'internal-link',position:{rects:chars.slice(6,15).map(c=>c.rect)}},page,[ref('Jones','2014')]),null);
+});
+test('detached PDF accents preserve complete surnames and original source offsets',()=>{
+ const r=C.parse('Wilson, C., and Gonza´ lez-Billault, C. (2015). Regulation of cytoskeletal dynamics by redox signaling and oxidative stress. Front. Cell. Neurosci. 9, 381.');assert.equal(r.creators[1].lastName,'González-Billault');
+ for(const surname of ['Gonza ́ lez-Billault','Gonza´ lez-Billault','González-Billault']){const text='Evidence (Wilson and '+surname+', 2015).',m=C.citationMentions(text)[0];assert.equal(m.keys[0].author,'Wilson');assert.equal(m.keys[0].second,'González-Billault');assert.deepEqual(C.resolveMention(m,[r]).records,[r]);assert.equal(text.slice(m.start,m.end).trim(),m.text.trim());}
+ assert.equal(C.repairPDFAccents('van der Waals'),'van der Waals');assert.equal(C.repairPDFAccents('O’Connor'),'O’Connor');
+});

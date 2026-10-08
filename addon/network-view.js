@@ -82,6 +82,22 @@ var CiteLensNetworkView=(()=>{
    const edges=[...combined.values()].map(e=>({...e,kinds:[...e.kinds],count:e.signals.size}));for(const e of edges)delete e.signals;edges.sort((a,b)=>b.count-a.count||a.source.localeCompare(b.source));
    const contextEdges=sourceEdges.filter(e=>contextOwner.has(e.source)&&contextOwner.get(e.source)===contextOwner.get(e.target)).slice(0,1800);projected={nodes,edges,owner,contextNodes,contextEdges,contextOwner,contextByID:new Map(contextNodes.map(n=>[n.id,n])),index:windowlessIndex(nodes,edges)};index.projections.set(key,projected);
   }
+  // Search exposes real author identities without changing cached graph positions.
+  if(!community&&model.mode==='authors'&&model.searchActive){
+   const found=[...new Set(model.matches||[])].map(id=>index.byID.get(id)).filter(n=>n?.kind==='author');
+   if(found.length){
+    const ids=new Set(found.map(n=>n.id)),groups=new Set(found.map(n=>projected.owner.get(n.id))),owner=new Map(projected.owner);
+    for(const n of found)owner.set(n.id,n.id);
+    const nodes=[...projected.nodes.filter(n=>!ids.has(n.id)).map(n=>groups.has(n.id)?{...n,hideLabel:true}:n),...found],combined=new Map();
+    for(const e of model.edges){const a=owner.get(e.source),b=owner.get(e.target);if(!a||!b||a===b)continue;
+     const pair=[a,b].sort(),key=JSON.stringify(pair);if(!combined.has(key))combined.set(key,{source:pair[0],target:pair[1],kind:e.kind,kinds:new Set(),directions:[],signals:new Set()});
+     const edge=combined.get(key);edge.kinds.add(e.kind);for(const proof of e.evidence||[])edge.signals.add(proof.paperID||JSON.stringify([proof.sourcePaper,proof.targetPaper].sort()));if(!e.evidence?.length)edge.signals.add(JSON.stringify([e.source,e.target].sort()));
+    }
+    const edges=[...combined.values()].map(({signals,kinds,...e})=>({...e,kinds:[...kinds],count:signals.size}));
+    const contextNodes=projected.contextNodes.filter(n=>!ids.has(n.id)),contextOwner=new Map([...projected.contextOwner].filter(([id])=>!ids.has(id)));
+    return {...projected,nodes,edges,owner,index:windowlessIndex(nodes,edges),contextNodes,contextOwner,contextByID:new Map(contextNodes.map(n=>[n.id,n])),contextEdges:projected.contextEdges.filter(e=>!ids.has(e.source)&&!ids.has(e.target)),matches:found.map(n=>n.id),aggregate:true,hidden:model.nodes.length-nodes.length};
+   }
+  }
   const mappedSelected=projected.owner.get(selected)||selected,near=projected.index.adj.get(mappedSelected),nodes=focused&&near?projected.nodes.filter(n=>near.has(n.id)):projected.nodes,ids=focused&&near?new Set(nodes.map(n=>n.id)):null;
   return {...projected,nodes,edges:ids?projected.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)):projected.edges,near,matches:[...new Set((model.matches||[]).map(id=>projected.owner.get(id)).filter(Boolean))],aggregate:!community,hidden:model.nodes.length-nodes.length};
  }

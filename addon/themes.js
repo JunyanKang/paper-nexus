@@ -41,7 +41,7 @@ var CiteLensThemes = {
     let state=this.documents.get(doc);
     if(!state){
       const win=doc.defaultView,media=win.matchMedia('(prefers-color-scheme: dark)'),reduce=win.matchMedia('(prefers-reduced-transparency: reduce)');
-      const change=()=>this.apply(doc),leave=()=>this.release(doc);
+      const change=()=>this.apply(doc),leave=e=>{if(e.target===doc||e.target===win)this.release(doc);};
       media.addEventListener('change',change);reduce.addEventListener('change',change);win.addEventListener('pagehide',leave);
       state={media,reduce,change,leave};this.documents.set(doc,state);
     }
@@ -54,7 +54,7 @@ var CiteLensThemes = {
   refresh(){if(typeof CiteLensI18n!=='undefined')CiteLensI18n.refresh();for(const doc of this.documents.keys())try{CiteLensUI.appearance(doc);}catch(_){this.release(doc);}},
   release(doc){
     if(typeof CiteLensI18n!=='undefined')CiteLensI18n.release(doc);
-    if(typeof CiteLensControls!=='undefined')CiteLensControls.release(doc);
+    try{doc._clScrollEdges?.dispose();}catch(_){}if(typeof CiteLensControls!=='undefined')CiteLensControls.release(doc);
     const state=this.documents.get(doc);if(!state)return;this.documents.delete(doc);
     try{state.media.removeEventListener('change',state.change);state.reduce.removeEventListener('change',state.change);doc.defaultView.removeEventListener('pagehide',state.leave);const html=doc.documentElement;html.removeAttribute('data-cl-theme');html.removeAttribute('data-cl-tone');for(const name of [...html.style])if(name.startsWith('--cl-'))html.style.removeProperty(name);}catch(_){}
   },

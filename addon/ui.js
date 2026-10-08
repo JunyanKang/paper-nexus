@@ -1,5 +1,27 @@
 var CiteLensUI = {
   sequence:0,
+  pageViews:new Set(),pageSerial:0,pageQueue:Promise.resolve(),
+  pageAnchor(doc,reader){
+    const main=Zotero.getMainWindow()?.document,candidates=[reader?._iframeWindow?.document?.querySelector('[data-cite-lens=toolbar]'),doc.querySelector('[data-cite-lens=toolbar]'),main?.querySelector('.cl-library-entry')];
+    const anchor=candidates.find(el=>el?.isConnected&&el.getBoundingClientRect().width&&el.getBoundingClientRect().height);if(!anchor)return null;
+    if(anchor.ownerDocument===doc)return anchor;
+    return {focus:options=>anchor.focus(options),getBoundingClientRect:()=>{const r=anchor.getBoundingClientRect(),from=anchor.ownerDocument.defaultView,to=doc.defaultView,x=r.x+from.mozInnerScreenX-to.mozInnerScreenX,y=r.y+from.mozInnerScreenY-to.mozInnerScreenY;return {x,y,width:r.width,height:r.height,right:x+r.width,bottom:y+r.height};}};
+  },
+  page(frame,{container=frame,reader=null,dispose=()=>{},visibility=()=>{},retain=false}={}){
+    const U=this,win=frame.ownerDocument.defaultView;let dead=false,resolveMotion=null,motion=null,pending=null,wanted=false,transition=null;
+    const settle=visible=>{container.hidden=!visible;visibility(visible);if(visible){frame.dispatchEvent(new win.Event('cl-page-visible'));frame.focus({preventScroll:true});}const done=resolveMotion;resolveMotion=null;pending=null;done?.();};
+    const anchor=this.pageAnchor(frame.ownerDocument,reader);if(anchor)motion=CiteLensDockMotion.create(frame,anchor,()=>{},settle);
+    const snap=visible=>{wanted=visible;if(!visible)frame.ownerDocument._clAbstract?.close(true);if(visible&&container!==frame)container.hidden=false;if(motion)motion.snap(visible);else{frame.hidden=!visible;frame.inert=!visible;settle(visible);}};
+    const animate=visible=>{if(dead||!frame.isConnected)return Promise.resolve();if(pending&&wanted===visible)return pending;if(pending)motion?.finish();if(frame.hidden===!visible&&!frame.dataset.dockMotion)return Promise.resolve();wanted=visible;const promise=new Promise(resolve=>resolveMotion=resolve);pending=promise;if(visible&&container!==frame)container.hidden=false;else if(!visible)frame.ownerDocument._clAbstract?.close(true);if(motion)motion.show(visible);else snap(visible);return promise;};
+    const view={frame,container,reader,activate(){if(dead)return;const ticket=++U.pageSerial;U.pageQueue=U.pageQueue.catch(e=>Zotero.logError(e)).then(async()=>{
+      if(ticket!==U.pageSerial||dead)return;const other=[...U.pageViews].find(x=>x!==view&&!x.container.hidden);
+      if(other){const r=other.frame.getBoundingClientRect(),ow=other.frame.ownerDocument.defaultView,source={x:r.x+ow.mozInnerScreenX-win.mozInnerScreenX,y:r.y+ow.mozInnerScreenY-win.mozInnerScreenY,width:r.width,height:r.height};other.snap(false);frame.ownerDocument._clAbstract?.close(true);container.hidden=false;snap(true);const dest=frame.getBoundingClientRect();
+        if(!win.matchMedia('(prefers-reduced-motion: reduce)').matches&&source.width&&dest.width&&frame.animate){const base=win.getComputedStyle(frame).transform,transform=base==='none'?'':base;frame.inert=true;transition=frame.animate([{transform:`translate(${source.x-dest.x}px,${source.y-dest.y}px) scale(${source.width/dest.width},${source.height/dest.height}) ${transform}`,opacity:.65,transformOrigin:'0 0'},{transform:base,opacity:1,transformOrigin:'0 0'}],{duration:300,easing:'cubic-bezier(.22,.8,.25,1)'});try{await transition.finished;}catch(_){}transition=null;if(!dead){frame.inert=false;frame.dispatchEvent(new win.Event('cl-page-visible'));}}
+      }else{await animate(true);}
+    });return U.pageQueue;},snap,hide(keep=true){if(dead)return Promise.resolve();transition?.cancel();return animate(false).then(()=>{if(!keep)view.destroy();});},dismiss(){++U.pageSerial;return view.hide(retain);},destroy(){if(dead)return;dead=true;try{transition?.cancel();motion?.dispose();}catch(_){}const done=resolveMotion;resolveMotion=null;done?.();U.pageViews.delete(view);dispose();}};
+    frame.hidden=true;container.hidden=true;frame._clPage=view;this.pageViews.add(view);view.activate();return view;
+  },
+
   el(doc,tag,text,className) {
     const e=doc.createElement(tag);
     if(text!==undefined&&text!==null)e.textContent=text;
@@ -55,17 +77,23 @@ var CiteLensUI = {
       e.preventDefault();e.stopPropagation();if(b.disabled)return;
       try{await run(b);}catch(error){
         Zotero.logError(error);
-        const status=b.closest('.cl-card,.cl-dialog,.cl-root')?.querySelector('.cl-status');
-        if(status)this.status(status,error.message||String(error),true);
+        const status=b.closest('.pn-career,.cl-card,.cl-dialog,.cl-root')?.querySelector('.cl-status');
+        if(status){status.hidden=false;this.status(status,error.message||String(error),true);}
         else Zotero.getMainWindow().alert(error.message||String(error));
       }
     });return b;
   },
   quiet(doc,text,run) {const b=this.button(doc,text,run);b.className='cl-quiet';return b;},
   iconButton(doc,label,icon,run) {const b=this.button(doc,'',run);b.classList.add('cl-icon-button');this.setButtonLabel(b,label,icon);return b;},
+  orcidActions(doc,button,edit){
+    const group=this.el(doc,'span',null,'pn-orcid-actions'),action=this.iconButton(doc,'编辑 ORCID 链接','edit',edit);action.classList.add('pn-orcid-edit');action.tabIndex=-1;group.setAttribute('role','group');group.setAttribute('aria-label','ORCID');button.replaceWith(group);group.append(button,action);
+    const direction=()=>{const next=group.nextSibling,previous=group.previousSibling,hasText=n=>!!n&&(n.nodeType===3?!!n.textContent.trim():!n.matches?.('button,.cl-icon-button')&&!!n.textContent.trim());group.dataset.side=hasText(next)&&!hasText(previous)?'left':'right';};
+    let hovered=false,keyboard=false;const update=()=>{if(hovered||keyboard&&group.contains(doc.activeElement)){direction();group.dataset.expanded='true';action.tabIndex=0;}else{delete group.dataset.expanded;action.tabIndex=-1;}};
+    group.addEventListener('pointerenter',()=>{hovered=true;update();});group.addEventListener('pointerleave',()=>{hovered=false;update();});group.addEventListener('pointerdown',()=>{keyboard=false;update();});group.addEventListener('focusin',e=>{keyboard=e.target.matches(':focus-visible');update();});group.addEventListener('keydown',()=>{keyboard=true;update();});group.addEventListener('focusout',()=>doc.defaultView.setTimeout(()=>{if(!group.contains(doc.activeElement))keyboard=false;update();},0));direction();return group;
+  },
   setButtonLabel(button,label,icon=button.dataset.icon) {
     const doc=button.ownerDocument;button.replaceChildren();button.title=label;button.setAttribute('aria-label',label);button.dataset.icon=icon;
-    const paths={impact:'M4 20V13h4v7m3 0V8h4v12m3 0V3h4v17',calendar:'M4 5h16v16H4V5M8 2v6m8-6v6M4 11h16m-12 4h2m4 0h2',alphabet:'M3 13 7 3l4 10M5 9h4m6-6h6l-6 10h6M4 18h16m-16 4h12',enhance:'M5 7h6v6H5zM13 16h6v6h-6zM8 13l6 4M18 2v8m-4-4h8',back:'M15 5l-7 7 7 7',focus:'M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',plus:'M12 4v16M4 12h16',minus:'M4 12h16',folder:'M3 7V4h6l3 3h9v13H3V7m0 3h18',import:'M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5',clear:'M6 6l12 12M18 6L6 18',authors:'M15 7a3 3 0 1 1-6 0 3 3 0 1 1 6 0M6 21v-3a6 6 0 0 1 12 0v3M4 5a2 2 0 0 0 0 4m16-4a2 2 0 0 1 0 4M2 17v-3a4 4 0 0 1 3-4m17 7v-3a4 4 0 0 0-3-4',topics:'M12 3 2 8l10 5 10-5-10-5M2 12l10 5 10-5M2 16l10 5 10-5',network:'M5 5h5v5H5zM14 14h5v5h-5zM15 3h6v6h-6zM3 15h6v6H3zM10 8l5-2M8 10l-2 5M9 18l5-2M18 9l-2 5',settings:'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1 1-3M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0',copy:'M9 8h11v13H9V8M15 8V3H4v13h5',locate:'M9 3H4v17h16v-5M13 3h8v8m0-8L10 14',references:'M6 3h14v18H6V3M3 6v15M9 7h8M9 11h8M9 15h6',drag:'M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01',bilingual:'M3 4h18v16H3V4m9 0v16M6 8h3m-3 4h3m-3 4h3m6-8h3m-3 4h3m-3 4h3',remove:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',save:'M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5',open:'M3 8V4h6l3 3h9v4M3 8v12h15l3-9H7L3 20',bookmark:'M6 3h12v18l-6-4-6 4V3',bookmarked:'M6 3h12v18l-6-4-6 4V3m3 6 2 2 4-4',more:'M5 12h.01M12 12h.01M19 12h.01',translate:'M3 3h10v13H3V3m3 4h4M6 10h3m7-2h5v13H11v-3m4-6h3m-3 4h3M7 20l2 2 2-2M9 22v-4',doi:'M10 13a5 5 0 0 0 7 .1l3-3a5 5 0 0 0-7.1-7.1L11 5M14 11a5 5 0 0 0-7-.1l-3 3a5 5 0 0 0 7.1 7.1L13 19',original:'M14 2H5v20h14V7l-5-5v5h5M8 12h8m-8 4h8',retry:'M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 14 6M4 12a8 8 0 0 0 14 6'};
+    const paths={edit:'M4 16l12-12 4 4L8 20H4v-4m10-10 4 4',career:'M7 3v18M4 5h6M4 12h6M4 19h6M13 5h7m-7 7h7m-7 7h5',impact:'M4 20V13h4v7m3 0V8h4v12m3 0V3h4v17',calendar:'M4 5h16v16H4V5M8 2v6m8-6v6M4 11h16m-12 4h2m4 0h2',alphabet:'M3 13 7 3l4 10M5 9h4m6-6h6l-6 10h6M4 18h16m-16 4h12',enhance:'M5 7h6v6H5zM13 16h6v6h-6zM8 13l6 4M18 2v8m-4-4h8',back:'M15 5l-7 7 7 7',focus:'M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',broom:'M20 3 10 13M9 11l5 5-5 6-7-7 7-4M5 15l5 5M3 18l3 3',plus:'M12 4v16M4 12h16',minus:'M4 12h16',folder:'M3 7V4h6l3 3h9v13H3V7m0 3h18',import:'M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5',clear:'M6 6l12 12M18 6L6 18',authors:'M15 7a3 3 0 1 1-6 0 3 3 0 1 1 6 0M6 21v-3a6 6 0 0 1 12 0v3M4 5a2 2 0 0 0 0 4m16-4a2 2 0 0 1 0 4M2 17v-3a4 4 0 0 1 3-4m17 7v-3a4 4 0 0 0-3-4',topics:'M12 3 2 8l10 5 10-5-10-5M2 12l10 5 10-5M2 16l10 5 10-5',network:'M5 5h5v5H5zM14 14h5v5h-5zM15 3h6v6h-6zM3 15h6v6H3zM10 8l5-2M8 10l-2 5M9 18l5-2M18 9l-2 5',settings:'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1 1-3M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0',copy:'M9 8h11v13H9V8M15 8V3H4v13h5',locate:'M9 3H4v17h16v-5M13 3h8v8m0-8L10 14',references:'M6 3h14v18H6V3M3 6v15M9 7h8M9 11h8M9 15h6',drag:'M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01',bilingual:'M3 4h18v16H3V4m9 0v16M6 8h3m-3 4h3m-3 4h3m6-8h3m-3 4h3m-3 4h3',remove:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',save:'M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5',open:'M3 8V4h6l3 3h9v4M3 8v12h15l3-9H7L3 20',bookmark:'M6 3h12v18l-6-4-6 4V3',bookmarked:'M6 3h12v18l-6-4-6 4V3m3 6 2 2 4-4',more:'M5 12h.01M12 12h.01M19 12h.01',translate:'M3 3h10v13H3V3m3 4h4M6 10h3m7-2h5v13H11v-3m4-6h3m-3 4h3M7 20l2 2 2-2M9 22v-4',doi:'M10 13a5 5 0 0 0 7 .1l3-3a5 5 0 0 0-7.1-7.1L11 5M14 11a5 5 0 0 0-7-.1l-3 3a5 5 0 0 0 7.1 7.1L13 19',original:'M14 2H5v20h14V7l-5-5v5h5M8 12h8m-8 4h8',retry:'M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 14 6M4 12a8 8 0 0 0 14 6'};
     const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg'),path=doc.createElementNS(svg.namespaceURI,'path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width',['more','drag'].includes(icon)?'3':'1.7');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');path.setAttribute('d',paths[icon]||paths.more);if(icon==='orcid'){const circle=doc.createElementNS(svg.namespaceURI,'circle');circle.setAttribute('cx','12');circle.setAttribute('cy','12');circle.setAttribute('r','11');circle.setAttribute('fill','#A6CE39');circle.setAttribute('stroke','none');svg.append(circle);svg.setAttribute('stroke','#fff');svg.setAttribute('stroke-width','1.8');path.setAttribute('d','M7.3 10v7.5M11 7v10.5h2.6a5.25 5.25 0 0 0 0-10.5H11');const dot=doc.createElementNS(svg.namespaceURI,'circle');dot.setAttribute('cx','7.3');dot.setAttribute('cy','7');dot.setAttribute('r','1');dot.setAttribute('fill','#fff');dot.setAttribute('stroke','none');svg.append(dot);}svg.append(path);button.append(svg,this.el(doc,'span',label,'cl-action-label'));
   },
   actionMenu(doc,owner) {
@@ -164,10 +192,13 @@ var CiteLensUI = {
     const resizeStop=e=>{if(resizing&&e.pointerId===resizing.pointer)endResize(e.type!=='pointerup');},resizeEscape=e=>{if(resizing&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();endResize(true);}},resizeBlur=()=>endResize(true);
     for(const [type,fn] of [['pointermove',resizeMove],['pointerup',resizeStop],['pointercancel',resizeStop],['keydown',resizeEscape]]){doc.addEventListener(type,fn,true);cleanups.push(()=>doc.removeEventListener(type,fn,true));}win.addEventListener('blur',resizeBlur);cleanups.push(()=>win.removeEventListener('blur',resizeBlur));
     cleanups.push(()=>{drag=null;resizing=null;hideDock();});
-    // An opened abstract stays available until explicit outside interaction or another reference.
+    // Delay dismissal so the pointer can cross from the title into the docked panel.
+    let leaveTimer,keyboardInside=false;const keep=()=>{win.clearTimeout(leaveTimer);leaveTimer=0;},defer=()=>{keep();leaveTimer=win.setTimeout(()=>{leaveTimer=0;if(drag||resizing)return;if(keyboardInside&&panel.contains(doc.activeElement))return;close();},280);};
+    panel.addEventListener('keydown',()=>{keyboardInside=true;});panel.addEventListener('pointerdown',()=>{keyboardInside=false;});
+    for(const target of [title,panel]){target.addEventListener('pointerenter',keep);target.addEventListener('pointerleave',defer);target.addEventListener('focusin',keep);target.addEventListener('focusout',defer);cleanups.push(()=>{target.removeEventListener('pointerenter',keep);target.removeEventListener('pointerleave',defer);target.removeEventListener('focusin',keep);target.removeEventListener('focusout',defer);});}cleanups.push(keep);
     for(const type of ['pointerdown','mousedown'])panel.addEventListener(type,e=>e.stopPropagation());
     const ownerRow=card.closest('.cl-list-row')||card;
-    const another=e=>{if(drag||resizing)return;const row=e.target.closest?.('.cl-card,.cl-list-row');if(row&&row!==card&&row!==ownerRow&&!card.contains(row)&&!panel.contains(e.target))close();};
+    const another=e=>{if(drag||resizing)return;if(title.contains(e.target)||panel.contains(e.target)){keep();return;}if(!leaveTimer)defer();const row=e.target.closest?.('.cl-card,.cl-list-row,.pn-member-paper');if(row&&row!==card&&row!==ownerRow&&!card.contains(row)&&!panel.contains(e.target))close();};
     const outside=e=>{if(!ownerRow.contains(e.target)&&!panel.contains(e.target)){close();if(host.matches('.cl-floating')&&!host.contains(e.target))win.setTimeout(()=>{if(!doc._clAbstract||!host.contains(doc._clAbstract.title))host.remove();},150);}},escape=e=>{if(e.key==='Escape'&&!drag&&!resizing&&!e.target.closest?.('.cl-menu,.cl-citation-locations,.cl-select-popover')){e.preventDefault();e.stopPropagation();title._clSummaryDismissed=Date.now()+600;close();title.focus({preventScroll:true});}},scroll=e=>{if(!panel.contains(e.target))position();};
     const surfaces=new Set([doc,Zotero.getMainWindow()?.document]);for(const frame of doc.querySelectorAll('iframe'))try{if(frame.contentDocument)surfaces.add(frame.contentDocument);}catch(_){}
     try{if(doc.defaultView.frameElement?.ownerDocument)surfaces.add(doc.defaultView.frameElement.ownerDocument);}catch(_){}
@@ -211,10 +242,21 @@ var CiteLensUI = {
       finally{if(current()){body.style.minHeight='';position();}}
     };load();
   },
+  scrollEdges(doc){
+    if(doc._clScrollEdges)return;const win=doc.defaultView,selector='.cl-body,.cl-dialog-body,.cl-native-host,.cl-floating,.cl-menu,.pn-list,.pn-detail,.cl-summary-body,.cl-select-popover,.cl-citation-locations,.pn-map-inspector,.pn-inspector-content,.pn-node-abstract,.pn-search-results,.pn-career-bio-content,.pn-career-timeline',tracked=new Set(),pending=new Set();let raf=0,disposed=false;
+    const update=el=>{if(!el.isConnected)return;const scrollable=/auto|scroll/.test(win.getComputedStyle(el).overflowY)&&el.clientHeight>0&&el.scrollHeight-el.clientHeight>2;el.classList.toggle('cl-scroll-edges',scrollable);el.style.setProperty('--cl-edge-top',scrollable&&el.scrollTop>2?'12px':'0px');el.style.setProperty('--cl-edge-bottom',scrollable&&el.scrollHeight-el.clientHeight-el.scrollTop>2?'12px':'0px');};
+    const flush=()=>{raf=0;for(const el of tracked)if(!el.isConnected){resize.unobserve(el);tracked.delete(el);pending.delete(el);}for(const el of pending)update(el);pending.clear();};
+    const queue=el=>{if(disposed)return;pending.add(el);if(!raf)raf=win.requestAnimationFrame(flush);};
+    const resize=new win.ResizeObserver(entries=>{for(const e of entries)queue(e.target);});
+    const scan=node=>{if(node.nodeType!==1)return;for(const el of [...(node.matches(selector)?[node]:[]),...node.querySelectorAll(selector)])if(!tracked.has(el)){tracked.add(el);resize.observe(el);queue(el);}};
+    const observer=new win.MutationObserver(records=>{for(const r of records){for(const n of r.addedNodes)if(n.nodeType===1&&(n.closest('.cl-root,.cl-card,.cl-dialog,.cl-floating,.pn-network')||n.matches(selector)||n.querySelector('.cl-root,.cl-card,.cl-dialog,.cl-floating,.pn-network')))scan(n);const el=(r.target.nodeType===1?r.target:r.target.parentElement)?.closest(selector);if(el)queue(el);}if(!raf&&([...tracked].some(el=>!el.isConnected)||pending.size))raf=win.requestAnimationFrame(flush);});observer.observe(doc.documentElement,{childList:true,subtree:true,characterData:true});
+    const scroll=e=>{if(tracked.has(e.target))queue(e.target);};doc.addEventListener('scroll',scroll,true);scan(doc.documentElement);
+    const dispose=()=>{if(disposed)return;disposed=true;observer.disconnect();resize.disconnect();win.cancelAnimationFrame(raf);doc.removeEventListener('scroll',scroll,true);win.removeEventListener('pagehide',leave);for(const el of tracked){el.classList.remove('cl-scroll-edges');el.style.removeProperty('--cl-edge-top');el.style.removeProperty('--cl-edge-bottom');}tracked.clear();pending.clear();delete doc._clScrollEdges;};const leave=e=>{if(e.target===doc||e.target===win)dispose();};win.addEventListener('pagehide',leave);doc._clScrollEdges={dispose,refresh:()=>{for(const el of tracked)queue(el);}};
+  },
   style(doc) {
     if(!doc.getElementById('cite-lens-style')){const s=this.el(doc,'style',CiteLensStyle);s.id='cite-lens-style';(doc.head||doc.documentElement).append(s);}
     else if(doc.getElementById('cite-lens-style').textContent!==CiteLensStyle)doc.getElementById('cite-lens-style').textContent=CiteLensStyle;
-    this.appearance(doc);CiteLensControls.install(doc);CiteLensI18n.install(doc);
+    this.appearance(doc);this.scrollEdges(doc);CiteLensControls.install(doc);CiteLensI18n.install(doc);
   },
   appearance(doc) {
     const s=CiteLensServices.state.settings,html=doc.documentElement;
@@ -244,7 +286,14 @@ var CiteLensUI = {
     return row;
   },
   fitAuthors(root,doc) {
-    for(const name of root.querySelectorAll('.cl-journal-name')){const text=name.firstElementChild;if(!text)continue;const distance=Math.max(0,text.scrollWidth-name.clientWidth);name.classList.toggle('cl-journal-overflow',distance>2);if(distance>2){const travel=-Math.ceil(distance)+'px',duration=(6+distance/18).toFixed(1)+'s';if(name.style.getPropertyValue('--cl-journal-travel')!==travel)name.style.setProperty('--cl-journal-travel',travel);if(name.style.getPropertyValue('--cl-journal-duration')!==duration)name.style.setProperty('--cl-journal-duration',duration);}}
+    for(const name of root.querySelectorAll('.cl-journal-name')){
+      const text=name.firstElementChild;if(!text||!name.clientWidth)continue;const distance=Math.max(0,text.scrollWidth-name.clientWidth);name.classList.toggle('cl-journal-overflow',distance>2);name.title=text.textContent;
+      if(!name._clMarquee){const win=doc.defaultView;let raf=0,last=0,position=0,direction=1,pauseUntil=0;
+        const stop=()=>{win.cancelAnimationFrame(raf);raf=0;name.scrollLeft=0;position=0;};
+        const tick=now=>{if(!name.isConnected||!name.matches(':hover')||!name.clientWidth){stop();return;}const max=Math.max(0,text.scrollWidth-name.clientWidth),dt=Math.min(.05,(now-last)/1000);last=now;if(now>=pauseUntil){position=Math.max(0,Math.min(max,position+direction*32*dt));const ratio=win.devicePixelRatio||1;name.scrollLeft=Math.round(position*ratio)/ratio;if(position===max||position===0){direction*=-1;pauseUntil=now+900;}}raf=win.requestAnimationFrame(tick);};
+        name.addEventListener('pointerenter',()=>{if(!name.classList.contains('cl-journal-overflow')||win.matchMedia('(prefers-reduced-motion: reduce)').matches)return;stop();last=win.performance.now();pauseUntil=last+350;direction=1;raf=win.requestAnimationFrame(tick);});name.addEventListener('pointerleave',stop);name._clMarquee={stop};
+      }if(distance<=2)name._clMarquee.stop();
+    }
     for(const row of root.querySelectorAll('.cl-authors')){
       if(!row.isConnected||!row.clientWidth)continue;
       const labels=[...row.querySelectorAll('.cl-author-name')],fits=()=>labels.every(x=>x.scrollWidth<=x.clientWidth+1);
@@ -268,6 +317,15 @@ var CiteLensUI = {
     box.title=`${m.metricYear?m.metricYear+' 指标年':'年份未标注'}${m.jci!==undefined&&m.jci!==null?' · JCI '+m.jci:''}\n${quartiles.length>1?'显示最佳学科分区 '+quartiles[0]:'JCR 分区'}\n`+m.categories.map(c=>c.name+' · '+(c.quartile||'未提供')).join('\n');
     if(detailed)box.append(this.el(doc,'span','期刊层面指标','cl-muted'));
     return box;
+  },
+  async openLibraryItem(doc,item){
+    if(!item||item.deleted)throw Error('条目已移除，请刷新文献库');
+    const attachment=item.isAttachment?.()?item:await item.getBestAttachment?.(),readable=attachment&&!attachment.deleted&&['application/pdf','application/epub+zip','text/html'].includes(attachment.attachmentContentType);
+    const main=Zotero.getMainWindow();
+    for(const surface of new Set([doc,main.document])){surface._clAbstract?.close(true);for(const view of surface.querySelectorAll('.pn-network'))view._pnClose?.();for(const settings of surface.querySelectorAll('.cl-settings'))settings._clClose?.();for(const popup of surface.querySelectorAll('.cl-floating'))popup.remove();}
+    for(const panel of CiteLens.panels.values()){panel.hidden=true;panel.inert=true;}
+    if(readable){const reader=await Zotero.Reader.open(attachment.id);const tab=reader?._tabID||reader?.tabID;if(tab)main.Zotero_Tabs.select(tab);main.focus();return {kind:'reader',itemID:attachment.id};}
+    main.Zotero_Tabs.select('zotero-pane');await main.ZoteroPane.selectItem(item.id);main.focus();return {kind:'item',itemID:item.id};
   },
   resolved(record) {
     record={...record,DOI:CiteLensCore.recordDOI(record)};if(record.verified)return record;
@@ -326,12 +384,12 @@ var CiteLensUI = {
       this.bindAbstract(doc,root,title,()=>record);
       const authorData=record.authorData,authors=authorData?.authors?.length?authorData.authors:record.creators?.length?record.creators:record.author?[{lastName:record.author}]:[];
       if(authors.length)root.append(this.authorList(doc,authors,{incomplete:!authorData?.authors?.length&&!record.verified&&/et al\b|…|\.\.\./i.test(record.raw||'')}));
-      const journal=this.el(doc,'div',null,'cl-journal'),journalName=this.el(doc,'strong',C.plainTitle(record.journal||(['book','bookSection'].includes(record.type)?record.publisher:'')||''),'cl-journal-name');journalName.setAttribute('aria-label',journalName.textContent);const journalText=this.el(doc,'span',journalName.textContent,'cl-journal-text');journalName.replaceChildren(journalText);journal.append(journalName);root.append(journal);
+      const journal=this.el(doc,'div',null,'cl-journal'),journalName=this.el(doc,'strong',C.publicationLine(record),'cl-journal-name');journalName.setAttribute('aria-label',journalName.textContent);const journalText=this.el(doc,'span',journalName.textContent,'cl-journal-text');journalName.replaceChildren(journalText);journal.append(journalName);root.append(journal);
       journal.append(this.citationControl(doc,root,reader,record,{context,onJump:()=>{const floating=root.closest('.cl-floating');if(floating)floating.remove();for(const view of [reader?._internalReader?._primaryView,reader?._internalReader?._secondaryView])view?._onSetOverlayPopup?.(null);}}));
       const currentMetric=S.metricFor(record);if(currentMetric.status==='available')journal.append(this.metric(doc,record));
       const doi=C.doi(record.DOI||authorData?.DOI);
-      if(doi){const link=this.el(doc,'a',null,'cl-doi');link.href='https://doi.org/'+doi;link.title=doi;link.setAttribute('aria-label','打开 DOI '+doi);const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg'),path=doc.createElementNS(svg.namespaceURI,'path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.8');svg.setAttribute('stroke-linecap','round');path.setAttribute('d','M10 13a5 5 0 0 0 7 .1l3-3a5 5 0 0 0-7.1-7.1L11 5M14 11a5 5 0 0 0-7-.1l-3 3a5 5 0 0 0 7.1 7.1L13 19');svg.append(path);link.append(svg);link.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();Zotero.launchURL(link.href);});titleLine.append(doc.createTextNode('\u00a0'),link);}
-      if(['book','bookSection'].includes(record.type)&&record.journal&&record.publisher){const publisher=this.el(doc,'div',C.plainTitle(record.publisher),'cl-publisher');publisher.title=publisher.textContent;root.append(publisher);}
+
+
       const actions=this.el(doc,'div',null,'cl-actions cl-card-tools'),status=this.el(doc,'div','','cl-status');actions.setAttribute('aria-label','文献操作');
       const saveRun=()=>this.saveDialog(doc,record,context,result=>{
         render();this.status(root.querySelector('.cl-status'),result.created?'已保存到所选位置':'已复用库中条目，未新增重复记录');onChange?.();
@@ -340,14 +398,14 @@ var CiteLensUI = {
       const later=this.iconButton(doc,this.queued(record)?'已在清单':'稍后读',this.queued(record)?'bookmarked':'bookmark',async b=>{
         await S.enqueue(record,context);this.setButtonLabel(b,'已在清单','bookmarked');b.setAttribute('aria-pressed','true');this.status(status,'已加入本地阅读清单');onChange?.();
       });later.setAttribute('aria-pressed',String(!!this.queued(record)));
-      later.title='加入稍后阅读清单';actions.append(save,later);
+      later.title='加入稍后阅读清单';if(doi)actions.append(this.iconButton(doc,'打开 DOI','doi',()=>Zotero.launchURL('https://doi.org/'+doi)));actions.append(save,later);
       const copy=this.iconButton(doc,'复制引文','copy',()=>root._copy()),refresh=this.iconButton(doc,'更新信息','retry',b=>runLookup(true,b));actions.append(copy,refresh);
       eyebrow.append(status,actions);
       const runLookup=async(interactive,b=null)=>{
         if(lookupBusy)return;lookupBusy=true;if(b)b.disabled=true;
         try{
           const queryKey=C.identity(record);
-          if(interactive){if(!await this.networkConsent(doc))return;this.status(status,'正在更新…');}
+          if(interactive){if(!await this.networkConsent(doc))return;this.status(status,'');b?.setAttribute('aria-busy','true');}
           else if(!S.state.settings.autoLookup||!S.state.settings.networkConsent)return;
           if(!root.isConnected||S.dead)return;
           const result=await S.lookup(record,{force:interactive});if(queryKey!==C.identity(record)||!root.isConnected||S.dead||!S.state.settings.networkConsent||!interactive&&!S.state.settings.autoLookup)return;
@@ -359,12 +417,12 @@ var CiteLensUI = {
           };
           if(result.status==='matched')await apply(result.ranked[0].record,result.ranked[0].reasons);
           else if(interactive&&result.status==='review'){
-            this.status(status,'找到相近候选，请核对后选择');
+            if(b)this.setButtonLabel(b,'找到相近候选，请核对后选择','retry');
             this.candidates(doc,record,result.ranked,next=>apply(next,['你已核对并选择候选']));
-          }else if(interactive)this.status(status,'未找到相符文献，已保留原始条目。');
+          }else if(interactive&&b)this.setButtonLabel(b,'未找到相符文献，已保留原始条目。','retry');
           if(interactive&&result.status!=='review')await loadAuthors(true);
-        }catch(e){if(interactive&&root.isConnected)this.status(root.querySelector('.cl-status'),e.message,true);}
-        finally{lookupBusy=false;if(b)b.disabled=false;}
+        }catch(e){if(interactive&&b){this.setButtonLabel(b,e.message,'retry');b.dataset.error='true';}}
+        finally{lookupBusy=false;if(b){b.disabled=false;b.removeAttribute('aria-busy');}}
       };
       const lookup=this.button(doc,'更新信息',b=>runLookup(true,b));
       root._save=saveRun;root._copy=async()=>{const text=await CiteLensCitationFormat.format(record);Zotero.Utilities.Internal.copyTextToClipboard(text);this.status(root.querySelector('.cl-status'),'已复制引用');};
@@ -376,7 +434,7 @@ var CiteLensUI = {
         if(items.length>1||items.some(x=>(x.collections?.length||0)>1))line.append(this.quiet(doc,'查看位置',()=>this.existingDialog(doc,items)));root.append(line);
         save.textContent=items.length===1?'打开 Zotero':'选择已有条目';
         // Replace the action itself, so an existing item is never silently re-created.
-        const open=this.iconButton(doc,items.length===1?'打开':'选择','open',()=>items.length===1?Zotero.getActiveZoteroPane().selectItem(items[0].item.id):this.existingDialog(doc,items));open.title=items.length===1?'打开 Zotero 条目':'选择已有条目';open.setAttribute('aria-label',items.length===1?'打开 Zotero 条目':'选择已有条目');save.replaceWith(open);
+        const open=this.iconButton(doc,items.length===1?'打开':'选择','open',()=>items.length===1?this.openLibraryItem(doc,items[0].item):this.existingDialog(doc,items));open.title=items.length===1?'打开 Zotero 条目':'选择已有条目';open.setAttribute('aria-label',items.length===1?'打开 Zotero 条目':'选择已有条目');save.replaceWith(open);
         if(items.length===1){
           const item=items[0].item,publisher=item.getField('publisher'),publication=item.getField('publicationTitle');
           const identifier=item.getField('ISSN'),metricChanged=(!record.ISSN&&!!identifier)||(!record.journal&&!!publication);
@@ -426,7 +484,7 @@ var CiteLensUI = {
     const perLibrary=new Map();for(const match of matches)perLibrary.set(match.libraryID,(perLibrary.get(match.libraryID)||0)+1);
     if([...perLibrary.values()].some(n=>n>1))root.append(this.el(doc,'p','同一文献库中有重复记录。请选择要打开的条目；保存前需先在 Zotero 合并重复条目。','cl-note'));
     for(const match of matches){const item=match.item,box=this.el(doc,'div',null,'cl-candidate');box.append(this.el(doc,'div',match.libraryName+(match.editable?'':' · 只读'),'cl-kicker'),this.title(doc,{title:item.getField('title')}));
-      const names=(match.collections||CiteLensServices.collectionPaths(item)).map(x=>x.path);box.append(this.el(doc,'div',names.length?names.join('；'):'未归入文献夹','cl-muted'),this.button(doc,'在 Zotero 打开',()=>{Zotero.getActiveZoteroPane().selectItem(item.id);close();}));root.append(box);}
+      const names=(match.collections||CiteLensServices.collectionPaths(item)).map(x=>x.path);box.append(this.el(doc,'div',names.length?names.join('；'):'未归入文献夹','cl-muted'),this.button(doc,'在 Zotero 打开',async()=>{await this.openLibraryItem(doc,item);close();}));root.append(box);}
   },
   details(doc,record,reader,options={}) {
     const dialog=this.dialog(doc,'文献详情',{className:'cl-detail-dialog',header:false});
@@ -436,7 +494,7 @@ var CiteLensUI = {
   },
   focusables(root) {
     return [...root.querySelectorAll('button,a[href],input,select,textarea,summary,[tabindex]')].filter(x=>{
-      if(x.disabled||x.tabIndex<0||x.closest('[hidden]')||!x.getClientRects().length)return false;
+      if(x.disabled||x.tabIndex<0||x.closest('[hidden],[inert]')||!x.getClientRects().length)return false;
       for(let parent=x.parentElement;parent&&parent!==root;parent=parent.parentElement)if(parent.tagName==='DETAILS'&&!parent.open&&!parent.querySelector(':scope > summary')?.contains(x))return false;
       return true;
     });
@@ -448,25 +506,26 @@ var CiteLensUI = {
     if(!wrap&&(next<0||next>=focus.length))return;
     e.preventDefault();e.stopPropagation();focus[(next+focus.length)%focus.length]?.focus();
   },
-  dialog(doc,title,{onClose=null,className='',header=true,keepParentVisible=false}={}) {
+  dialog(doc,title,{onClose=null,className='',header=true,keepParentVisible=false,reader=null}={}) {
     this.style(doc);
-    const previous=doc.activeElement,parent=[...doc.querySelectorAll('.cl-overlay,.cl-root')].reverse().find(x=>!x.hidden),overlay=this.el(doc,'div',null,'cl-overlay'),frame=this.el(doc,'section',null,'cl-dialog '+className),head=this.el(doc,'header',null,'cl-dialog-header'),root=this.el(doc,'div',null,'cl-dialog-body'),footer=this.el(doc,'footer',null,'cl-dialog-footer');
+    const workspace=['cl-settings','pn-network pn-map-window'].includes(className),previous=doc.activeElement,parent=workspace?null:[...doc.querySelectorAll('.cl-overlay,.cl-root')].reverse().find(x=>!x.hidden),overlay=this.el(doc,'div',null,'cl-overlay'),frame=this.el(doc,'section',null,'cl-dialog '+className),head=this.el(doc,'header',null,'cl-dialog-header'),root=this.el(doc,'div',null,'cl-dialog-body'),footer=this.el(doc,'footer',null,'cl-dialog-footer');
     const heading=this.el(doc,'h2',title);heading.id='cl-dialog-title-'+(++this.sequence);
     frame.setAttribute('role','dialog');frame.setAttribute('aria-modal',String(className!=='cl-settings'));if(header)frame.setAttribute('aria-labelledby',heading.id);else frame.setAttribute('aria-label',title);frame.tabIndex=-1;
-    let closed=false,busy=false;const win=doc.defaultView;
+    let closed=false,busy=false,page=null;const win=doc.defaultView;
     doc._clAbstract?.close(true);doc.querySelector('.cl-menu')?._close?.();
     const rect=parent?.classList.contains('cl-root')?parent.getBoundingClientRect():null;
     if(parent&&className!=='cl-settings'){if(!keepParentVisible)parent.hidden=true;parent.inert=true;}
     if(className==='cl-settings'){overlay.classList.add('cl-context-page');overlay.style.setProperty('--cl-context-right',(rect?Math.max(8,win.innerWidth-rect.right):12)+'px');overlay.style.setProperty('--cl-context-top',(rect?Math.max(8,rect.top):48)+'px');}
-    const release=()=>{if(closed)return;closed=true;try{removed.disconnect();win.removeEventListener('pagehide',release);}catch(_){}if(parent?.isConnected&&className!=='cl-settings'){parent.hidden=false;parent.inert=false;}onClose?.();};
-    const removed=new win.MutationObserver(()=>{try{if(!overlay.isConnected||className!=='cl-settings'&&parent&&!parent.isConnected){overlay.remove();release();}}catch(_){release();}});removed.observe(doc.body||doc.documentElement,{childList:true,subtree:true});win.addEventListener('pagehide',release);
-    const close=()=>{if(closed||busy)return;overlay.remove();release();try{if(previous?.isConnected)previous.focus();}catch(_){}};
+    const release=()=>{if(closed)return;closed=true;page?.destroy();try{removed.disconnect();win.removeEventListener('pagehide',leave);}catch(_){}if(parent?.isConnected&&className!=='cl-settings'){parent.hidden=false;parent.inert=false;}onClose?.();};
+    const leave=e=>{if(e.target===doc||e.target===win)release();};
+    const removed=new win.MutationObserver(()=>{try{if(!overlay.isConnected||className!=='cl-settings'&&parent&&!parent.isConnected){overlay.remove();release();}}catch(_){release();}});removed.observe(doc.body||doc.documentElement,{childList:true,subtree:true});win.addEventListener('pagehide',leave);
+    const finish=()=>{overlay.remove();release();if(!workspace)try{if(previous?.isConnected)previous.focus();}catch(_){}},close=()=>{if(closed||busy)return;if(page)return page.dismiss();finish();};
     const dismiss=this.quiet(doc,'×',close);dismiss.classList.add('cl-dismiss');dismiss.setAttribute('aria-label','关闭'+title);
     if(title.startsWith('Paper Nexus')){heading.classList.add('pn-brand-heading');heading.prepend(this.logo(doc,24));}if(parent&&!keepParentVisible&&className!=='cl-settings'){const back=this.quiet(doc,'‹',close);back.classList.add('cl-dismiss','cl-back');back.setAttribute('aria-label','返回上一页');head.append(back);}head.append(heading,dismiss);if(header)frame.append(head);frame.append(root,footer);overlay.append(frame);(doc.body||doc.documentElement).append(overlay);
     overlay.addEventListener('keydown',e=>{
       if(e.key==='Escape'){e.stopPropagation();e.preventDefault();close();return;}
       if(className!=='cl-settings')this.tab(frame,e);
-    });frame.focus();
+    });if(workspace)page=this.page(frame,{container:overlay,reader,dispose:finish,retain:className==='pn-network pn-map-window'});else frame.focus();
     return {root,frame,footer,overlay,close,setBusy(value){busy=value;dismiss.disabled=value;const back=head.querySelector('.cl-back');if(back)back.disabled=value;frame.setAttribute('aria-busy',String(value));}};
   },
   field(doc,parent,label,value='',tag='input') {
@@ -513,10 +572,10 @@ var CiteLensUI = {
     let title,type,year,journal,doi,authors,review;
     if(!records){
       review=this.disclosure(doc,original.verified?'检查 / 编辑书目信息':'核对书目信息 · 保存前请确认');
-      if(!original.verified)review.append(this.el(doc,'p','字段来自 PDF 解析，可能不完整。请核对后保存；也可在文献详情中联网核验。','cl-note'));
+      if(!original.verified)review.append(this.el(doc,'p','书目信息可能不完整，请核对后保存。','cl-note'));
       title=this.field(doc,review,'题名',C.plainTitle(original.title),'textarea');title.rows=2;
       const grid=this.el(doc,'div',null,'cl-grid');type=this.field(doc,grid,'条目类型','','select');
-      for(const [v,t] of [['journalArticle','期刊论文'],['book','书籍'],['bookSection','书籍章节'],['conferencePaper','会议论文'],['preprint','预印本'],['thesis','学位论文']]){const o=this.el(doc,'option',t);o.value=v;type.append(o);}type.value=original.type||'journalArticle';
+      for(const [v,t] of [['journalArticle','期刊论文'],['book','书籍'],['bookSection','书籍章节'],['conferencePaper','会议论文'],['preprint','预印本'],['thesis','学位论文'],['document','文档']]){const o=this.el(doc,'option',t);o.value=v;type.append(o);}type.value=original.type||'journalArticle';
       year=this.field(doc,grid,'年份',original.year);year.inputMode='numeric';root.append(review);review.append(grid);
       authors=this.field(doc,review,'作者（每行：姓, 名）',(original.creators||[]).map(a=>a.lastName+(a.firstName?', '+a.firstName:'')).join('\n'),'textarea');
       journal=this.field(doc,review,'期刊或书名',original.journal);doi=this.field(doc,review,'DOI（可留空）',original.DOI);
@@ -556,11 +615,12 @@ var CiteLensUI = {
     this.style(doc);
     const root=this.el(doc,'section',null,'cl-root');root.dataset.citeLens='panel';root.setAttribute('aria-label','Paper Nexus 文献工作台');
     const previous=doc.activeElement,head=this.el(doc,'header',null,'cl-header'),row=this.el(doc,'div',null,'cl-row'),body=this.el(doc,'div',null,'cl-body'),search=this.el(doc,'input',null,'cl-search'),footer=this.el(doc,'footer',null,'cl-panel-footer');
-    const cleanups=[],win=doc.defaultView,anchor=doc.querySelector('[data-cite-lens=toolbar]');let disposed=false,motion=null,openingFrame=0,restoreOnClose=false;
+    const cleanups=[],win=doc.defaultView,anchor=doc.querySelector('[data-cite-lens=toolbar]');let disposed=false,motion=null,openingFrame=0,restoreOnClose=false,page=null;
     const toolbarState=visible=>{anchor?.setAttribute('aria-expanded',String(visible));};
-    const dispose=()=>{if(disposed)return;disposed=true;win.cancelAnimationFrame(openingFrame);motion?.dispose();for(const clean of cleanups.splice(0))clean();root.remove();if(CiteLens.panels.get(reader)===root)CiteLens.panels.delete(reader);toolbarState(false);if(restoreOnClose&&previous?.isConnected)previous.focus();};
-    root._clOpen=true;root._clSetOpen=visible=>{if(disposed)return;win.cancelAnimationFrame(openingFrame);root._clOpen=visible;toolbarState(visible);if(!visible)doc._clAbstract?.close(true);if(motion)motion.show(visible);else if(!visible)dispose();};
+    const dispose=()=>{if(disposed)return;disposed=true;page?.destroy();win.cancelAnimationFrame(openingFrame);motion?.dispose();for(const clean of cleanups.splice(0))clean();root.remove();if(CiteLens.panels.get(reader)===root)CiteLens.panels.delete(reader);toolbarState(false);if(restoreOnClose&&previous?.isConnected)previous.focus();};
+    root._clOpen=true;root._clSetOpen=visible=>{if(disposed)return;root._clOpen=visible;return visible?page?.activate():page?.dismiss();};
     const close=(restoreFocus=true)=>{restoreOnClose=restoreFocus;root._clSetOpen(false);};root._clClose=close;
+    root._clSuspend=()=>page?.hide(true);
     const dismiss=this.quiet(doc,'×',close);dismiss.classList.add('cl-dismiss');dismiss.setAttribute('aria-label','关闭文献清单');
     const controls=this.el(doc,'div',null,'cl-header-tools');const networkEntry=this.iconButton(doc,'文献网络','network',()=>CiteLens.showNetwork(reader));networkEntry.dataset.networkEntry='true';networkEntry.hidden=CiteLensServices.state.settings.networkEnabled!==true;controls.append(networkEntry,this.iconButton(doc,'设置','settings',()=>this.settingsDialog(doc)),dismiss);const brand=this.el(doc,'div','Paper Nexus','cl-brand');brand.prepend(this.logo(doc,24));row.append(brand,controls);
     const subtitle=this.el(doc,'div','阅读与关联','cl-subtitle'),tabs=this.el(doc,'div',null,'cl-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','文献范围');
@@ -628,7 +688,7 @@ var CiteLensUI = {
           const rowActions=this.el(doc,'div',null,'cl-list-tools');rowActions.setAttribute('aria-label','文献操作');
           if(view==='references')rowActions.append(this.citationControl(doc,item,reader,record,{onJump:close}));
           let located=[];const refreshPresence=async()=>{const found=await CiteLensServices.locate(entry.record);if(!item.isConnected||ticket!==generation)return;located=found;this.setButtonLabel(save,found.length?'打开 Zotero 条目':'保存到 Zotero',found.length?'open':'save');};
-          const save=this.iconButton(doc,'保存到 Zotero','save',()=>located.length?located.length===1?Zotero.getActiveZoteroPane().selectItem(located[0].item.id):this.existingDialog(doc,located):this.saveDialog(doc,entry.record,entry.context,()=>refreshPresence()));rowActions.append(save);presenceCallbacks.set(item,refreshPresence);
+          const save=this.iconButton(doc,'保存到 Zotero','save',()=>located.length?located.length===1?this.openLibraryItem(doc,located[0].item):this.existingDialog(doc,located):this.saveDialog(doc,entry.record,entry.context,()=>refreshPresence()));rowActions.append(save);presenceCallbacks.set(item,refreshPresence);
 
           if(view==='queue')rowActions.append(this.iconButton(doc,'移出清单','remove',async()=>{
             await CiteLensServices.removeQueue(entry.key);await render();
@@ -637,13 +697,13 @@ var CiteLensUI = {
           else rowActions.append(this.iconButton(doc,this.queued(record)?'已在清单':'稍后读',this.queued(record)?'bookmarked':'bookmark',async b=>{await CiteLensServices.enqueue(record,entry.context);this.setButtonLabel(b,'已在清单','bookmarked');const tab=tabs.querySelector('[data-view=queue]');const count=tab.querySelector('.cl-tab-count');count.textContent=String(CiteLensServices.state.queue.filter(x=>x.status!=='saved').length);count.hidden=false;}));
           const copy=this.iconButton(doc,'复制引文','copy',async()=>{Zotero.Utilities.Internal.copyTextToClipboard(await CiteLensCitationFormat.format(entry.record));this.status(footer,'已复制引用');});
           const refresh=this.iconButton(doc,'更新信息','retry',async b=>{
-            b.disabled=true;try{
+            b.disabled=true;b.setAttribute('aria-busy','true');delete b.dataset.error;try{
               const result=await CiteLensServices.lookup(entry.record,{force:true});if(!item.isConnected||ticket!==generation)return;
               const apply=async next=>{entry.record={...entry.record,...next,raw:entry.record.raw,position:entry.record.position};if(this.queued(record))await CiteLensServices.enqueue(entry.record,entry.context);scroll=body.scrollTop;await render();};
               if(result.status==='matched')await apply(result.ranked[0].record);
               else if(result.status==='review')this.candidates(doc,entry.record,result.ranked,apply);
-              else this.status(footer,'未找到相符文献，已保留原始条目。');
-            }finally{b.disabled=false;}
+              else this.setButtonLabel(b,'未找到相符文献，已保留原始条目。','retry');
+            }catch(e){this.setButtonLabel(b,e.message,'retry');b.dataset.error='true';}finally{b.disabled=false;b.removeAttribute('aria-busy');}
           });rowActions.append(copy,refresh);meta.append(rowActions);
           item.append(meta);body.append(item);presenceObserver.observe(item);
 
@@ -658,7 +718,7 @@ var CiteLensUI = {
     tabs.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();const list=[...tabs.children],index=list.indexOf(e.target);const next=e.key==='Home'?0:e.key==='End'?list.length-1:(index+(e.key==='ArrowRight'?1:-1)+list.length)%list.length;list[next].click();list[next].focus();});
     root.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();const detail=root.querySelector('.cl-inline-detail');if(detail){const button=detail.parentElement.querySelector('.cl-row-title');detail.remove();button.setAttribute('aria-expanded','false');button.focus();}else if(selected){selected=null;render();}else close();}else this.tab(root,e,false);});
     search.addEventListener('input',()=>{queries[view]=search.value;scroll=0;render();});
-    root.addEventListener('cl-metrics-changed',render);render();if(anchor){root.hidden=true;motion=CiteLensDockMotion.create(root,anchor,()=>{},visible=>{if(!visible)dispose();});openingFrame=win.requestAnimationFrame(()=>{if(root.isConnected&&!disposed)root._clSetOpen(true);});}toolbarState(true);return root;
+    root.addEventListener('cl-metrics-changed',render);render();page=this.page(root,{reader,dispose,visibility:visible=>{root._clOpen=visible;toolbarState(visible);}});return root;
   },
   manualDialog(doc,reader) {
     const {root,footer,close}=this.dialog(doc,'粘贴参考文献'),input=this.field(doc,root,'完整参考文献','','textarea'),status=this.el(doc,'div','','cl-status');
@@ -672,12 +732,15 @@ var CiteLensUI = {
     const summary=dialog.root.querySelector('.cl-save-summary .cl-muted');if(ready.length!==rows.length&&summary)summary.textContent=`${rows.length-ready.length} 篇尚未确认，仍保留在阅读清单。`;
   },
   settingsDialog(doc,{reader=CiteLens.readerForDocument(doc)}={}) {
-    const S=CiteLensServices,existing=doc.querySelector('.cl-settings');if(existing){if(existing._clReader===reader){existing.focus();return;}existing._clClose?.();}
-    const panel=CiteLens.panels.get(reader),restorePanel=!!panel?.isConnected&&!panel.hidden;if(restorePanel){panel.hidden=true;panel.inert=true;}
-    let unsubscribe=()=>{},unsubscribeModels=()=>{},testTicket=0;
-    const {root,footer,close}=this.dialog(doc,'Paper Nexus',{className:'cl-settings',onClose:()=>{testTicket++;unsubscribe();unsubscribeModels();if(restorePanel&&panel?.isConnected){panel.hidden=false;panel.inert=false;}}}),status=this.el(doc,'div','','cl-status');
-    const frame=root.parentElement,head=frame.querySelector('.cl-dialog-header'),tools=this.el(doc,'div',null,'cl-header-tools'),network=this.iconButton(doc,'文献网络','network',()=>{close();CiteLens.showNetwork(reader||null,{doc:reader?Zotero.getMainWindow().document:doc});});
-    frame._clReader=reader;frame._clClose=close;network.dataset.networkEntry='true';if(reader){const list=this.iconButton(doc,'文献列表','references',()=>{close();for(const view of doc.querySelectorAll('.pn-network'))view._pnClose?.();CiteLens.returnToList(reader);});list.dataset.listEntry='true';tools.append(list);}tools.append(network,head.querySelector('.cl-dismiss'));head.append(tools);
+    const S=CiteLensServices,existing=doc.querySelector('.cl-settings');if(existing){if(existing._clReader===reader){existing._clPage?.activate();return;}existing._clClose?.();}
+    const panel=CiteLens.panels.get(reader);
+    const cleanups=[];let unsubscribe=()=>{},unsubscribeModels=()=>{},testTicket=0;
+    const {root,footer,close}=this.dialog(doc,'Paper Nexus',{className:'cl-settings',reader,onClose:()=>{testTicket++;unsubscribe();unsubscribeModels();for(const cleanup of cleanups.splice(0))cleanup();}}),status=this.el(doc,'div','','cl-status');
+    const frame=root.parentElement,head=frame.querySelector('.cl-dialog-header'),tools=this.el(doc,'div',null,'cl-header-tools'),network=this.iconButton(doc,'文献网络','network',()=>{CiteLens.showNetwork(reader||null,{doc:reader?Zotero.getMainWindow().document:doc});});
+    const outside=e=>{if(!frame.isConnected||frame.hidden||frame.inert||frame.contains(e.target)||e.target.closest?.('.cl-select-popover,.cl-tooltip,.cl-overlay,[data-cite-lens=toolbar]')||[...doc.querySelectorAll('.cl-overlay')].some(x=>x!==frame.parentElement&&!x.hidden&&(frame.parentElement.compareDocumentPosition(x)&4)))return;close();};
+    const surfaces=new Set([doc,Zotero.getMainWindow()?.document,reader?._iframeWindow?.document,reader?._internalReader?._primaryView?._iframeWindow?.document,reader?._internalReader?._secondaryView?._iframeWindow?.document]);
+    for(const surface of surfaces)if(surface)for(const type of ['pointerdown','mousedown']){surface.addEventListener(type,outside,true);cleanups.push(()=>surface.removeEventListener(type,outside,true));}
+    frame._clReader=reader;frame._clClose=close;network.dataset.networkEntry='true';if(reader){const list=this.iconButton(doc,'文献列表','references',()=>CiteLens.returnToList(reader));list.dataset.listEntry='true';tools.append(list);}tools.append(network,head.querySelector('.cl-dismiss'));head.append(tools);
     const version=this.quiet(doc,'v'+CiteLens.version,()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));version.title='版本说明与插件下载';version.classList.add('cl-version');
     const update=this.quiet(doc,'检查更新',()=>CiteLensUpdater.phase==='available'?CiteLensUpdater.apply():CiteLensUpdater.check()),updateStatus=this.el(doc,'div','','cl-status');updateStatus.dataset.updateStatus='true';updateStatus.setAttribute('role','status');updateStatus.setAttribute('aria-live','polite');updateStatus.setAttribute('aria-atomic','true');
     const release=this.quiet(doc,'打开发布页',()=>Zotero.launchURL(CiteLens.homepage+'/releases/latest'));release.hidden=true;
@@ -698,7 +761,7 @@ var CiteLensUI = {
       const pane=this.el(doc,'section',null,'cl-settings-pane'),b=this.button(doc,label,()=>activate(key));pane.id='cl-settings-pane-'+this.sequence+'-'+key;pane.setAttribute('role','tabpanel');b.id=pane.id+'-tab';b.setAttribute('role','tab');b.setAttribute('aria-controls',pane.id);pane.setAttribute('aria-labelledby',b.id);b.dataset.pane=key;panes[key]=pane;tabs.append(b);root.append(pane);
     }
     tabs.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();const list=[...tabs.children],i=list.indexOf(e.target),n=e.key==='Home'?0:e.key==='End'?list.length-1:(i+(e.key==='ArrowRight'?1:-1)+list.length)%list.length;list[n].click();list[n].focus();});
-    const appearance=panes.appearance,data=this.el(doc,'div',null,'cl-general-data'),translation=this.el(doc,'div',null,'cl-translation-settings');panes.general.append(data,translation);
+    const appearance=panes.appearance,data=this.el(doc,'div',null,'cl-general-data'),translation=this.el(doc,'div',null,'cl-translation-settings');panes.general.append(translation,data);
     const themeGrid=this.el(doc,'div',null,'cl-theme-grid');themeGrid.setAttribute('role','group');themeGrid.setAttribute('aria-label','主题配色');
     let expandedThemes=false;
     const syncThemes=()=>{const current=CiteLensThemes.resolve(S.state.settings.theme);for(const b of themeGrid.children){b.setAttribute('aria-pressed',String(!S.state.settings.customThemeImage&&b.dataset.themeChoice===current.id));b.hidden=!expandedThemes&&![...CiteLensThemes.themes.slice(0,4).map(t=>t.id),CiteLensThemes.themes.slice(0,5).some(t=>t.id===current.id)?CiteLensThemes.themes[4].id:current.id].includes(b.dataset.themeChoice);}};
@@ -752,9 +815,9 @@ var CiteLensUI = {
     const apiRow=this.el(doc,'div',null,'cl-setting-row cl-ncbi-row'),apiLink=this.quiet(doc,'E-utilities',()=>Zotero.launchURL('https://www.ncbi.nlm.nih.gov/account/register/'));apiLink.title='注册 NCBI 账户并创建 API key';
     const apiInput=this.el(doc,'input',null,'cl-api-key');apiInput.type='password';apiInput.autocomplete='off';apiInput.spellcheck=false;apiInput.placeholder='API key（可选）';apiInput.setAttribute('aria-label','E-utilities API key（可选）');apiInput.value=CiteLensAbstracts.apiKey();
     const ncbiResult=(label,error=false)=>{testNCBI.textContent=label;testNCBI.classList.toggle('cl-error',error);testNCBI.setAttribute('aria-label',label==='测试'?'测试 E-utilities 连接':label);};
-    const testNCBI=this.quiet(doc,'测试',async button=>{const ticket=++testTicket;button.disabled=true;ncbiResult('连接中…');try{CiteLensAbstracts.apiKey(apiInput.value);await CiteLensAbstracts.testConnection();if(ticket===testTicket&&root.isConnected)ncbiResult('连接成功');}catch(e){if(ticket===testTicket&&root.isConnected){ncbiResult(/key|密钥|401|403/i.test(e.message)?'密钥无效':'连接失败',true);button.setAttribute('aria-label',e.message);}}finally{if(ticket===testTicket)button.disabled=false;}});testNCBI.dataset.ncbiTest='true';testNCBI.setAttribute('aria-live','polite');apiRow.append(apiLink,apiInput,testNCBI);data.prepend(apiRow);
+    const testNCBI=this.quiet(doc,'测试',async button=>{const ticket=++testTicket;button.disabled=true;ncbiResult('连接中…');try{CiteLensAbstracts.apiKey(apiInput.value);await CiteLensAbstracts.testConnection();if(ticket===testTicket&&root.isConnected)ncbiResult('连接成功');}catch(e){if(ticket===testTicket&&root.isConnected){ncbiResult(/key|密钥|401|403/i.test(e.message)?'密钥无效':'连接失败',true);button.setAttribute('aria-label',e.message);}}finally{if(ticket===testTicket)button.disabled=false;}});testNCBI.dataset.ncbiTest='true';testNCBI.setAttribute('aria-live','polite');apiRow.append(apiLink,apiInput,testNCBI);data.append(apiRow);
     apiInput.addEventListener('input',()=>{testTicket++;testNCBI.disabled=false;ncbiResult('测试');});apiInput.addEventListener('change',()=>{try{CiteLensAbstracts.apiKey(apiInput.value);}catch(e){ncbiResult('密钥无效',true);testNCBI.setAttribute('aria-label',e.message);}});
-    const citationSelect=row(data,'引文格式','citationStyle',this.el(doc,'select')),citationStatus=this.el(doc,'div','','cl-status');data.append(citationStatus);const initialStyle=CiteLensCitationFormat.id(S.state.settings.citationStyle),initialChoice=this.el(doc,'option',CiteLensCitationFormat.presets.find(([id])=>CiteLensCitationFormat.id(id)===initialStyle)?.[1]||initialStyle.split('/').pop());initialChoice.value=initialStyle;citationSelect.append(initialChoice);citationSelect.value=initialStyle;citationSelect.disabled=true;
+    const citationSelect=row(data,'引文格式','citationStyle',this.el(doc,'select')),citationStatus=this.el(doc,'div','','cl-status');data.prepend(citationSelect.closest('.cl-setting-row'),citationStatus);const initialStyle=CiteLensCitationFormat.id(S.state.settings.citationStyle),initialChoice=this.el(doc,'option',CiteLensCitationFormat.presets.find(([id])=>CiteLensCitationFormat.id(id)===initialStyle)?.[1]||initialStyle.split('/').pop());initialChoice.value=initialStyle;citationSelect.append(initialChoice);citationSelect.value=initialStyle;citationSelect.disabled=true;
     CiteLensCitationFormat.choices().then(choices=>{if(!root.isConnected)return;citationSelect.replaceChildren();for(const [value,label] of choices){const o=this.el(doc,'option',label);o.value=value;citationSelect.append(o);}citationSelect.value=CiteLensCitationFormat.id(S.state.settings.citationStyle);citationSelect.disabled=false;}).catch(e=>this.status(citationStatus,e.message,true));
     citationSelect.addEventListener('change',async()=>{const previous=S.state.settings.citationStyle;citationSelect.disabled=true;this.status(citationStatus,'');try{await CiteLensCitationFormat.load(citationSelect.value);S.state.settings.citationStyle=citationSelect.value;await S.persist();}catch(e){citationSelect.value=CiteLensCitationFormat.id(previous);this.status(citationStatus,e.message,true);}finally{citationSelect.disabled=false;}});
     const automatic=this.el(doc,'input');automatic.type='checkbox';automatic.id='cl-setting-autoUpdate';const autoLabel=this.el(doc,'label',null,'cl-auto-update');autoLabel.htmlFor=automatic.id;autoLabel.append(automatic,this.el(doc,'span','自动更新'));updateRow.append(autoLabel,updateStatus,release,update);

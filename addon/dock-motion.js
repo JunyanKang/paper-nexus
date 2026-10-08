@@ -21,7 +21,7 @@ var CiteLensDockMotion = {
  mesh(panel,orb) {
   const doc=panel.ownerDocument,win=doc.defaultView,b=panel.getBoundingClientRect(),o=orb.getBoundingClientRect();
   const anchor={x:o.x+o.width/2-b.x,y:o.y+o.height*.54-b.y},pad=32;
-  const source=doc.createElement('canvas'),ratio=Math.min(2,win.devicePixelRatio||1);
+  const source=doc.createElement('canvas'),ratio=Math.min(2,win.devicePixelRatio||1,Math.sqrt(2000000/Math.max(1,(b.width+64)*(b.height+64))));
   source.width=Math.ceil((b.width+pad*2)*ratio);source.height=Math.ceil((b.height+pad*2)*ratio);
   const ctx=source.getContext('2d'),style=win.getComputedStyle(panel),radius=parseFloat(style.borderRadius)||22;
   if(!ctx?.drawWindow)throw Error('Window capture unavailable');
@@ -32,8 +32,10 @@ var CiteLensDockMotion = {
   // the same task before a browser frame can be displayed.
   const isolation=doc.createElement('style');
   isolation.textContent='html,body{background:transparent!important}body > :not([data-cl-motion-capture]){opacity:0!important}[data-cl-motion-capture]{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}';
-  panel.setAttribute('data-cl-motion-capture','true');doc.head.append(isolation);
-  try{ctx.drawWindow(win,b.x-pad,b.y-pad,b.width+pad*2,b.height+pad*2,'rgba(0,0,0,0)');}finally{isolation.remove();panel.removeAttribute('data-cl-motion-capture');}
+  const ancestors=[];for(let parent=panel.parentElement;parent&&parent!==doc.body&&parent!==doc.documentElement;parent=parent.parentElement){ancestors.push(parent);parent.setAttribute('data-cl-motion-ancestor','true');}
+  isolation.textContent='html,body{background:transparent!important}body>:not([data-cl-motion-capture]):not([data-cl-motion-ancestor]),[data-cl-motion-ancestor]>:not([data-cl-motion-capture]):not([data-cl-motion-ancestor]){opacity:0!important}[data-cl-motion-capture]{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}';
+  panel.setAttribute('data-cl-motion-capture','true');(doc.head||doc.documentElement).append(isolation);
+  try{ctx.drawWindow(win,b.x-pad,b.y-pad,b.width+pad*2,b.height+pad*2,'rgba(0,0,0,0)');}finally{isolation.remove();panel.removeAttribute('data-cl-motion-capture');for(const parent of ancestors)parent.removeAttribute('data-cl-motion-ancestor');}
   const left=Math.floor(Math.min(b.x-pad,o.x-pad)),top=Math.floor(Math.min(b.y-pad,o.y-pad));
   const width=Math.ceil(Math.max(b.right+pad,o.right+pad)-left),height=Math.ceil(Math.max(b.bottom+pad,o.bottom+pad)-top);
   const blurPad=72,background=doc.createElement('canvas'),blurred=doc.createElement('canvas');
@@ -91,7 +93,7 @@ var CiteLensDockMotion = {
  },
  create(panel,orb,fit,onSettled=()=>{}) {
   const win=panel.ownerDocument.defaultView,query=win.matchMedia('(prefers-reduced-motion: reduce)');
-  let rendering=null,frame=0,progress=0,velocity=0,target=false,last=0,fallback=null,fallbackBox=null,disposed=false,companion=null;
+  let rendering=null,frame=0,progress=0,velocity=0,target=false,last=0,began=0,fallback=null,fallbackBox=null,disposed=false,companion=null;
   const notify=(moving)=>companion?.(Math.max(0,Math.min(1,progress)),moving,target);
   const paint=()=>{
    // Never fade two translucent surfaces over one another. Keep one fully
@@ -106,6 +108,7 @@ var CiteLensDockMotion = {
   };
   const tick=now=>{
    if(disposed)return;
+   if(now-began>1100){settle(target);return;}
    // Analytic critical damping is independent of display refresh rate, and
    // retains velocity on reversal instead of jumping onto a fresh easing curve.
    const dt=Math.min(.04,Math.max(0,(now-last)/1000));last=now;
@@ -119,7 +122,7 @@ var CiteLensDockMotion = {
    if(disposed)return;
    visible=!!visible;
    if(panel.dataset.clVisible===String(visible)&&(rendering||fallback||panel.hidden===!visible))return;
-   target=visible;
+   target=visible;began=win.performance.now();
    if(!visible&&panel.hidden&&!rendering&&!fallback){settle(false);return;}
    if(!visible&&panel.contains(panel.ownerDocument.activeElement))orb.focus({preventScroll:true});
    if(query.matches){settle(visible);if(visible)fit();return;}
@@ -150,6 +153,6 @@ var CiteLensDockMotion = {
   const background=()=>{if(panel.ownerDocument.hidden&&(rendering||fallback))settle(target);};
   win.addEventListener('resize',refit);query.addEventListener('change',reduced);panel.ownerDocument.addEventListener('visibilitychange',background);
   panel._clDockVisibility=show;
-  return {show,refit,setCompanion(listener){companion=listener;},finish(){if(rendering||fallback)settle(target);},dispose(){disposed=true;settle(false);delete panel._clDockVisibility;win.removeEventListener('resize',refit);query.removeEventListener('change',reduced);panel.ownerDocument.removeEventListener('visibilitychange',background);}};
+  return {show,refit,snap(visible){target=!!visible;settle(target);},setCompanion(listener){companion=listener;},finish(){if(rendering||fallback)settle(target);},dispose(){disposed=true;settle(false);delete panel._clDockVisibility;win.removeEventListener('resize',refit);query.removeEventListener('change',reduced);panel.ownerDocument.removeEventListener('visibilitychange',background);}};
  }
 };

@@ -17,7 +17,9 @@ Paper Nexus 在 Zotero 内运行，没有自己的账号、云端文献库或使
 | 测试翻译连接 | 内置示例句 |
 | 更新插件与资料 | 插件、期刊指标、引文格式和翻译模型列表 |
 
-文献查询可能使用 PubMed／PMC、Europe PMC、Crossref、OpenAlex 或 Semantic Scholar。取得的摘要保留来源，不改写 Zotero 的摘要字段。打开 DOI 或 ORCID 页面会访问相应网站。
+朋友圈会在后台分批以论文 DOI 查询公开书目信息，用对应署名核对 ORCID；不会仅凭姓名绑定身份。
+
+文献查询可能使用 PubMed／PMC、Europe PMC、Crossref、OpenAlex 或 Semantic Scholar。取得的摘要保留来源，不改写 Zotero 的摘要字段。打开 DOI 或 ORCID 页面会访问相应网站。只有打开学术履历时，插件才向 ORCID 请求该编号的公开个人资料与经历，并在本机缓存以便再次查看；不会上传文献库或修改 ORCID 记录。手动修正的 ORCID 链接同样只保存在本机。
 
 选择原文不会触发翻译。译文由你选择的服务提供，适用该服务的数据政策与费用规则。
 

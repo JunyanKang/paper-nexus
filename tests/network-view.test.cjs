@@ -74,3 +74,10 @@ test('paper sorting toggles numeric year, impact and title with missing values a
 });
 
 test('overview member names reveal only when zoom and spacing permit, with hysteresis and a budget',()=>{const nodes=Array.from({length:150},(_,i)=>({id:'a'+i,x:(i%15)*60,y:Math.floor(i/15)*60})),view={w:2000,h:2000};assert.equal(V.revealMembers(nodes,{x:50,y:50,k:.9},view).size,0);const shown=V.revealMembers(nodes,{x:50,y:50,k:1.3},view,new Set(),new Set(['a0']));assert.equal(shown.has('a0'),false);assert.equal(shown.size,100);assert.equal(V.revealMembers(nodes,{x:50,y:50,k:1.15},view,shown).size,100);assert.equal(V.revealMembers(nodes,{x:50,y:50,k:1.15},view).size,0);assert.equal(V.revealMembers([{id:'a',x:10,y:10},{id:'b',x:11,y:11}],{x:50,y:50,k:2},view).size,0);assert.equal(V.revealMembers(nodes,{x:-10000,y:-10000,k:2},view).size,0);});
+test('author search exposes multiple real identities instead of their community representative',()=>{
+ const nodes=Array.from({length:30},(_,i)=>({id:'a'+i,kind:'author',title:i>27?'Dawang '+i:'Author '+i,x:i*12,y:i*3,degree:30-i,members:['p'+i]})),edges=nodes.slice(1).map(n=>({source:'a0',target:n.id,kind:'coauthor',evidence:[{paperID:'p'+n.id}]})),model={mode:'authors',nodes,edges,communities:[{id:'community:a',title:'Author 0',members:nodes.map(n=>n.id),x:80,y:30,color:0}]},idx=V.index(model),before=V.scene(model,idx),positions=nodes.map(n=>[n.x,n.y]);
+ model.searchActive=true;model.matches=['a28','a29'];const found=V.scene(model,idx);
+ assert.deepEqual(found.matches,['a28','a29']);assert.ok(found.nodes.find(n=>n.id==='community:a').hideLabel);for(const id of model.matches){assert.equal(found.index.byID.get(id),idx.byID.get(id));assert.ok(!found.contextByID.has(id));assert.ok(found.edges.some(e=>e.source===id||e.target===id));}assert.deepEqual(nodes.map(n=>[n.x,n.y]),positions);
+ model.searchActive=false;model.matches=[];const cleared=V.scene(model,idx);assert.equal(cleared.nodes,before.nodes);assert.ok(!cleared.nodes[0].hideLabel);
+ model.searchActive=true;model.matches=['missing'];assert.equal(V.scene(model,idx).nodes,before.nodes);
+});

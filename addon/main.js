@@ -28,11 +28,11 @@ var CiteLens = {
   libraryToolbar(win) {
     const doc=win.document,host=doc.getElementById('zotero-items-toolbar');if(!host||doc.getElementById('paper-nexus-library-tools'))return;
     CiteLensUI.style(doc);const group=CiteLensUI.el(doc,'div',null,'cl-library-tools');group.id='paper-nexus-library-tools';group.setAttribute('role','group');group.setAttribute('aria-label','Paper Nexus');
-    const entry=CiteLensUI.button(doc,'',()=>{const view=doc.querySelector('.pn-network');if(view)view._pnClose?.();else this.showNetwork(null,{doc});});entry.classList.add('cl-library-entry');entry.setAttribute('aria-label','Paper Nexus');entry.title='Paper Nexus';entry.append(CiteLensUI.logo(doc,20));group.append(entry);
+    const entry=CiteLensUI.button(doc,'',()=>{const view=doc.querySelector('.pn-network');if(view&&!view.hidden)view._pnClose?.();else this.showNetwork(null,{doc});});entry.classList.add('cl-library-entry');entry.setAttribute('aria-label','Paper Nexus');entry.title='Paper Nexus';entry.append(CiteLensUI.logo(doc,20));group.append(entry);
     const spacer=[...host.children].find(n=>n.localName==='spacer'||n.getAttribute('flex')==='1');host.insertBefore(group,spacer||null);
   },
   readerForDocument(doc){return [...this.readers.keys()].find(r=>r._iframeWindow?.document===doc)||null;},
-  returnToList(reader){if(!reader?._iframeWindow?.document?.body)return;const tab=reader._tabID||reader.tabID;if(tab)Zotero.getMainWindow()?.Zotero_Tabs?.select(tab);const panel=this.panels.get(reader);if(panel?.isConnected){panel.hidden=false;panel.inert=false;panel._clSetOpen?.(true);panel.focus();return panel;}return this.showPanel(reader);},
+  returnToList(reader){if(!reader?._iframeWindow?.document?.body)return;const tab=reader._tabID||reader.tabID;if(tab)Zotero.getMainWindow()?.Zotero_Tabs?.select(tab);const panel=this.panels.get(reader);if(panel?.isConnected){panel._clSetOpen?.(true);return panel;}return this.showPanel(reader);},
   removeWindow(win) {win.document.getElementById('paper-nexus-library-tools')?.remove();this.windows.get(win)?.remove();this.windows.delete(win);CiteLensThemes.release(win.document);},
   toolbar(doc,reader) {const existing=this.toolbarNodes.get(doc)||doc.querySelector('[data-cite-lens=toolbar]');if(existing){existing._paperToolbarLive=true;this.toolbarNodes.set(doc,existing);return existing;}const b=CiteLensUI.button(doc,'',()=>this.togglePanel(reader));b.prepend(CiteLensUI.logo(doc,24));b.dataset.citeLens='toolbar';b.setAttribute('aria-label','Paper Nexus');b.setAttribute('aria-expanded','false');b.style.cssText='display:inline-flex;align-items:center;justify-content:center;padding:3px;width:32px;min-height:30px;font-size:12px';b._paperToolbarLive=true;this.toolbarNodes.set(doc,b);return b;},
   normalizeToolbar(doc) {
@@ -69,6 +69,7 @@ var CiteLens = {
         let position,overlay;try{position=view.pointerEventToPosition?.(e);overlay=view._getSelectableOverlay?.(position);}catch(_){}
         // Native citation popups are enhanced by the observer. Bibliography entries need a small independent card.
         if(!overlay&&position){const refs=view._pdfPages?.[position.pageIndex]?.overlays||view._processedPageOverlays?.[position.pageIndex]||[];const point=position.rects?.[0];if(point)overlay=refs.find(x=>x.type==='reference'&&x.position?.rects?.some(r=>point[0]>=r[0]&&point[0]<=r[2]&&point[1]>=r[1]&&point[1]<=r[3]));}
+        if(overlay?.type==='internal-link'&&CiteLensCitationLinks.internalLink(overlay,state.citationPages?.get(position?.pageIndex),state.referenceList||[])){hoverEpoch++;last='';pdfdoc.defaultView.clearTimeout(timer);this.dismissFloating(reader);return;}
         if(!overlay||overlay.type!=='reference'){
           const chars=view._pdfPages?.[position?.pageIndex]?.chars,point=position?.rects?.[0];
           const numeric=overlay?.type!=='citation'&&CiteLensCitationLinks.atPoint(state.citationPages?.get(position?.pageIndex),point,state.referenceList||[]);
@@ -95,17 +96,20 @@ var CiteLens = {
   enhance(reader) {
     if(this.dead)return;const state=this.readers.get(reader),doc=state?.doc;if(!doc)return;
     const native=reader._internalReader?._state;
-    for(const popup of doc.querySelectorAll('.citation-popup,.reference-popup')) {
+    for(const popup of doc.querySelectorAll('.citation-popup,.reference-popup,.preview-popup')) {
       if(popup._clRetained)continue;doc.querySelector('.cl-floating[data-retained]')?.remove();
+      const preview=popup.classList.contains('preview-popup');
       const rows=[...popup.querySelectorAll('.inner .reference-row')];
-      const sets=[native?.primaryViewOverlayPopup,native?.secondaryViewOverlayPopup].filter(x=>x?.references);
-      const source=sets.find(x=>x.references.length===rows.length&&CiteLensCore.norm(CiteLensCore.charsText(x.references[0]))===CiteLensCore.norm(rows[0]?.firstElementChild?.textContent))||sets.find(x=>x.references.length===rows.length);
-      const signature=rows.map(row=>row.firstElementChild?.textContent||'').join('\n')+'|'+(source?.offset??'')+'|'+(source?.position?.pageIndex??'')+'|'+!!state.referenceList;
+      const sets=[native?.primaryViewOverlayPopup,native?.secondaryViewOverlayPopup].filter(x=>preview?x?.type==='internal-link':x?.references);
+      const source=preview?(popup.closest('.secondary-view')?native?.secondaryViewOverlayPopup:native?.primaryViewOverlayPopup):sets.find(x=>x.references.length===rows.length&&CiteLensCore.norm(CiteLensCore.charsText(x.references[0]))===CiteLensCore.norm(rows[0]?.firstElementChild?.textContent))||sets.find(x=>x.references.length===rows.length);
+      const linked=preview?CiteLensCitationLinks.internalLink(source,state.citationPages?.get(source?.position?.pageIndex),state.referenceList||[]):null;
+      if(preview&&!linked){popup.querySelector(':scope > [data-cite-lens="group"]')?.remove();if(popup.classList.contains('cl-native-host'))popup.classList.remove('cl-native-host');continue;}
+      const signature=(preview?JSON.stringify(source?.position):'')+rows.map(row=>row.firstElementChild?.textContent||'').join('\n')+'|'+(source?.offset??'')+'|'+(source?.position?.pageIndex??'')+'|'+!!state.referenceList;
       const old=popup.querySelector(':scope > [data-cite-lens="group"]');if(old?.dataset.raw===signature){if(!popup.classList.contains('cl-native-host'))popup.classList.add('cl-native-host');CiteLensUI.fitPopup(popup,doc);continue;}
       if(popup._clFailedSignature===signature)continue;
       let records=rows.map((row,i)=>{const raw=row.firstElementChild?.textContent||'',ref=source?.references[i],same=ref&&CiteLensCore.norm(CiteLensCore.charsText(ref))===CiteLensCore.norm(raw);return this.referenceRecord(reader,same?ref:{text:raw});});
-      const citation=popup.classList.contains('citation-popup');let audit;
-      if(citation){audit=CiteLensCitationLinks.resolve(source,state.citationPages?.get(source?.position?.pageIndex),state.referenceList||[]);records=audit.records;}popup.classList.toggle('cl-non-citation',!!(citation&&state.referenceList&&audit.expected===0));
+      const citation=preview||popup.classList.contains('citation-popup');let audit;
+      if(citation){audit=linked||CiteLensCitationLinks.resolve(source,state.citationPages?.get(source?.position?.pageIndex),state.referenceList||[]);records=audit.records;}popup.classList.toggle('cl-non-citation',!!(citation&&state.referenceList&&audit.expected===0));
       try {
         // Never paint a guessed destination while source-text verification is pending.
         const group=records.length?CiteLensUI.citationGroup(doc,records,reader,{context:citation?this.citationContext(reader,source?.position,source?.word?.[0]?.offset??source?.offset):CiteLensUI.context(reader,source?.position?.pageIndex)}):citation?CiteLensUI.el(doc,'div',state.referenceList?'未找到可确定对应的文献':'正在读取参考文献…','cl-citation-group cl-unresolved'):null;
@@ -187,8 +191,8 @@ var CiteLens = {
     for(const old of pdfwin.document.querySelectorAll('.cl-citation-flash'))old.remove();
     for(const r of location.position.rects){const rect=page.viewport.convertToViewportRectangle(Components.utils.cloneInto(Array.from(r),pdfwin)),flash=pdfwin.document.createElement('div');flash.className='cl-citation-flash';flash.style.cssText='position:absolute;pointer-events:none;border-radius:3px;z-index:3;left:'+Math.min(rect[0],rect[2])+'px;top:'+Math.min(rect[1],rect[3])+'px;width:'+Math.abs(rect[2]-rect[0])+'px;height:'+Math.abs(rect[3]-rect[1])+'px;background:'+CiteLensThemes.resolve(CiteLensServices.state.settings.theme).highlight;page.div.append(flash);pdfwin.setTimeout(()=>flash.remove(),2400);}
   },
-  showNetwork(reader=null,{doc=Zotero.getMainWindow().document}={}){if(CiteLensServices.state.settings.networkEnabled!==true){CiteLensUI.settingsDialog(reader?._iframeWindow?.document||Zotero.getMainWindow().document);return;}const panel=this.panels.get(reader),focused=panel?.ownerDocument.activeElement;if(panel){panel.hidden=true;panel.inert=true;}return CiteLensNetworkUI.open(reader,{doc,onClose:()=>{if(panel?.isConnected){panel.hidden=false;panel.inert=false;focused?.focus();}}});},
-  togglePanel(reader){const panel=this.panels.get(reader);if(panel?.isConnected){panel._clSetOpen?.(!panel._clOpen);return panel;}return this.showPanel(reader);},
+  showNetwork(reader=null,{doc=Zotero.getMainWindow().document}={}){if(CiteLensServices.state.settings.networkEnabled!==true){CiteLensUI.settingsDialog(reader?._iframeWindow?.document||Zotero.getMainWindow().document);return;}return CiteLensNetworkUI.open(reader,{doc});},
+  togglePanel(reader){const current=[...CiteLensUI.pageViews].find(v=>v.reader===reader&&!v.container.hidden);if(current){current.dismiss();return;}const panel=this.panels.get(reader);if(panel?.isConnected){panel._clSetOpen?.(!panel._clOpen);return panel;}return this.showPanel(reader);},
   showPanel(reader,options={}) {this.panels.get(reader)?.remove();const doc=reader._iframeWindow.document,panel=CiteLensUI.panel(doc,reader,options);this.panels.set(reader,panel);return panel;},
   refreshMetrics() {for(const reader of this.readers.keys()){const doc=reader._iframeWindow.document;for(const card of doc.querySelectorAll('[data-cite-lens=card]'))card.dispatchEvent(new doc.defaultView.Event('cl-metrics-changed'));this.enhance(reader);doc.querySelector('.cl-root')?.dispatchEvent(new doc.defaultView.Event('cl-metrics-changed'));}},
   refreshAuthors() {for(const {doc} of this.readers.values())for(const card of doc.querySelectorAll('[data-cite-lens=card]'))card.dispatchEvent(new doc.defaultView.Event('cl-authors-changed'));},
@@ -198,6 +202,7 @@ var CiteLens = {
   async importMetrics() {const file=await this.picker('open','导入有来源的 JCR 指标',[['CSV / JSON','*.csv;*.json']]);if(!file)return null;const stat=await IOUtils.stat(file);if(stat.size>20*1024*1024)throw Error('指标文件大于 20 MB');const n=await CiteLensServices.importMetrics(await IOUtils.readUTF8(file));this.refreshMetrics();return n;},
   async exportRIS(records) {if(!records.length)return;const file=await this.picker('save','导出参考文献',[['RIS','*.ris']]);if(file)await IOUtils.writeUTF8(file,CiteLensCore.ris(records));},
   detach(reader) {
+    if(typeof CiteLensUI!=='undefined')for(const page of [...CiteLensUI.pageViews])if(page.reader===reader)try{page.destroy();}catch(_){}
     try{this.toolbarNodes.delete(reader._iframeWindow.document);}catch(_){}
     const s=this.readers.get(reader);
     // Zotero may destroy an iframe before notifying plugins that its reader closed.
@@ -211,10 +216,10 @@ var CiteLens = {
       for(const popup of s.doc.querySelectorAll('.cl-native-host,.cl-floating'))popup._clLayoutCleanup?.();
       for(const e of s.doc.querySelectorAll('[data-cite-lens],.cl-overlay,#cite-lens-style'))e.remove();
       for(const e of s.doc.querySelectorAll('.cl-native-host')){e.classList.remove('cl-native-host','cl-non-citation');e.style.removeProperty('translate');delete e._clShift;}
-      for(const popup of s.doc.querySelectorAll('.citation-popup,.reference-popup'))delete popup._clFailedSignature;
+      for(const popup of s.doc.querySelectorAll('.citation-popup,.reference-popup,.preview-popup'))delete popup._clFailedSignature;
       s.doc.documentElement.removeAttribute('data-cl-theme');for(const property of ['--cl-size','--cl-user-size','--cl-reading-font'])s.doc.documentElement.style.removeProperty(property);
     }}catch(_){}
     if(s?.doc)CiteLensThemes.release(s.doc);this.readers.delete(reader);
   },
-  stop() {if(this.stopTask)return this.stopTask;this.dead=true;return this.stopTask=(async()=>{CiteLensThemes.stop();CiteLensTranslation.stop();CiteLensUpdater.stop();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();if(Zotero.CiteLens===this)delete Zotero.CiteLens;})();}
+  stop() {if(this.stopTask)return this.stopTask;this.dead=true;return this.stopTask=(async()=>{CiteLensThemes.stop();CiteLensTranslation.stop();CiteLensUpdater.stop();CiteLensCareer.stop();if(typeof CiteLensUI!=='undefined')for(const page of [...CiteLensUI.pageViews])page.destroy();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();if(Zotero.CiteLens===this)delete Zotero.CiteLens;})();}
 };

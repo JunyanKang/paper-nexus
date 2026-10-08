@@ -52,3 +52,10 @@ test('Crossref abstracts preserve literal and encoded comparisons between real m
  const row=C.fromCrossref({abstract:raw});assert.equal(row.abstract,'High (>10%) versus low (<5%) positivity differed. Concentration was >20 units & P < 0.05.');assert.equal(row.abstractParserVersion,1);
  assert.equal(C.researchRecord({title:'Study',abstract:'<h4>Results</h4>Null response.<h4>Conclusions</h4>No effect.'}).abstract,'Results Null response. Conclusions No effect.');
 });
+
+test('book and chapter publication lines distinguish publishers from journals',()=>{
+ assert.equal(C.publicationLine({type:'book',title:'Development',publisher:'Academic Press',place:'London',year:'2020',edition:'2'}),'2nd ed. London: Academic Press. 2020');
+ assert.equal(C.publicationLine({type:'bookSection',bookTitle:'Retinal Development',publisher:'Springer',year:'2019',pages:'101-118'}),'Retinal Development. Springer. 2019. pp. 101–118');
+ assert.equal(C.publicationLine({type:'book',title:'A Book',year:'2021',journal:'A Book'}),'2021');
+});
+test('journal issue date takes precedence over earlier online publication date',()=>{const r=C.fromCrossref({DOI:'10.1038/sj.bjc.6606011',title:['Mst1/2 signalling to Yap'],published:{'date-parts':[[2010,11,23]]},'published-online':{'date-parts':[[2010,11,23]]},'published-print':{'date-parts':[[2011,1]]}});assert.equal(r.year,'2011');assert.equal(r.date,'2011-1');});

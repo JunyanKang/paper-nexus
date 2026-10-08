@@ -57,6 +57,15 @@ var CiteLensServices = {
     }catch(e){const status=e.status||e.xmlhttp?.status;if(status===429)throw Error('Crossref 请求繁忙，请稍后重试');if(status===404)throw Error('Crossref 未收录此 DOI');throw Error('暂时无法连接 Crossref；原始参考文献仍可使用');}
     finally{this.active--;this.waiting.shift()?.();}
   },
+  async publicationMetadata(record,{complete=false}={}){
+    if(!complete&&(record.journal||record.publicationTitle))return record;
+    const result=await this.lookup(record),remote=result.ranked?.[0]?.record;if(!remote)return record;
+    const match=CiteLensCore.compatibility(record,remote),sameWorkDifferentDate=match.eligible&&match.exact&&match.title>=.95&&match.delta===1;
+    // Online-first and issue dates can differ. Fill missing venue fields only;
+    // retain the existing year and never relax title/author/DOI conflict checks.
+    if(CiteLensCore.decide(record,[remote]).status!=='matched'&&!sameWorkDifferentDate)return record;
+    const enriched={...record,verified:true};for(const key of ['journal','year','volume','issue','pages','DOI','PMID','PMCID','ISSN','ISBN','publisher','bookTitle','edition','place','journalAbbreviation','bibliographyVersion','creators'])if((!enriched[key]||Array.isArray(enriched[key])&&!enriched[key].length)&&remote[key])enriched[key]=remote[key];return enriched;
+  },
   async lookup(record,{force=false}={}) {
     const C=CiteLensCore,key=C.identity(record),cached=this.state.cache[key];
     if(!force&&cached&&Date.now()-cached.time<7*86400000)return {...C.decide(record,(cached.value.ranked||[]).map(x=>x.record)),...(cached.value.doiRecord?{doiRecord:cached.value.doiRecord}:{}),cached:true};
@@ -119,7 +128,7 @@ var CiteLensServices = {
         if(name){const children=parent?Zotero.Collections.getByParent(parent.id):Zotero.Collections.getByLibrary(libraryID);let col=children.find(c=>c.name===name&&!c.deleted);if(!col){col=new Zotero.Collection();col.libraryID=libraryID;col.name=name;if(parent)col.parentID=parent.id;await col.save();}collectionID=col.id;}
         let item=matches[0],created=!item;
         if(!item){item=new Zotero.Item(record.type||'journalArticle');item.libraryID=libraryID;
-          const fields={title:C.plainTitle(record.title),date:record.date||record.year,DOI:C.recordDOI(record),publicationTitle:record.journal,bookTitle:record.type==='bookSection'?record.journal:undefined,ISSN:record.ISSN,ISBN:record.ISBN,volume:record.volume,issue:record.issue,pages:record.pages,publisher:record.publisher,url:record.DOI?'https://doi.org/'+C.doi(record.DOI):record.url,abstractNote:record.abstract};
+          const fields={title:C.plainTitle(record.title),date:record.date||record.year,DOI:C.recordDOI(record),publicationTitle:record.journal,bookTitle:record.type==='bookSection'?(record.bookTitle||record.journal):undefined,edition:record.edition,place:record.place,journalAbbreviation:record.journalAbbreviation,ISSN:record.ISSN,ISBN:record.ISBN,volume:record.volume,issue:record.issue,pages:record.pages,publisher:record.publisher,url:record.DOI?'https://doi.org/'+C.doi(record.DOI):record.url,abstractNote:record.abstract};
           for(const [field,value] of Object.entries(fields))if(value&&Zotero.ItemFields.isValidForType(Zotero.ItemFields.getID(field),item.itemTypeID))item.setField(field,C.clean(value));
           item.setCreators(record.creators||[]);item.setField('extra',`CiteLens source: ${record.source||'PDF'}\nCiteLens checked: ${record.verified?'metadata reviewed':'manual review'}\nOriginal reference: ${record.raw||''}`);await item.save();
         }

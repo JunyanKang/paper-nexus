@@ -1579,7 +1579,7 @@ var CiteLensI18n = {
  release(doc){this.documents.get(doc)?.cancel?.();this.documents.get(doc)?.observer.disconnect();this.documents.delete(doc);}
 };
 // Shared network and citation controls. Bibliographic content is never translated.
-for(const [source,values] of Object.entries({"常规":["General","一般","Général","Allgemein"],"定位文献或作者": ["Find a paper or author", "論文・著者を検索", "Rechercher un article ou auteur", "Publikation oder Autor suchen"], "聚类方式": ["Group by", "グループ化", "Regrouper par", "Gruppieren nach"], "全景": ["Overview", "全体", "Vue globale", "Übersicht"], "聚焦": ["Focus", "注目", "Centrer", "Fokus"], "聚焦关联": ["Focus connections", "関連に注目", "Centrer les liens", "Verbindungen fokussieren"], "引文格式": ["Citation style", "引用スタイル", "Style bibliographique", "Zitierstil"], "文中引用位置": ["Citation locations", "本文の引用位置", "Occurrences de citation", "Zitierstellen"], "调整摘要窗口大小": ["Resize abstract window", "要旨ウィンドウのサイズ変更", "Redimensionner le résumé", "Zusammenfassungsfenster skalieren"], "正在读取本地文献…": ["Loading local papers…", "ローカル文献を読込中…", "Chargement des articles…", "Lokale Literatur wird geladen…"], "正在排列文献网络…": ["Arranging the network…", "ネットワークを配置中…", "Disposition du réseau…", "Netzwerk wird angeordnet…"], "关闭节点详情": ["Close node details", "ノードの詳細を閉じる", "Fermer les détails", "Knotendetails schließen"], "打开引用来源": ["Open citation source", "引用元を開く", "Ouvrir la source", "Zitierquelle öffnen"], "更多关联": ["More connections", "関連をさらに表示", "Plus de liens", "Weitere Verbindungen"], "本地论文": ["Local paper", "ローカル論文", "Article local", "Lokale Publikation"], "作者／主题": ["Author / topic", "著者／トピック", "Auteur / thème", "Autor / Thema"], "本地暂无摘要": ["No local abstract", "ローカル要旨なし", "Aucun résumé local", "Keine lokale Zusammenfassung"], "作者与论文": ["Authors and papers", "著者と論文", "Auteurs et articles", "Autoren und Publikationen"], "主题与论文": ["Topics and papers", "トピックと論文", "Thèmes et articles", "Themen und Publikationen"], "来自同一篇论文的参考文献。": ["References from the same source paper.", "同じ論文の参考文献です。", "Références du même article source.", "Referenzen derselben Quellpublikation."], "完整署名相同，作者身份仍需核实。": ["Matching full names; author identity is unverified.", "氏名が一致しています。著者の同一性は未確認です。", "Noms complets identiques ; identité non vérifiée.", "Gleiche vollständige Namen; Identität ungeprüft."], "题目与摘要内容相近，不代表结论一致。": ["Related title and abstract terms do not imply agreement.", "題名・要旨が類似しても結論の一致を示しません。", "Des termes proches ne prouvent pas un accord des conclusions.", "Ähnliche Begriffe bedeuten keine übereinstimmenden Ergebnisse."], "当前范围暂无文献，可选择其他文献夹。": ["No papers in this scope. Choose another collection.", "この範囲に文献がありません。別のコレクションを選択してください。", "Aucun article ici. Choisissez une autre collection.", "Keine Publikationen im Bereich. Andere Sammlung wählen."], "再载入 240 篇": ["Load 240 more", "さらに240件読込", "Charger 240 de plus", "Weitere 240 laden"], "篇本地": ["local papers", "件のローカル文献", "articles locaux", "lokale Publikationen"], "个主题": ["topics", "トピック", "thèmes", "Themen"], "个署名": ["author names", "著者名", "noms d’auteurs", "Autorennamen"]})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
+for(const [source,values] of Object.entries({"常规":["General","一般","Général","Allgemein"],"定位文献或作者": ["Find a paper or author", "論文・著者を検索", "Rechercher un article ou auteur", "Publikation oder Autor suchen"], "聚类方式": ["Group by", "グループ化", "Regrouper par", "Gruppieren nach"], "全景": ["Overview", "全体", "Vue globale", "Übersicht"], "聚焦": ["Focus", "注目", "Centrer", "Fokus"], "聚焦关联": ["Focus connections", "関連に注目", "Centrer les liens", "Verbindungen fokussieren"], "引文格式": ["Citation style", "引用スタイル", "Style bibliographique", "Zitierstil"], "文中引用位置": ["Citation locations", "本文の引用位置", "Occurrences de citation", "Zitierstellen"], "调整摘要窗口大小": ["Resize abstract window", "要旨ウィンドウのサイズ変更", "Redimensionner le résumé", "Zusammenfassungsfenster skalieren"], "正在读取本地文献…": ["Loading local papers…", "ローカル文献を読込中…", "Chargement des articles…", "Lokale Literatur wird geladen…"], "正在排列文献网络…": ["Arranging the network…", "ネットワークを配置中…", "Disposition du réseau…", "Netzwerk wird angeordnet…"], "关闭节点详情": ["Close node details", "ノードの詳細を閉じる", "Fermer les détails", "Knotendetails schließen"], "打开引用来源": ["Open citation source", "引用元を開く", "Ouvrir la source", "Zitierquelle öffnen"], "更多关联": ["More connections", "関連をさらに表示", "Plus de liens", "Weitere Verbindungen"], "本地论文": ["Local papers", "ローカル論文", "Article local", "Lokale Publikation"], "作者／主题": ["Author / topic", "著者／トピック", "Auteur / thème", "Autor / Thema"], "本地暂无摘要": ["No local abstract", "ローカル要旨なし", "Aucun résumé local", "Keine lokale Zusammenfassung"], "作者与论文": ["Authors and papers", "著者と論文", "Auteurs et articles", "Autoren und Publikationen"], "主题与论文": ["Topics and papers", "トピックと論文", "Thèmes et articles", "Themen und Publikationen"], "来自同一篇论文的参考文献。": ["References from the same source paper.", "同じ論文の参考文献です。", "Références du même article source.", "Referenzen derselben Quellpublikation."], "完整署名相同，作者身份仍需核实。": ["Matching full names; author identity is unverified.", "氏名が一致しています。著者の同一性は未確認です。", "Noms complets identiques ; identité non vérifiée.", "Gleiche vollständige Namen; Identität ungeprüft."], "题目与摘要内容相近，不代表结论一致。": ["Related title and abstract terms do not imply agreement.", "題名・要旨が類似しても結論の一致を示しません。", "Des termes proches ne prouvent pas un accord des conclusions.", "Ähnliche Begriffe bedeuten keine übereinstimmenden Ergebnisse."], "当前范围暂无文献，可选择其他文献夹。": ["No papers in this scope. Choose another collection.", "この範囲に文献がありません。別のコレクションを選択してください。", "Aucun article ici. Choisissez une autre collection.", "Keine Publikationen im Bereich. Andere Sammlung wählen."], "再载入 240 篇": ["Load 240 more", "さらに240件読込", "Charger 240 de plus", "Weitere 240 laden"], "篇本地": ["local papers", "件のローカル文献", "articles locaux", "lokale Publikationen"], "个主题": ["topics", "トピック", "thèmes", "Themen"], "个署名": ["author names", "著者名", "noms d’auteurs", "Autorennamen"]})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
 if(typeof module!=='undefined')module.exports=CiteLensI18n;
 // Shared provider settings and independently selected task models.
 for(const [source,values] of Object.entries({
@@ -1733,6 +1733,52 @@ for(const [source,values] of Object.entries({
 for(const [language,text] of Object.entries({en:'Updated',ja:'更新済み',fr:'Mis à jour',de:'Aktualisiert'}))CiteLensI18n.catalogs[language]['已更新']=text;
 
 for(const [source,values] of Object.entries({
+ "朋友圈总览":["Network overview", "ネットワーク全体", "Vue du réseau", "Netzwerkübersicht"],
+ "返回朋友圈":["Back to network", "ネットワークに戻る", "Retour au réseau", "Zurück zum Netzwerk"],
+ "关闭文献网络":["Close network", "ネットワークを閉じる", "Fermer le réseau", "Netzwerk schließen"],
+ "书目信息可能不完整，请核对后保存。":["Some details may be missing. Please review before saving.", "情報が不完全な場合があります。保存前に確認してください。", "Certaines informations peuvent manquer. Vérifiez avant de sauvegarder.", "Angaben können fehlen. Bitte vor dem Speichern prüfen."],
+ "文档":["Document", "文書", "Document", "Dokument"],
+ "ORCID 编号或个人主页链接":["ORCID iD or profile URL", "ORCID iD またはプロフィールURL", "Identifiant ORCID ou lien du profil", "ORCID-ID oder Profil-Link"],
+ "清除链接":["Clear link", "リンクを削除", "Effacer le lien", "Link entfernen"],
+ "全部":["All", "すべて", "Tout", "Alle"],
+ "学术履历":["Academic history", "研究経歴", "Parcours académique", "Akademischer Werdegang"],
+ "教育":["Education", "教育", "Formation", "Ausbildung"],
+ "任职":["Positions", "職歴", "Postes", "Positionen"],
+ "资助":["Funding", "助成", "Financements", "Förderung"],
+ "成果":["Works", "業績", "Travaux", "Werke"],
+ "荣誉":["Honors", "受賞", "Distinctions", "Ehrungen"],
+ "学术团体":["Memberships", "学会", "Affiliations", "Mitgliedschaften"],
+ "学术服务":["Service", "学術活動", "Service", "Dienste"],
+ "同行评审":["Peer review", "査読", "Évaluation", "Begutachtung"],
+ "从早到晚":["Oldest first", "古い順", "Plus anciens", "Älteste zuerst"],
+ "从晚到早":["Newest first", "新しい順", "Plus récents", "Neueste zuerst"],
+ "公开记录跨度":["Public record span", "公開記録の期間", "Période documentée", "Zeitraum der Einträge"],
+ "个人简介":["About", "紹介", "Présentation", "Profil"],
+ "来源与链接":["Source & link", "出典とリンク", "Source et lien", "Quelle und Link"],
+ "未提供结束日期":["End date not provided", "終了日未記載", "Date de fin non indiquée", "Enddatum nicht angegeben"],
+ "结束于":["Ended", "終了", "Terminé", "Beendet"],
+ "未注明时间":["Date not provided", "日付未記載", "Date non indiquée", "Datum nicht angegeben"],
+ "未注明":["Undated", "日付なし", "Sans date", "Undatiert"],
+ "按年浏览":["Browse by year", "年別表示", "Parcourir par année", "Nach Jahr blättern"],
+ "更多年份":["More years", "他の年", "Autres années", "Weitere Jahre"],
+ "打开来源":["Open source", "出典を開く", "Ouvrir la source", "Quelle öffnen"],
+ "尚无公开履历":["No public history yet", "公開経歴はありません", "Aucun parcours public", "Keine öffentlichen Einträge"],
+ "可前往 ORCID 查看个人主页":["Visit the ORCID profile", "ORCID プロフィールへ", "Consultez le profil ORCID", "ORCID-Profil besuchen"],
+ "连接暂不可用，显示已保存履历":["Offline; showing saved history", "保存済み経歴を表示中", "Hors ligne ; parcours enregistré", "Offline; gespeicherter Verlauf"],
+ "部分公开资料暂不可用":["Some public records are unavailable", "一部の公開記録は取得できません", "Certaines données sont indisponibles", "Einige öffentliche Daten nicht verfügbar"],
+ "资料来自 ORCID 公开记录":["From public ORCID records", "ORCID の公開記録", "Données publiques ORCID", "Öffentliche ORCID-Einträge"],
+ "正在读取公开履历":["Loading public history", "公開経歴を読み込み中", "Chargement du parcours", "Öffentliche Einträge werden geladen"],
+ "正在展开学术履历":["Opening academic history", "研究経歴を開いています", "Ouverture du parcours", "Werdegang wird geöffnet"],
+ "整理公开经历与研究成果":["Organizing public experience and works", "公開経歴と業績を整理中", "Organisation des expériences et travaux", "Öffentliche Stationen und Werke werden geordnet"],
+ "履历暂不可用":["History unavailable", "経歴を取得できません", "Parcours indisponible", "Werdegang nicht verfügbar"],
+ "可重试，或打开 ORCID 主页":["Retry or visit ORCID", "再試行または ORCID へ", "Réessayez ou visitez ORCID", "Erneut versuchen oder ORCID öffnen"],
+ "暂时无法读取公开履历，请稍后重试":["Unable to load public history; retry shortly.", "公開経歴を取得できません。再試行してください。", "Impossible de charger le parcours ; réessayez.", "Öffentliche Einträge nicht verfügbar; erneut versuchen."],
+ '编辑 ORCID 链接':['Edit ORCID','ORCID を編集','Modifier ORCID','ORCID bearbeiten'],
+ '添加 ORCID':['Add ORCID','ORCID を追加','Ajouter ORCID','ORCID hinzufügen'],
+ '恢复自动识别':['Use automatic lookup','自動取得に戻す','Détection automatique','Automatisch erkennen'],
+ '填写编号或 orcid.org 链接；留空可清除。':['Enter an ID or orcid.org link; leave blank to clear.','番号または orcid.org リンクを入力。空欄で削除。','Saisissez un identifiant ou un lien orcid.org ; vide pour effacer.','ID oder orcid.org-Link eingeben; zum Löschen leer lassen.'],
+ '请输入有效的 ORCID 编号或 orcid.org 链接':['Enter a valid ORCID ID or orcid.org link.','有効な ORCID 番号またはリンクを入力してください。','Saisissez un identifiant ORCID ou un lien valide.','Gültige ORCID-ID oder orcid.org-Link eingeben.'],
+ '无法编辑此作者':['This author cannot be edited.','この著者は編集できません。','Cet auteur ne peut pas être modifié.','Dieser Autor kann nicht bearbeitet werden.'],
  '查找 ORCID':['Find ORCID','ORCID を検索','Rechercher ORCID','ORCID suchen'],
  '正在查询 ORCID':['Finding ORCID','ORCID を検索中','Recherche ORCID','ORCID wird gesucht'],
  'ORCID 查询失败，点击重试':['ORCID unavailable; retry','ORCID を再検索','ORCID indisponible ; réessayer','ORCID nicht verfügbar; erneut versuchen'],

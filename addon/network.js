@@ -1,11 +1,11 @@
 /* Factual coauthor networks derived from the user's Zotero library. */
 var CiteLensNetwork = {
   partitionIndexes:new Map(),workers:new Set(),state:{schema:1,sources:{}},views:new Set(),listeners:new Set(),generation:0,dead:true,
-  revisions:{authors:'authors-8',abstracts:'abstracts-5',input:'input-2',snapshot:'snapshot-4'},
+  revisions:{references:'references-5',authors:'authors-8',abstracts:'abstracts-5',input:'input-2',snapshot:'snapshot-4'},
   isEnabled(){return typeof CiteLensServices!=='undefined'&&CiteLensServices.state?.settings?.networkEnabled===true;},
   cancelNetworkWork(){
     this.activityEpoch=(this.activityEpoch||0)+1;
-    const win=Zotero.getMainWindow?.();win?.clearTimeout(this.warmupTimer);
+    const win=Zotero.getMainWindow?.();win?.clearTimeout(this.warmupTimer);win?.clearTimeout(this.identityTimer);this.identityTimer=0;this.identityQueue?.clear();
     if(this.observer){Zotero.Notifier.unregisterObserver(this.observer);this.observer=null;}
     this.clearGraphJobs();
     for(const close of [...this.views])close();this.views.clear();
@@ -29,9 +29,9 @@ var CiteLensNetwork = {
     const task=(this.transitionTail||Promise.resolve()).catch(()=>{}).then(transition);this.transitionTail=task;return task;
   },
   async start(){
-    if(typeof CiteLens!=='undefined'&&typeof Services!=='undefined'&&Services.scriptloader){try{const scope={};Services.scriptloader.loadSubScript(CiteLens.rootURI+'network-revisions.js',scope);const versions=scope.PaperNexusNetworkRevisions;if(versions.schema!==1||!['authors','abstracts','input','snapshot'].every(k=>/^[a-f0-9]{64}$/.test(versions[k])))throw Error('Invalid network revisions');this.revisions=versions;}catch(e){Zotero.logError(e);for(const key of Object.keys(this.revisions))this.revisions[key]+=':unverified:'+Date.now();}}
+    if(typeof CiteLens!=='undefined'&&typeof Services!=='undefined'&&Services.scriptloader){try{const scope={};Services.scriptloader.loadSubScript(CiteLens.rootURI+'network-revisions.js',scope);const versions=scope.PaperNexusNetworkRevisions;if(versions.schema!==1||!['references','authors','abstracts','input','snapshot'].every(k=>/^[a-f0-9]{64}$/.test(versions[k])))throw Error('Invalid network revisions');this.revisions=versions;}catch(e){Zotero.logError(e);for(const key of Object.keys(this.revisions))this.revisions[key]+=':unverified:'+Date.now();}}
     this.refreshSerial=0;
-    this.dead=false;this.graphJobs=new Map();this.cacheRoot=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-cache-v3');this.cacheWrite=Promise.resolve();this.dirty=true;this.fullDirty=true;this.dirtyItems=new Set();this.records=new Map();this.attachmentParents=new Map();this.partitionIndexes=new Map();this.generation++;this.path=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-citations.json');
+    this.dead=false;this.identityQueue=new Map();this.identitySeen=new Map();this.graphJobs=new Map();this.cacheRoot=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-cache-v3');this.cacheWrite=Promise.resolve();this.dirty=true;this.fullDirty=true;this.dirtyItems=new Set();this.records=new Map();this.attachmentParents=new Map();this.partitionIndexes=new Map();this.generation++;this.path=PathUtils.join(PathUtils.parent(CiteLensServices.path),'network-citations.json');
     try{if(await IOUtils.exists(this.path)){if((await IOUtils.stat(this.path)).size>30*1024*1024)throw Error('Cache too large');const data=JSON.parse(await IOUtils.readUTF8(this.path));if(data.schema!==1||!data.sources||typeof data.sources!=='object'||Array.isArray(data.sources))throw Error('Invalid cache');this.state=data;}}
     catch(e){Zotero.logError(e);this.state={schema:1,sources:{}};this.warning='关联缓存无法读取，可重新读取论文中的引文。';}
     this.indexPath=PathUtils.join(PathUtils.parent(this.path),'network-author-partitions.json');
@@ -62,7 +62,7 @@ var CiteLensNetwork = {
         if(this.dead||!this.isEnabled())return;
         const nodes=this.scope(snapshot,scope,''),ids=new Set(nodes.map(n=>n.id));
         const job=this.graphJob(snapshot,{nodes,edges:snapshot.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)),mode:'authors',cacheKey:scope+':',openEntities:[],limit:Number.MAX_SAFE_INTEGER,query:'',selected:'',positions:[]});
-        await this.presentation(job);await Zotero.Promise.delay(this.views.size?0:250);
+        const ready=await this.presentation(job);this.queueAuthorIdentity(ready.graph);await Zotero.Promise.delay(this.views.size?0:250);
       }
 
     }catch(e){failed=true;throw e;}finally{this.warming=false;if(!this.dead)this.scheduleWarmup(failed?180000:this.dirty?6000:6*3600000);}
@@ -93,24 +93,59 @@ var CiteLensNetwork = {
     if(metadata?.status==='matched'&&remote&&CiteLensCore.decide(local,[remote]).status==='matched')for(const field of ['journal','year','volume','issue','pages','PMID','PMCID'])if(!local[field]&&remote[field])local[field]=remote[field];
     return this.applyAbstract(local);
   },
+  queueAuthorIdentity(graph){
+    if(this.dead||!this.isEnabled()||!graph?.paperNodes?.length)return;this.identityQueue||=new Map();this.identitySeen||=new Map();const byPaper=new Map(),papers=graph.paperNodes,byID=new Map(papers.map(p=>[p.id,p]));
+    for(const node of graph.nodes||[]){if(node.kind!=='author'||this.authorORCIDOverride(node)||CiteLensNetworkCore.orcid(node.orcid)||this.cachedAuthorORCID(node,byID))continue;for(const id of node.members||[]){if(!byPaper.has(id))byPaper.set(id,[]);byPaper.get(id).push(node);}}
+    for(const paper of [...papers].sort((a,b)=>(Number(b.year)||0)-(Number(a.year)||0))){const authors=byPaper.get(paper.id),doi=CiteLensCore.recordDOI(paper);if(!doi||!authors?.length)continue;const key=doi+'|'+CiteLensCore.norm(paper.title),seen=this.identitySeen.get(key);if(seen&&seen>Date.now())continue;this.identityQueue.set(key,{paper,authors,papers});}
+    this.scheduleAuthorIdentity(4000);
+  },
+  scheduleAuthorIdentity(delay=2000){if(this.dead||!this.isEnabled()||this.identityRunning||this.identityTimer||!this.identityQueue?.size)return;const win=Zotero.getMainWindow?.();if(!win?.setTimeout)return;this.identityTimer=win.setTimeout(()=>{this.identityTimer=0;this.authorIdentityStep().catch(e=>Zotero.logError(e));},delay);},
+  async authorIdentityStep(){
+    if(this.identityRunning||this.dead||!this.isEnabled()||!this.identityQueue?.size)return;
+    const S=CiteLensServices,epoch=this.activityEpoch,cancelled=()=>this.dead||!this.isEnabled()||epoch!==this.activityEpoch;if(S.active>0||this.warming){this.scheduleAuthorIdentity(4000);return;}
+    const [key,entry]=this.identityQueue.entries().next().value;this.identityQueue.delete(key);this.identityRunning=true;let offline=false;
+    try{await S.lookup(entry.paper);if(cancelled())return;let i=0,changed=false;for(const node of entry.authors){if(cancelled())return;const result=await this.authorORCID(node,entry.papers,{cachedOnly:true,cancelled,persist:false});if(['available','ambiguous'].includes(result.status)){changed=true;}if(['available','ambiguous'].includes(result.status))for(const fn of this.authorORCIDListeners||[])try{fn(node.id);}catch(e){Zotero.logError(e);}if(++i%8===0)await Zotero.Promise.delay(0);}if(changed&&!cancelled())await S.persist();this.identitySeen.set(key,Date.now()+7*86400000);while(this.identitySeen.size>5000)this.identitySeen.delete(this.identitySeen.keys().next().value);}
+    catch(_){offline=true;if(!cancelled()){this.identitySeen.set(key,Date.now()+300000);this.identityQueue.set(key,entry);}}
+    finally{this.identityRunning=false;if(!this.dead&&this.isEnabled())this.scheduleAuthorIdentity(offline?60000:2000);}
+  },
   authorIdentitySignature(node,rows){return JSON.stringify([node.nameKey,CiteLensCore.norm(node.title),rows.map(p=>[p.id,CiteLensCore.recordDOI(p),CiteLensCore.norm(p.title),(p.creators||[]).map(a=>CiteLensNetworkCore.authorKey(a))])]);},
+  authorORCIDOverride(node){
+    const entry=CiteLensServices.state.authorORCIDOverrides?.[node.id];
+    if(!entry||entry.nameKey!==node.nameKey||entry.name!==CiteLensCore.norm(node.title))return null;
+    return entry.orcid===''||CiteLensNetworkCore.orcid(entry.orcid)?entry:null;
+  },
+  subscribeAuthorORCID(fn){this.authorORCIDListeners||=new Set();this.authorORCIDListeners.add(fn);return ()=>this.authorORCIDListeners.delete(fn);},
+  async setAuthorORCID(node,input){
+    if(this.dead||node.kind!=='author')throw Error('无法编辑此作者');
+    const raw=String(input??'').trim().replace(/\/$/,''),oid=CiteLensNetworkCore.orcid(raw);
+    if(input!==null&&raw&&!oid)throw Error('请输入有效的 ORCID 编号或 orcid.org 链接');
+    const S=CiteLensServices,entries=S.state.authorORCIDOverrides||={},previous=entries[node.id];
+    const next=input===null?undefined:{orcid:oid,nameKey:node.nameKey,name:CiteLensCore.norm(node.title),source:'user',updatedAt:Date.now()};
+    if(next)entries[node.id]=next;else delete entries[node.id];S.state.authorORCIDOverrides=entries;
+    try{await S.persist();}catch(e){if(entries[node.id]===next){if(previous)entries[node.id]=previous;else delete entries[node.id];}throw e;}
+    for(const fn of this.authorORCIDListeners||[])try{fn(node.id);}catch(e){Zotero.logError(e);}
+    return next;
+  },
   cachedAuthorORCID(node,papersByID){
+    const manual=this.authorORCIDOverride(node);if(manual)return manual.orcid;
     const hit=CiteLensServices.state.networkAuthorIDs?.[node.id];if(hit?.value?.status!=='available'||hit.expires<=Date.now())return '';
     const rows=(node.members||[]).map(id=>papersByID.get(id)).filter(p=>p&&CiteLensCore.recordDOI(p)).sort((a,b)=>(Number(b.year)||0)-(Number(a.year)||0));
     return hit.signature===this.authorIdentitySignature(node,rows)?CiteLensNetworkCore.orcid(hit.value.orcid):'';
   },
-  async authorORCID(node,papers,{force=false,cancelled=()=>false}={}){
+  async authorORCID(node,papers,{force=false,cachedOnly=false,persist=true,cancelled=()=>false}={}){
+    const manual=this.authorORCIDOverride(node);if(manual)return {status:manual.orcid?'available':'missing',orcid:manual.orcid,source:'user'};
     const C=CiteLensCore,NC=CiteLensNetworkCore,S=CiteLensServices,known=NC.orcid(node.orcid||node.ORCID);if(known)return {status:'available',orcid:known};
     const members=new Set(node.members||[]),rows=papers.filter(p=>members.has(p.id)&&C.recordDOI(p)).sort((a,b)=>(Number(b.year)||0)-(Number(a.year)||0));
-    const signature=this.authorIdentitySignature(node,rows),cache=S.state.networkAuthorIDs||={},hit=cache[node.id];if(!force&&hit?.signature===signature&&hit.expires>Date.now())return hit.value;
+    const signature=this.authorIdentitySignature(node,rows),cache=S.state.networkAuthorIDs||={},hit=cache[node.id];if(!force&&!cachedOnly&&hit?.signature===signature&&hit.expires>Date.now())return hit.value;
     const extract=(paper,remote)=>{
       if(C.recordDOI(remote)!==C.recordDOI(paper))return '';
       const creators=paper.creators||[],indices=creators.map((a,i)=>({a,i})).filter(({a})=>NC.authorKey(a)===node.nameKey||C.norm([a.firstName,a.lastName].filter(Boolean).join(' '))===C.norm(node.title));if(indices.length!==1)return '';
       return NC.orcid(NC.enrichCreators(creators,remote.creators||[])[indices[0].i]?.ORCID);
     };
     const found=new Map();for(const paper of rows){const entry=S.state.cache?.[C.identity(paper)]?.value;if(entry){const remote=entry.doiRecord||entry.ranked?.[0]?.record||{};if(entry.status!=='matched'&&C.norm(remote.title)!==C.norm(paper.title))continue;const oid=extract(paper,remote);if(oid)found.set(oid,C.recordDOI(paper));}}
-    const finish=async value=>{if(cancelled()||this.dead)return {status:'cancelled'};cache[node.id]={signature,value,expires:Date.now()+(value.status==='available'?30*86400000:value.status==='offline'?300000:86400000)};for(const key of Object.keys(cache).sort((a,b)=>cache[b].expires-cache[a].expires).slice(500))delete cache[key];S.state.networkAuthorIDs=cache;await S.persist();return value;};
+    const finish=async value=>{if(cancelled()||this.dead)return {status:'cancelled'};cache[node.id]={signature,value,expires:Date.now()+(value.status==='available'?30*86400000:value.status==='offline'?300000:86400000)};for(const key of Object.keys(cache).sort((a,b)=>cache[b].expires-cache[a].expires).slice(5000))delete cache[key];S.state.networkAuthorIDs=cache;if(persist)await S.persist();return value;};
     if(found.size>1)return finish({status:'ambiguous'});if(found.size===1){const [orcid,DOI]=[...found][0];return finish({status:'available',orcid,DOI});}
+    if(cachedOnly)return {status:'pending'};
     let offline=false;
     for(const paper of rows.slice(0,6)){
       if(cancelled()||this.dead)return {status:'cancelled'};
@@ -185,7 +220,7 @@ var CiteLensNetwork = {
   },
   async referenceKey(reader,pdf){
     const item=await Zotero.Items.getAsync(reader.itemID);if(!item?.getFilePathAsync)return null;const file=await item.getFilePathAsync();if(!file)return null;const stat=await IOUtils.stat(file);
-    return this.cacheKey(['references-v4-bibliography-authors',item.libraryID,item.key,item.dateModified,stat.size,stat.lastModified,pdf.fingerprints||pdf.fingerprint||'',pdf.numPages]);
+    return this.cacheKey(['references-v5',this.revisions.references,item.libraryID,item.key,item.dateModified,stat.size,stat.lastModified,pdf.fingerprints||pdf.fingerprint||'',pdf.numPages]);
   },
   // Keep one job per unchanged snapshot/scope/mode, including jobs still running.
   // Changing the visible tab never cancels or restarts inference.
@@ -197,7 +232,7 @@ var CiteLensNetwork = {
     let job=this.graphJobs.get(key);if(job&&job.snapshot===snapshot&&!job.controller.signal.aborted){this.graphJobs.delete(key);this.graphJobs.set(key,job);return job;}
     job?.controller.abort();const win=Zotero.getMainWindow();
     job={snapshot,mode:'authors',expanded:!!payload.openEntities?.length,controller:new win.AbortController(),listeners:new Set(),value:null,progress:null};this.graphJobs.set(key,job);
-    job.promise=(async()=>{await Zotero.Promise.delay(0);const emit=p=>{job.progress=p;for(const fn of job.listeners)fn(p);};const result=payload.openEntities?.length?await this.compute('expand',{graph:await this.graphJob(snapshot,{...payload,openEntities:[],selected:'',positions:[]}).promise,openEntities:payload.openEntities,selected:payload.selected,positions:payload.positions},{signal:job.controller.signal}):await this.map({...payload,query:''},{signal:job.controller.signal,progress:emit});if(job.controller.signal.aborted)throw Error('已取消');job.value=result;return result;})().catch(e=>{if(this.graphJobs.get(key)===job)this.graphJobs.delete(key);throw e;});job.promise.catch(()=>{});
+    job.promise=(async()=>{await Zotero.Promise.delay(0);const emit=p=>{job.progress=p;for(const fn of job.listeners)fn(p);};const result=payload.openEntities?.length?await this.compute('expand',{graph:await this.graphJob(snapshot,{...payload,openEntities:[],selected:'',positions:[]}).promise,openEntities:payload.openEntities,selected:payload.selected,positions:payload.positions},{signal:job.controller.signal}):await this.map({...payload,query:''},{signal:job.controller.signal,progress:emit});if(job.controller.signal.aborted)throw Error('已取消');job.value=result;if(!job.expanded)this.queueAuthorIdentity(result);return result;})().catch(e=>{if(this.graphJobs.get(key)===job)this.graphJobs.delete(key);throw e;});job.promise.catch(()=>{});
     // Navigation variants cannot evict the expensive base networks.
     for(const expanded of [false,true]){const entries=[...this.graphJobs].filter(([,value])=>value.expanded===expanded);while(entries.length>4){const [oldest,previous]=entries.shift();previous.controller.abort();this.graphJobs.delete(oldest);}}
     return job;
@@ -284,11 +319,11 @@ var CiteLensNetwork = {
     }
     return {results,stats,cancelled:false};
   },
-  async openItem(node){await Zotero.getActiveZoteroPane().selectItem(node.itemID);},
+  async openItem(node){return CiteLensUI.openLibraryItem(Zotero.getMainWindow().document,await Zotero.Items.getAsync(node.itemID));},
   async openPDF(node,evidence=null){
-    const id=evidence?.attachmentID||node.attachments.find(a=>a.type==='application/pdf')?.id||node.attachments[0]?.id;if(!id)return this.openItem(node);
+    const id=evidence?.attachmentID||node.attachments?.find(a=>a.type==='application/pdf')?.id||node.attachments?.[0]?.id;if(!id)return this.openItem(node);
     const item=await Zotero.Items.getAsync(id);if(!item||item.deleted)throw Error('附件已移除，请刷新文献库');
     await Zotero.Reader.open(id,Number.isInteger(evidence?.pageIndex)?{pageIndex:evidence.pageIndex}:undefined);
   },
-  async stop(){this.dead=true;Zotero.getMainWindow()?.clearTimeout(this.warmupTimer);this.clearGraphJobs();for(const w of [...this.workers])w.cancel?.();this.workers.clear();this.generation++;if(this.observer)Zotero.Notifier.unregisterObserver(this.observer);for(const close of [...this.views])close();this.views.clear();this.listeners.clear();this.data=null;this.records?.clear();this.partitionIndexes.clear();await this.write?.catch(()=>{});await this.indexWrite?.catch(()=>{});await this.cacheWrite?.catch(()=>{});}
+  async stop(){this.dead=true;Zotero.getMainWindow()?.clearTimeout(this.warmupTimer);Zotero.getMainWindow()?.clearTimeout(this.identityTimer);this.identityTimer=0;this.identityQueue?.clear();this.identitySeen?.clear();this.clearGraphJobs();for(const w of [...this.workers])w.cancel?.();this.workers.clear();this.generation++;if(this.observer)Zotero.Notifier.unregisterObserver(this.observer);for(const close of [...this.views])close();this.views.clear();this.listeners.clear();this.authorORCIDListeners?.clear();this.data=null;this.records?.clear();this.partitionIndexes.clear();await this.write?.catch(()=>{});await this.indexWrite?.catch(()=>{});await this.cacheWrite?.catch(()=>{});}
 };

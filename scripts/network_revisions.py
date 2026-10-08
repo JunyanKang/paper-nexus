@@ -5,6 +5,7 @@ from pathlib import Path
 def revisions(root=None):
     root=root or Path(__file__).resolve().parents[1]
     groups={
+        'references':['core.js','bibliography.js','citation-links.js'],
         'authors':['network.js','core.js','authors.js','network-core.js','network-map.js','network-view.js'],
         'abstracts':['core.js','authors.js','abstracts.js'],
         'input':['core.js','network-core.js'],

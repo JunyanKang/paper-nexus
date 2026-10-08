@@ -13,3 +13,8 @@ test('alternating page margins and methods boundaries preserve only bibliography
 test('author list wrapping at the left margin does not drop first authors',()=>{
  const refs=B.parse([{pageIndex:0,width:600,height:800,items:[item('REFERENCES',40,730),item('Smith, A., Jones, B., White, C., and',40,710),item('Green, D. (2020). Local translation in axons.',40,699),item('Nature 10, 20–30.',40,688),item('Liu, H., and Wu, C. (2017). Rab7 Signaling? Int. J. Mol. Sci. 18, 324.',40,670)]}]);assert.equal(refs.length,2);assert.equal(refs[0].author,'Smith');assert.equal(refs[0].creators.length,4);assert.equal(refs[1].creators[1].lastName,'Wu');assert.equal(refs[1].title,'Rab7 Signaling?');assert.equal(CiteLensCore.findCitations('Liu and Wu, 2017',refs).length,1);
 });
+test('chapter continuation is not mistaken for an author and swallowing the following paper',()=>{
+ assert.equal(B.authorStart('preservation, J.G. Baust and J.M. Baust, eds. (CRC Press), pp. 15–62.'),false);
+ for(const text of ['van der Ohe, C.G., (2006).','Gonza´ lez-Billault, C. (2015).','Tong, G., Endersfelder, S.'])assert.equal(B.authorStart(text),true);
+ const refs=B.parse([{pageIndex:0,width:600,height:800,items:[item('REFERENCES',40,740),item('Taylor, M.J. (2007). Biology of Cell Survival in the Cold. In Advances in Bio-',40,720),item('preservation, J.G. Baust and J.M. Baust, eds. (CRC Press), pp. 15–62.',40,709),item('Tong, G., Endersfelder, S., and Rosenthal, L.M. (2013). Effects of moderate hypothermia.',40,690),item('Brain Res. 1504, 74–84.',40,679)]}]);assert.equal(refs.length,2);assert.equal(refs[1].author,'Tong');assert.match(refs[0].raw,/Biopreservation/);
+});

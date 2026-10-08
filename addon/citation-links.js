@@ -61,6 +61,23 @@ var CiteLensCitationLinks={
     const run=page.pointRuns?.find(run=>run.rects.some(r=>point[0]>=r[0]-.3&&point[0]<=r[2]+.3&&point[1]>=r[1]-.3&&point[1]<=r[3]+.3));
     return run?this.result(CiteLensCore.citationMentions(run.text,{nativeNumeric:true}),refs):null;
   },
+  internalLinkCache:new WeakMap(),
+  internalLink(overlay,page,refs){
+    if(!overlay||!page)return null;
+    let cache=this.internalLinkCache.get(page);if(!cache||cache.refs!==refs){cache={refs,links:new Map()};this.internalLinkCache.set(page,cache);}
+    const key=JSON.stringify(overlay.position);if(cache.links.has(key))return cache.links.get(key);
+    const result=this.resolveInternalLink(overlay,page,refs);cache.links.set(key,result);return result;
+  },
+  resolveInternalLink(overlay,page,refs){
+    if(overlay?.type!=='internal-link'||!page)return null;
+    // Publisher links often span several citations, split over multiple lines.
+    // Match their source glyphs, never assume the linked page identifies a paper.
+    const rects=overlay.position?.rects||[],offsets=(page.chars||[]).filter(c=>c.rect&&rects.some(r=>{const x=(c.rect[0]+c.rect[2])/2,y=(c.rect[1]+c.rect[3])/2;return x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];})).map(c=>page.offsets.get(c.offset)).filter(Number.isFinite);
+    const mentions=page.mentions.filter(m=>offsets.some(o=>o>=m.start&&o<m.end));
+    if(!mentions.length)return null;
+    const result=this.resolve({offset:(page.chars||[]).find(c=>{const o=page.offsets.get(c.offset);return offsets.includes(o)&&mentions.some(m=>o>=m.start&&o<m.end);})?.offset},page,refs);
+    return result.records.length?result:null;
+  },
   resolve(overlay,page,refs){
     const C=CiteLensCore,word=overlay?.word||[],offset=page?.offsets.get(word[0]?.offset??overlay?.offset);
     if(!page||offset===undefined)return {records:[],unresolved:[],expected:0,text:'',status:'unavailable'};

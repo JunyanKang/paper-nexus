@@ -14,7 +14,8 @@ var CiteLensBibliography = {
     return CiteLensCore.fromReference(copy);
   },
   authorStart(text) {
-    return /^[\p{L}][\p{L}'’\- ]{1,40},\s*(?:[A-Z]\.|[\p{Lu}][\p{Ll}])/u.test(text)||/^[\p{Lu}][\p{L}'’\-]*(?: [\p{L}'’\-]+){0,3} [A-Z]{1,5}(?:,|\.\s+(?:18|19|20)\d{2})/u.test(text);
+    text=CiteLensCore.repairPDFAccents(text);
+    return /^(?:(?:van|von|de|del|der|den|da|di|la|le) +)*[\p{Lu}][\p{L}'’\- ]{1,40},\s*(?:[A-Z]\.|[\p{Lu}][\p{Ll}])/u.test(text)||/^[\p{Lu}][\p{L}'’\-]*(?: [\p{L}'’\-]+){0,3} [A-Z]{1,5}(?:,|\.\s+(?:18|19|20)\d{2})/u.test(text);
   },
   lines(items,width,pageIndex) {
     const usable=items.filter(x=>x.str?.trim()&&x.transform?.length>=6&&Math.abs(x.transform[0])>=Math.abs(x.transform[1])).map(x=>({text:x.str,x:x.transform[4],y:x.transform[5],height:Math.abs(x.height||x.transform[3]||8),width:x.width||0}));
