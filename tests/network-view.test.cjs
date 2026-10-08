@@ -81,3 +81,7 @@ test('author search exposes multiple real identities instead of their community 
  model.searchActive=false;model.matches=[];const cleared=V.scene(model,idx);assert.equal(cleared.nodes,before.nodes);assert.ok(!cleared.nodes[0].hideLabel);
  model.searchActive=true;model.matches=['missing'];assert.equal(V.scene(model,idx).nodes,before.nodes);
 });
+
+test('cached label placement retains fresh hover state and invalidates changed geometry',()=>{
+ const V=require('../addon/network-view.js'),place=V.labelPlacer(),make=(x,alpha)=>({id:'a',priority:1,r:4,rect:{x,y:40,w:80,h:20},alpha,picked:alpha===1}),a=make(40,.3);assert.deepEqual(place([a],400,300),V.labels([a],400,300));const b=make(40,1),next=place([b],400,300);assert.equal(next[0].alpha,1);assert.equal(next[0].picked,true);for(const [x,w] of [[200,400],[390,400],[40,65]]){const c=make(x,1);assert.deepEqual(place([c],w,300),V.labels([c],w,300));}place.clear();assert.deepEqual(place([a],400,300),V.labels([a],400,300));
+});

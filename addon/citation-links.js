@@ -63,8 +63,16 @@ var CiteLensCitationLinks={
     if(nearby.length===1)return nearby[0];
     const grouped=rows.filter(l=>range&&l.start>=range[0]&&l.end<=range[1]);return grouped.length===1?grouped[0]:null;
   },
+  referenceIndexes:new WeakMap(),
+  referenceIndex(refs){
+    // Parsed reference arrays are replaced, never edited, on reindexing.
+    let index=this.referenceIndexes.get(refs);if(index?.size===refs.length)return index;
+    index={size:refs.length,authors:new Map(),numbers:new Map()};
+    for(const r of refs){const key=CiteLensCore.norm(r.author).replace(/ /g,'')+'|'+String(r.year),list=index.authors.get(key)||[];list.push(r);index.authors.set(key,list);if(r.number!==undefined){const number=Number(r.number),rows=index.numbers.get(number)||[];rows.push(r);index.numbers.set(number,rows);}}
+    this.referenceIndexes.set(refs,index);return index;
+  },
   result(mentions,refs){
-    const C=CiteLensCore,resolved=mentions.map(m=>C.resolveMention(m,refs)),records=[...new Map(resolved.flatMap(x=>x.records).map(r=>[C.identity(r),r])).values()],unresolved=resolved.flatMap(x=>x.unresolved);
+    const C=CiteLensCore,index=this.referenceIndex(refs),resolved=mentions.map(m=>C.resolveMention(m,[...new Set(m.keys.flatMap(k=>k.number!==undefined?index.numbers.get(Number(k.number))||[]:index.authors.get(C.norm(k.author).replace(/ /g,'')+'|'+k.year)||[]))])),records=[...new Map(resolved.flatMap(x=>x.records).map(r=>[C.identity(r),r])).values()],unresolved=resolved.flatMap(x=>x.unresolved);
     return {records,unresolved,expected:resolved.reduce((n,x)=>n+x.expected,0),text:mentions.map(m=>m.text).join('; '),status:records.length?(unresolved.length?'partial':'matched'):'unresolved'};
   },
   atPoint(page,point,refs){
@@ -74,12 +82,23 @@ var CiteLensCitationLinks={
   },
   pointed(page,point,refs){
     if(!page||!point)return null;
-    const glyph=(page.chars||[]).find(c=>!c.ignorable&&c.rect&&point[0]>=c.rect[0]&&point[0]<=c.rect[2]&&point[1]>=c.rect[1]&&point[1]<=c.rect[3]);
+    const spatial=this.pointerIndex(page),contains=c=>point[0]>=c.rect[0]&&point[0]<=c.rect[2]&&point[1]>=c.rect[1]&&point[1]<=c.rect[3];let glyph=(spatial.grid.get(Math.floor(point[0]/32)+','+Math.floor(point[1]/32))||[]).find(contains);for(const entry of spatial.wide){if(glyph&&entry.order>spatial.order.get(glyph))break;if(contains(entry.char)){glyph=entry.char;break;}}
     if(!glyph)return null;
-    const offset=page.offsets.get(glyph.offset),run=page.numericRuns?.find(r=>r.offsets.includes(glyph.offset));
+    const offset=page.offsets.get(glyph.offset),run=spatial.runs.get(glyph.offset);
     if(run){const at=run.offsets.indexOf(glyph.offset);return this.precise(CiteLensCore.citationMentions(run.text,{nativeNumeric:true})[0],at,refs);}
     const mention=page.mentions.find(m=>offset>=m.start&&offset<m.end);
     return mention?this.precise(mention,offset-mention.start+(mention.textOffset||0),refs):null;
+  },
+  pointerIndexes:new WeakMap(),
+  pointerIndex(page){
+    let index=this.pointerIndexes.get(page);if(index?.chars===page.chars)return index;
+    index={chars:page.chars,grid:new Map(),runs:new Map(),wide:[],order:new Map()};
+    for(const [order,c] of (page.chars||[]).entries()){if(c.ignorable||!c.rect||c.rect.length!==4||!c.rect.every(Number.isFinite))continue;const [left,bottom,right,top]=c.rect;if(right<left||top<bottom)continue;index.order.set(c,order);const x0=Math.floor(left/32),x1=Math.floor(right/32),y0=Math.floor(bottom/32),y1=Math.floor(top/32);
+      // Malformed or enormous glyph bounds must never allocate an unbounded grid.
+      if(![x0,x1,y0,y1].every(Number.isSafeInteger)||(x1-x0+1)*(y1-y0+1)>64){index.wide.push({char:c,order});continue;}
+      for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){const key=x+','+y,rows=index.grid.get(key)||[];rows.push(c);index.grid.set(key,rows);}}
+    for(const run of page.numericRuns||[])for(const offset of run.offsets)if(!index.runs.has(offset))index.runs.set(offset,run);
+    this.pointerIndexes.set(page,index);return index;
   },
   precise(mention,offset,refs){
     if(!mention)return null;

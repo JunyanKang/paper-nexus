@@ -1,17 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
-const context=vm.createContext({});vm.runInContext(fs.readFileSync('addon/dock-motion.js','utf8'),context);const motion=context.CiteLensDockMotion;
-test('mesh unfolds exactly to the panel with no residual distortion',()=>{
- for(const a of [{x:280,y:460},{x:20,y:-30},{x:180,y:200}])for(let i=0;i<=96;i++){
-  const v=i/96,r=motion.row(1,v,324,432,a);assert.ok(Math.abs(r.center-162)<1e-8);assert.ok(Math.abs(r.y-v*432)<1e-8);assert.equal(r.scale,1);
- }
-});
-test('closed mesh converges to the icon independent of panel position',()=>{
- for(const a of [{x:280,y:460},{x:20,y:-30},{x:180,y:200}])for(let i=0;i<=96;i++){
-  const r=motion.row(0,i/96,324,432,a);assert.equal(r.center,a.x);assert.equal(r.y,a.y);
- }
-});
-test('mesh has finite, continuous geometry and no inverted strips for an icon above or below',()=>{
- for(const a of [{x:280,y:460},{x:20,y:-30},{x:180,y:200},{x:300,y:436}])for(let p=0;p<=1;p+=.002){
-  let previous=-Infinity;for(let i=0;i<=96;i++){const v=i/96,r=motion.row(p,v,324,432,a);assert.ok(Number.isFinite(r.center+r.y+r.scale));assert.ok(r.scale>0&&r.scale<=1);assert.ok(r.y>=previous-1e-8);previous=r.y;const next=motion.row(p+.00001,v,324,432,a);assert.ok(Math.abs(next.y-r.y)<.1);}
- }
-});
+function setup(reduced=false){const listeners=new Map(),query={matches:reduced,addEventListener(){},removeEventListener(){}},win={matchMedia:()=>query,getComputedStyle:()=>({transform:'none'}),addEventListener:(k,v)=>listeners.set(k,v),removeEventListener:k=>listeners.delete(k)},doc={defaultView:win,addEventListener(){},removeEventListener(){}},animations=[],settled=[];let focus=0,fits=0;
+ const panel={ownerDocument:doc,hidden:true,inert:true,style:{},dataset:{},contains:()=>false,getBoundingClientRect:()=>({x:100,y:100,width:300,height:400}),animate(frames,options){let resolve,reject;const animation={frames,options,currentTime:0,playbackRate:1,pause(){},play(){},finished:new Promise((r,j)=>{resolve=r;reject=j;}),complete:()=>resolve(),cancel:()=>reject(Error('cancelled'))};animations.push(animation);return animation;}},orb={focus:()=>focus++,getBoundingClientRect:()=>({x:370,y:20,width:30,height:30})},ctx=vm.createContext({});vm.runInContext(fs.readFileSync('addon/dock-motion.js','utf8'),ctx);const motion=ctx.CiteLensDockMotion.create(panel,orb,()=>fits++,v=>settled.push(v));return {motion,panel,animations,settled,listeners,get fits(){return fits;}};}
+test('opening uses compositor keyframes anchored at the toolbar, then restores live interaction',async()=>{const s=setup();s.motion.show(true);const a=s.animations[0];assert.equal(s.panel.style.transformOrigin,'285px -65px');assert.equal(s.panel.inert,true);assert.equal(s.panel.dataset.dockRenderer,'compositor');assert.equal(a.options.duration,360);assert.equal(a.currentTime,0);a.complete();await Promise.resolve();assert.equal(s.panel.hidden,false);assert.equal(s.panel.inert,false);assert.equal(s.panel.style.willChange,'');assert.deepEqual(s.settled,[true]);});
+test('reversing an active motion reuses its timeline rather than taking a new snapshot',async()=>{const s=setup();s.motion.show(true);const a=s.animations[0];a.currentTime=140;s.motion.show(false);assert.equal(s.animations.length,1);assert.equal(a.currentTime,140);assert.ok(a.playbackRate<0);a.complete();await Promise.resolve();assert.equal(s.panel.hidden,true);assert.deepEqual(s.settled,[false]);});
+test('snap, reduced motion, and disposal leave no animation or listener behind',async()=>{const s=setup();s.motion.show(true);s.motion.snap(false);assert.equal(s.panel.hidden,true);s.motion.dispose();assert.equal(s.listeners.size,0);s.motion.show(true);assert.equal(s.animations.length,1);const r=setup(true);r.motion.show(true);assert.equal(r.animations.length,0);assert.equal(r.panel.hidden,false);assert.equal(r.fits,1);await Promise.resolve();});

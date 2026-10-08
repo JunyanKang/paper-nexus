@@ -43,9 +43,17 @@ var CiteLensServices = {
     if(removed){this.cacheGeneration=(this.cacheGeneration||0)+1;await this.persist();}return {removed,bytes};
   },
   persist() {
-    const data=JSON.stringify(this.state,null,2);
-    this.writePromise=(this.writePromise||Promise.resolve()).catch(()=>{}).then(()=>IOUtils.writeUTF8(this.path,data,{tmpPath:this.path+'.tmp'}));return this.writePromise;
+    this.persistDirty=true;
+    if(this.persistFlight)return this.persistFlight;
+    // Coalesce a burst before serialization, and include changes made during I/O.
+    // Every caller still waits until its state has reached the atomic file write.
+    const task=Promise.resolve().then(async()=>{
+      try{while(this.persistDirty){this.persistDirty=false;const data=JSON.stringify(this.state);await IOUtils.writeUTF8(this.path,data,{tmpPath:this.path+'.tmp'});}}
+      finally{if(this.persistFlight===task)this.persistFlight=null;}
+    });
+    this.persistFlight=this.writePromise=task;return task;
   },
+
   async request(url) {
     if(this.dead)throw Error('插件已关闭');
     if(!/^https:\/\/api\.crossref\.org\//.test(url))throw Error('不支持的数据源地址');

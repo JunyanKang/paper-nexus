@@ -58,3 +58,13 @@ test('numeric pointer keeps dash range and selects individual printed numbers',(
 test('citations divided by a page boundary retain the same paper on both pages',()=>{
  const chars=(t)=>[...t].map((c,offset)=>({c,offset,rect:[offset,10,offset+1,20]})),pages=new Map([[0,L.page(chars('Evidence from Kolb '))],[1,L.page(chars('and Smith, 2001, shows this.'))]]);L.bridgePages(pages);const refs=[ref('Kolb','2001','','Smith')];assert.deepEqual(L.pointed(pages.get(0),[15.5,15],refs).records,refs);assert.deepEqual(L.pointed(pages.get(1),[6.5,15],refs).records,refs);
 });
+
+test('spatial lookup preserves glyph order at tile boundaries and limits malformed bounds',()=>{
+ const refs=[ref('Smith','2020'),ref('Jones','2021')],text='Smith, 2020; Jones, 2021',chars=[...text].map((c,offset)=>({c,offset,rect:[offset*4,30,offset*4+4,34]})),page=L.page(chars);
+ for(const point of [[32,32],[64,32],[32,30]]){const glyph=chars.find(c=>point[0]>=c.rect[0]&&point[0]<=c.rect[2]&&point[1]>=c.rect[1]&&point[1]<=c.rect[3]),m=page.mentions.find(m=>glyph.offset>=m.start&&glyph.offset<m.end);assert.deepEqual(L.pointed(page,point,refs),m?L.precise(m,glyph.offset-m.start,refs):null);}
+ page.chars=[{...chars[0],rect:[-1e20,-1e20,1e20,1e20]},...chars];const idx=L.pointerIndex(page);assert.ok(idx.grid.size<20);assert.equal(idx.wide.length,1);assert.deepEqual(L.pointed(page,[65,32],refs).records,[refs[0]]);
+ page.chars=chars;assert.deepEqual(L.pointed(page,[65,32],refs).records,[refs[1]]);
+});
+test('reference index preserves ambiguity and rebuilds for replaced and extended arrays',()=>{
+ const refs=[{number:2,title:'First'}],mention=C.citationMentions('[2]');assert.equal(L.result(mention,refs).records.length,1);refs.push({number:2,title:'Conflicting'});assert.equal(L.result(mention,refs).records.length,0);const replacement=[{number:2,title:'Replacement'}];assert.equal(L.result(mention,replacement).records[0].title,'Replacement');
+});

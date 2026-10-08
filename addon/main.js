@@ -3,10 +3,11 @@ var CiteLens = {
   async start() {
     this.dead=false;this.stopTask=null;this.assetResource='paper-nexus-'+this.version.replace(/\./g,'-')+'-'+Services.uuid.generateUUID().toString().replace(/[{}]/g,'');this.ensureAssets();
     await Zotero.uiReadyPromise;await CiteLensServices.init();CiteLensTranslation.init();await CiteLensThemes.initialize();this.dead=false;CiteLensUpdater.start(this).catch(e=>Zotero.logError(e));this.setNetworkEnabled(CiteLensServices.state.settings.networkEnabled===true,{persist:false}).catch(e=>Zotero.logError(e));
-    this.toolbarHandler=e=>{if(this.dead)return;const button=this.toolbar(e.doc,e.reader);if(!button.isConnected)e.append(button);this.normalizeToolbar(e.doc);e.doc.defaultView.setTimeout(()=>{if(!this.dead)this.normalizeToolbar(e.doc);},0);};
+    this.toolbarHandler=e=>{if(this.dead)return;const button=this.toolbar(e.doc,e.reader);if(!button.isConnected)e.append(button);this.normalizeToolbar(e.doc);e.doc.defaultView.setTimeout(()=>{if(!this.dead)this.normalizeToolbar(e.doc);this.scheduleScan();},0);};
     Zotero.Reader.registerEventListener('renderToolbar',this.toolbarHandler,this.id);
     for(const win of Zotero.getMainWindows())this.addWindow(win);
-    this.scan();this.timer=Zotero.getMainWindow().setInterval(()=>this.scan(),1200);Zotero.CiteLens=this;
+    this.readerObserver=Zotero.Notifier.registerObserver({notify:()=>this.scheduleScan()},['tab','file'],'paper-nexus-readers');
+    this.scan();this.timer=Zotero.getMainWindow().setInterval(()=>this.scan(),15000);Zotero.CiteLens=this;
   },
   prepareNetwork(){return this.networkReady ||= CiteLensNetwork.start().catch(e=>{this.networkReady=null;throw e;});},
   async setNetworkEnabled(enabled,{persist=true}={}){
@@ -40,9 +41,17 @@ var CiteLens = {
     const buttons=[];for(const selector of ['[data-paper-voice="toolbar"]','[data-cite-lens="toolbar"]']){const found=[...doc.querySelectorAll(selector)];if(!found.length)continue;const keep=(selector.includes('cite-lens')?this.toolbarNodes.get(doc):null)||found.find(node=>node._paperToolbarLive)||found[0];for(const duplicate of found)if(duplicate!==keep)duplicate.remove();buttons.push(keep);}
     const tail=[...host.children].slice(-buttons.length);if(buttons.some((button,i)=>button.parentNode!==host||tail[i]!==button))host.append(...buttons);
   },
+  initializedReaders:new WeakSet(),
+  readerReady(reader){return !!reader._internalReader?._primaryView?._iframeWindow?.PDFViewerApplication?.pdfDocument?.getProcessedData;},
+  watchReader(reader){
+    if(this.initializedReaders.has(reader)||!reader._initPromise)return;this.initializedReaders.add(reader);
+    reader._initPromise.then(async()=>{for(let i=0;i<200&&!this.dead&&Zotero.Reader._readers.includes(reader);i++){if(this.readerReady(reader)){this.scheduleScan();return;}await Zotero.Promise.delay(150);}}).catch(e=>Zotero.logError(e));
+  },
+  scheduleScan(){if(this.dead||this.scanTimer)return;const win=Zotero.getMainWindow();this.scanTimer=win.setTimeout(()=>{this.scanTimer=0;this.scan();},80);},
+  activeReader(reader){const id=reader._tabID||reader.tabID;return !id||Zotero.getMainWindows().some(w=>w.Zotero_Tabs?.selectedID===id);},
   scan() {
     if(this.dead)return;for(const win of this.windows.keys())this.libraryToolbar(win);const active=new Set(Zotero.Reader._readers);
-    for(const reader of active){try{this.attach(reader);}catch(e){Zotero.logError(e);}}
+    for(const reader of active){try{this.watchReader(reader);const state=this.readers.get(reader),views=[reader._internalReader?._primaryView,reader._internalReader?._secondaryView].filter(v=>v?._iframeWindow?.document?.body);if(!state||state.doc!==reader._iframeWindow?.document||views.some(v=>!state.hooks.some(h=>h.doc===v._iframeWindow.document))){if(state&&state.doc!==reader._iframeWindow?.document)this.detach(reader);this.attach(reader);}else if(!state.refPromise&&this.activeReader(reader)&&this.readerReady(reader))this.references(reader).then(()=>this.enhance(reader)).catch(e=>Zotero.logError(e));}catch(e){Zotero.logError(e);}}
     for(const reader of this.readers.keys())if(!active.has(reader))this.detach(reader);
   },
   attach(reader) {
@@ -58,6 +67,7 @@ var CiteLens = {
         // citation for one or more frames before our replacement is ready.
         this.enhance(reader);
       });state.observer.observe(doc.body,{childList:true,characterData:true,attributes:true,attributeFilter:['class'],subtree:true});
+      const loaded=()=>this.scheduleScan();doc.addEventListener('load',loaded,true);state.hooks.push(()=>doc.removeEventListener('load',loaded,true));
       const reflow=()=>{for(const popup of doc.querySelectorAll('.cl-native-host,.cl-floating')){CiteLensUI.fitAuthors(popup,doc);CiteLensUI.fitPopup(popup,doc);}doc._clAbstract?.position?.();};doc.defaultView.addEventListener('resize',reflow);state.hooks.push(()=>doc.defaultView.removeEventListener('resize',reflow));
       const key=e=>{if(e.key==='Escape'&&!e.defaultPrevented){doc.querySelector('.cl-floating')?.remove();}};doc.addEventListener('keydown',key);state.hooks.push(()=>doc.removeEventListener('keydown',key));
     }
@@ -102,7 +112,7 @@ var CiteLens = {
         timer=pdfdoc.defaultView.setTimeout(async()=>{try{await this.references(reader);if(!this.dead&&ticket===hoverEpoch)this.floating(doc,reader,refs.map(ref=>this.referenceRecord(reader,ref)),xy);}catch(e){Zotero.logError(e);}},500);
       };pdfdoc.addEventListener('pointermove',move,{passive:true});const cleanup=()=>{doc.documentElement.classList.remove('cl-pointer-citation');pdfdoc.removeEventListener('pointermove',move);pdfdoc.defaultView.clearTimeout(timer);};cleanup.doc=pdfdoc;state.hooks.push(cleanup);
     }
-    if(!state.refPromise)this.references(reader).then(()=>{if(!this.dead)this.enhance(reader);}).catch(e=>Zotero.logError(e));
+    if(!state.refPromise&&this.activeReader(reader)&&this.readerReady(reader))this.references(reader).then(()=>{if(!this.dead)this.enhance(reader);}).catch(e=>Zotero.logError(e));
     this.enhance(reader);
   },
   enhance(reader) {
@@ -180,7 +190,8 @@ var CiteLens = {
       for(let n=0;n<pdf.numPages;n++) {if(this.dead)break;const page=Components.utils.waiveXrays(await pdf.getPage(n+1));pages.push({pageIndex:n,items:(await page.getTextContent()).items,width:Math.abs(page.view[2]-page.view[0]),height:Math.abs(page.view[3]-page.view[1])});await Zotero.Promise.delay(0);}
       const local=await CiteLensNetwork.compute('bibliography',{pages,headers:{lines:[...(runningHeaders.lines||[])]}}),validNative=local.length>=3?native.filter(r=>CiteLensBibliography.authorStart(r.raw.replace(/^\[?\d{1,4}\]?[.)]?\s+/,''))&&r.position?.pageIndex>=local[0].position.pageIndex&&r.position?.pageIndex<=local[local.length-1].position.pageIndex):native;
       const result=CiteLensBibliography.merge(validNative,local).sort((a,b)=>(a.position?.pageIndex||0)-(b.position?.pageIndex||0)||Math.floor((a.position?.rects?.[0]?.[0]||0)/80)-Math.floor((b.position?.rects?.[0]?.[0]||0)/80)||(b.position?.rects?.[0]?.[3]||0)-(a.position?.rects?.[0]?.[3]||0));
-      if(result.length&&cacheKey)(async()=>{await CiteLensNetwork.writeCache('refs',cacheKey,{refs:result,runningHeaders,citationPages:state?.citationPages?await this.compactCitationPages(state.citationPages):null});})().catch(e=>Zotero.logError(e));return result;
+      if(state?.citationPages)state.citationPages=await this.compactCitationPages(state.citationPages);
+      if(result.length&&cacheKey)(async()=>{await CiteLensNetwork.writeCache('refs',cacheKey,{refs:result,runningHeaders,citationPages:state?.citationPages||null});})().catch(e=>Zotero.logError(e));return result;
     })();if(state)state.refPromise=promise;
     try{const refs=await promise;if(state)state.referenceList=refs;CiteLensNetwork.remember(reader,refs).catch(e=>Zotero.logError(e));if(!refs.length&&state)state.refPromise=null;return refs;}catch(e){if(state)state.refPromise=null;throw e;}
   },
@@ -236,5 +247,5 @@ var CiteLens = {
     }}catch(_){}
     if(s?.doc)CiteLensThemes.release(s.doc);this.readers.delete(reader);
   },
-  stop() {if(this.stopTask)return this.stopTask;this.dead=true;return this.stopTask=(async()=>{CiteLensThemes.stop();CiteLensTranslation.stop();CiteLensUpdater.stop();CiteLensCareer.stop();if(typeof CiteLensUI!=='undefined')for(const page of [...CiteLensUI.pageViews])page.destroy();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();if(Zotero.CiteLens===this)delete Zotero.CiteLens;})();}
+  stop() {if(this.stopTask)return this.stopTask;this.dead=true;return this.stopTask=(async()=>{CiteLensThemes.stop();CiteLensTranslation.stop();CiteLensUpdater.stop();CiteLensCareer.stop();if(typeof CiteLensUI!=='undefined')for(const page of [...CiteLensUI.pageViews])page.destroy();await CiteLensNetwork.stop();Zotero.getMainWindow()?.clearInterval(this.timer);Zotero.getMainWindow()?.clearTimeout(this.scanTimer);this.scanTimer=0;if(this.readerObserver){Zotero.Notifier.unregisterObserver(this.readerObserver);this.readerObserver=null;}Zotero.Reader.unregisterEventListener('renderToolbar',this.toolbarHandler);for(const r of [...this.readers.keys()])this.detach(r);for(const w of [...this.windows.keys()]){w.document.getElementById('cite-lens-style')?.remove();w.document.documentElement.removeAttribute('data-cl-theme');w.document.documentElement.style.removeProperty('--cl-size');w.document.documentElement.style.removeProperty('--cl-user-size');w.document.documentElement.style.removeProperty('--cl-reading-font');this.removeWindow(w);}if(this.assetResource)Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler).setSubstitution(this.assetResource,null);await CiteLensServices.stop();if(Zotero.CiteLens===this)delete Zotero.CiteLens;})();}
 };

@@ -145,6 +145,15 @@ var CiteLensNetworkView=(()=>{
   return new Set(eligible.sort((a,b)=>(b.degree||0)-(a.degree||0)||a.id.localeCompare(b.id)).slice(0,100).map(n=>n.id));
  }
  function lineWidth(count,active=false){return Math.min(3.2,.75+Math.log2(Math.max(1,count))*.55)+(active?.45:0);}
+ // Reuse collision placement while opacity and hover colors change. Keep only
+ // one geometry snapshot; navigation, font, resize and zoom invalidate it.
+ function labelPlacer(){
+  let signature='',placements=[];
+  const place=(candidates,width,height)=>{const key=JSON.stringify([width,height,candidates.map(c=>[c.id,c.priority,c.rect.x,c.rect.y,c.rect.w,c.rect.h,c.r,c.preferred])]);
+   if(key!==signature){placements=labels([...candidates],width,height).map(c=>({id:c.id,dx:c.dx,dy:c.dy}));signature=key;}
+   const byID=new Map(candidates.map(c=>[c.id,c]));return placements.map(p=>({...byID.get(p.id),dx:p.dx,dy:p.dy}));
+  };place.clear=()=>{signature='';placements=[];};return place;
+ }
  function labels(candidates,width,height){
   const grid=new Map(),accepted=[],cell=48;
   const cells=r=>{const out=[];for(let x=Math.floor(r.x/cell);x<=Math.floor((r.x+r.w)/cell);x++)for(let y=Math.floor(r.y/cell);y<=Math.floor((r.y+r.h)/cell);y++)out.push(x+','+y);return out;};
@@ -154,6 +163,6 @@ var CiteLensNetworkView=(()=>{
   }
   return accepted;
  }
- return{revealMembers,sortPapers,contextDescriptions,evidenceGroups,nearest,magnetic,opacity,hoverOpacity,wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,textLines,emphasis,detail};
+ return{labelPlacer,revealMembers,sortPapers,contextDescriptions,evidenceGroups,nearest,magnetic,opacity,hoverOpacity,wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,textLines,emphasis,detail};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkView;

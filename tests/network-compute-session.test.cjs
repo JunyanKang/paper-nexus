@@ -13,3 +13,16 @@ test('request errors do not cross-wire queued replies and native worker errors c
 test('cache hashing can use the same worker session instead of creating another worker',async()=>{
  const {N,workers}=setup();N.cacheRoot='/fixture';const session=N.computeSession(),hash=N.cacheKey({original:'source'},session.compute);assert.equal(workers.length,1);assert.equal(workers[0].sent[0].action,'cache-encode');workers[0].onmessage({data:{result:{text:'encoded source'}}});assert.equal(await hash,require('node:crypto').createHash('sha256').update('network-cache-v3\0encoded source').digest('hex'));session.close();
 });
+
+test('search starts lazily, shares initialization, and suspends only after pending replies',async()=>{
+ const {N,workers}=setup(),s=N.searchSession({mode:'authors',nodes:[],paperNodes:[]});assert.equal(workers.length,0);
+ const a=s.query('Smith'),b=s.relations('id');assert.equal(workers.length,1);const w=workers[0];assert.equal(w.sent[0].action,'search-init');s.suspend();assert.equal(w.terminated,false);w.onmessage({data:{ready:true}});await Promise.resolve();assert.equal(w.sent.length,3);
+ for(const m of w.sent.slice(1))w.onmessage({data:{request:m.payload.request,result:m.action}});assert.equal(await a,'search-query');assert.equal(await b,'author-links');assert.equal(w.terminated,true);assert.equal(N.workers.size,0);assert.equal(s.closed,false);
+ const next=s.neighborhood('id',1,100);assert.equal(workers.length,2);const w2=workers[1];w2.onmessage({data:{ready:true}});await Promise.resolve();w2.onmessage({data:{request:w2.sent[1].payload.request,result:{nodes:[]}}});assert.equal((await next).nodes.length,0);s.close();assert.equal(w2.terminated,true);await assert.rejects(s.query('closed'),/已取消/);
+});
+test('search close during initialization and worker failure reject all waiters',async()=>{
+ for(const fail of [w=>w.cancel(),w=>w.onerror({message:'failed'})]){const {N,workers}=setup(),s=N.searchSession({nodes:[]}),outcomes=Promise.allSettled([s.query('one'),s.query('two')]);fail(workers[0]);assert.ok((await outcomes).every(r=>r.status==='rejected'));assert.equal(s.closed,true);assert.equal(N.workers.size,0);}
+});
+test('search idle timeout releases the worker without closing the reusable session',async()=>{
+ const {N,workers,win}=setup(),timers=new Map();let serial=0;win.setTimeout=(fn,ms)=>{timers.set(++serial,{fn,ms});return serial;};win.clearTimeout=id=>timers.delete(id);const s=N.searchSession({nodes:[]}),p=s.query('test'),w=workers[0];w.onmessage({data:{ready:true}});await Promise.resolve();w.onmessage({data:{request:w.sent[1].payload.request,result:[]}});await p;const idle=[...timers.values()].find(t=>t.ms===30000);assert.ok(idle);idle.fn();assert.equal(N.workers.size,0);assert.equal(s.closed,false);s.close();
+});
