@@ -137,3 +137,5 @@ test('initial placement accepts browser DOMRect properties inherited through get
  const {A}=setup(),rect=Object.create({left:600,right:980,top:42,bottom:550}),target=Object.create({left:612,right:968,top:160,bottom:250});
  const p=A.placement(rect,{width:1000,height:600},160,300,{target,sides:['left']});assert.equal(p.side,'left');assert.equal(p.left+p.width,600);assert.ok(Number.isFinite(p.top+p.width));
 });
+
+test('failed forced refresh keeps previously confirmed abstract for later readers',async()=>{const {A,S}=setup();const first=await A.lookup(S,record);assert.equal(first.status,'available');A.transport=async()=>{throw Error('offline')};assert.equal((await A.lookup(S,record,{force:true})).status,'offline');assert.equal(A.cached(S,record).text,first.text);});

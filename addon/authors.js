@@ -28,6 +28,9 @@ var CiteLensAuthors = (() => {
     const initials=clean(a.firstName).split(/[\s.\-]+/u).filter(Boolean).map(s=>s.match(/^\p{L}/u)?.[0]||'').filter(Boolean).map(s=>s+'.').join('');
     return clean([initials,a.lastName].filter(Boolean).join(' '))||'姓名未提供';
   }
+  function mergeEvidence(current,previous){
+    return current.map(a=>{const id=C.norm(name(a)),matches=previous.filter(b=>C.norm(name(b))===id);if(!id||matches.length!==1||current.filter(b=>C.norm(name(b))===id).length!==1)return a;const old=matches[0];return {...a,...(!a.ORCID&&old.ORCID?{ORCID:old.ORCID}:{}),...(!a.affiliations?.length&&old.affiliations?.length?{affiliations:old.affiliations}:{})};});
+  }
   function cached(S,r) {
     const entry=S.state.authorCache?.[key(r)];return entry&&entry.value?.listVersion===1&&Date.now()<entry.expires?entry.value:null;
   }
@@ -72,18 +75,18 @@ var CiteLensAuthors = (() => {
     })();
     S.authorFlight.set(k,work);
     try{
-      let result=await work;const prior=S.state.authorCache?.[k]?.value;
-      if(result.status==='offline'&&prior?.listVersion===1&&prior?.authors?.length)result={...prior,status:'offline',lastAttemptAt:result.checkedAt};
+      let result=await work;const prior=S.state.authorCache?.[k]?.value;if(result.status==='available'&&prior?.authors?.length&&matches(result,prior))result.authors=mergeEvidence(result.authors,prior.authors);
+      if(result.status!=='available'&&prior?.listVersion===1&&prior?.authors?.length)result={...prior,status:result.status,lastAttemptStatus:result.status,lastAttemptAt:result.checkedAt};
       if(!stopped()){
-        S.state.authorCache||={};const entry={expires:Date.now()+(result.status==='offline'?5*60000:result.status==='available'?30*86400000:86400000),value:result};S.state.authorCache[k]=entry;
+        S.state.authorCache||={};const entry={expires:Date.now()+(result.status==='offline'?5*60000:result.status==='available'?30*86400000:86400000),value:result.lastAttemptStatus&&prior?.authors?.length?{...prior,lastAttemptStatus:result.lastAttemptStatus,lastAttemptAt:result.lastAttemptAt}:result};S.state.authorCache[k]=entry;
         if(result.DOI)S.state.authorCache['doi:'+result.DOI]=entry;
-        for(const stale of Object.keys(S.state.authorCache).sort((a,b)=>S.state.authorCache[b].expires-S.state.authorCache[a].expires).slice(500))delete S.state.authorCache[stale];
+        for(const stale of Object.keys(S.state.authorCache).sort((a,b)=>S.state.authorCache[b].expires-S.state.authorCache[a].expires).slice(5000))delete S.state.authorCache[stale];
         await S.persist();
         if(JSON.stringify(prior?.authors)!==JSON.stringify(result.authors)&&typeof CiteLensNetwork!=='undefined')CiteLensNetwork.authorMetadataChanged?.(result.DOI);
       }
       return result;
     }finally{S.authorFlight.delete(k);}
   }
-  return {name,ids,key,eligible,matches,selectPMC,fromPMC,shortName,visible,cached,lookup};
+  return {name,ids,key,eligible,mergeEvidence,matches,selectPMC,fromPMC,shortName,visible,cached,lookup};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensAuthors;

@@ -111,8 +111,22 @@ var CiteLensNetworkView=(()=>{
   }return pending;
  }
  function opacity(current,target,dt=16,reduced=false){const value=reduced?target:current+(target-current)*(1-Math.exp(-clamp(dt,1,40)/85));return Math.abs(value-target)<.004?target:value;}
- function hoverOpacity(point,center,radius=240,floor=.32){
+ function hoverOpacity(point,center,radius=240,floor=.18){
   if(!center||radius<=0)return 1;const t=clamp(Math.hypot(point.x-center.x,point.y-center.y)/radius,0,1);return floor+(1-floor)*t*t*(3-2*t);
+ }
+ function sortPapers(papers,key='year',direction='desc',metrics=new Map()){
+  const sign=direction==='asc'?1:-1,collator=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
+  return [...papers].sort((a,b)=>{if(key==='title')return sign*collator.compare(a.title||'',b.title||'')||String(a.id).localeCompare(String(b.id));
+   const value=p=>{const raw=key==='impact'?metrics.get(p.id):p.year;if(raw===null||raw===undefined||raw==='')return null;const n=Number(raw);return Number.isFinite(n)?n:null;},x=value(a),y=value(b);
+   if(x===null||y===null){if(x!==y)return x===null?1:-1;}else if(x!==y)return sign*(x-y);
+   return collator.compare(a.title||'',b.title||'')||String(a.id).localeCompare(String(b.id));
+  });
+ }
+ function revealMembers(nodes,camera,viewport,previous=new Set(),representatives=new Set()){
+  if(camera.k<1.05)return new Set();const cell=28,grid=new Map(),rows=[];
+  for(const n of nodes||[]){const x=n.x*camera.k+camera.x,y=n.y*camera.k+camera.y;if(x<12||y<16||x>viewport.w-12||y>viewport.h-32)continue;const p={n,x,y,gx:Math.floor(x/cell),gy:Math.floor(y/cell)};rows.push(p);const key=p.gx+','+p.gy;if(!grid.has(key))grid.set(key,[]);grid.get(key).push(p);}
+  const eligible=[];for(const p of rows){if(representatives.has(p.n.id)||!previous.has(p.n.id)&&camera.k<1.25)continue;const distance=previous.has(p.n.id)?20:28;let crowded=false;for(let x=p.gx-1;x<=p.gx+1&&!crowded;x++)for(let y=p.gy-1;y<=p.gy+1&&!crowded;y++)for(const q of grid.get(x+','+y)||[])if(q!==p&&Math.hypot(q.x-p.x,q.y-p.y)<distance){crowded=true;break;}if(!crowded)eligible.push(p.n);}
+  return new Set(eligible.sort((a,b)=>(b.degree||0)-(a.degree||0)||a.id.localeCompare(b.id)).slice(0,100).map(n=>n.id));
  }
  function lineWidth(count,active=false){return Math.min(3.2,.75+Math.log2(Math.max(1,count))*.55)+(active?.45:0);}
  function labels(candidates,width,height){
@@ -124,6 +138,6 @@ var CiteLensNetworkView=(()=>{
   }
   return accepted;
  }
- return{contextDescriptions,evidenceGroups,nearest,magnetic,opacity,hoverOpacity,wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,textLines,emphasis,detail};
+ return{revealMembers,sortPapers,contextDescriptions,evidenceGroups,nearest,magnetic,opacity,hoverOpacity,wheel,zoom,step,index,scene,labels,lineWidth,nodeLabel,textLines,emphasis,detail};
 })();
 if(typeof module!=='undefined')module.exports=CiteLensNetworkView;

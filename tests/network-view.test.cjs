@@ -61,9 +61,16 @@ test('scientific labels wrap within measured bounds and preserve full short phra
 
 test('hover attenuation is a smooth local circle and leaves distant nodes untouched',()=>{
  const c={x:100,y:150},r=200,at=d=>V.hoverOpacity({x:100+d,y:150},c,r);
- assert.equal(at(0),.32);assert.ok(at(50)<at(100)&&at(100)<at(150));assert.equal(at(200),1);assert.equal(at(2000),1);assert.equal(V.hoverOpacity({x:100,y:250},c,r),at(100));assert.equal(V.hoverOpacity({x:0,y:0},null,r),1);assert.ok(at(200)-at(199)<.001);
+ assert.equal(at(0),.18);assert.ok(at(50)<at(100)&&at(100)<at(150));assert.equal(at(200),1);assert.equal(at(2000),1);assert.equal(V.hoverOpacity({x:100,y:250},c,r),at(100));assert.equal(V.hoverOpacity({x:0,y:0},null,r),1);assert.ok(at(200)-at(199)<.001);
 });
 test('overview lines retain full distinct-publication counts independently of sparsified author links',()=>{
  const model={mode:'authors',nodes:[{id:'a',kind:'author',title:'A',members:['p1','p2']},{id:'b',kind:'author',title:'B',members:['p1','p2']}],edges:[],communities:[{id:'ga',members:['a']},{id:'gb',members:['b']}],communityEdges:[{source:'ga',target:'gb',evidence:[{paperID:'p1'},{paperID:'p2'}]}]};
  const s=V.scene(model,V.index(model));assert.equal(s.edges.length,1);assert.equal(s.edges[0].count,2);assert.equal(s.edges[0].source,'a');assert.equal(s.edges[0].target,'b');assert.ok(V.lineWidth(4)>V.lineWidth(1));
 });
+
+test('paper sorting toggles numeric year, impact and title with missing values always last',()=>{
+ const papers=[{id:'a',title:'Zebra',year:'2024'},{id:'b',title:'alpha',year:'2020'},{id:'c',title:'Beta',year:''}],metrics=new Map([['a',3.5],['b',20],['c',null]]);
+ assert.deepEqual(V.sortPapers(papers,'impact','desc',metrics).map(p=>p.id),['b','a','c']);assert.deepEqual(V.sortPapers(papers,'impact','asc',metrics).map(p=>p.id),['a','b','c']);assert.deepEqual(V.sortPapers(papers,'year','asc').map(p=>p.id),['b','a','c']);assert.deepEqual(V.sortPapers(papers,'year','desc').map(p=>p.id),['a','b','c']);assert.deepEqual(V.sortPapers(papers,'title','asc').map(p=>p.id),['b','c','a']);assert.deepEqual(V.sortPapers(papers,'title','desc').map(p=>p.id),['a','c','b']);assert.deepEqual(papers.map(p=>p.id),['a','b','c']);
+});
+
+test('overview member names reveal only when zoom and spacing permit, with hysteresis and a budget',()=>{const nodes=Array.from({length:150},(_,i)=>({id:'a'+i,x:(i%15)*60,y:Math.floor(i/15)*60})),view={w:2000,h:2000};assert.equal(V.revealMembers(nodes,{x:50,y:50,k:.9},view).size,0);const shown=V.revealMembers(nodes,{x:50,y:50,k:1.3},view,new Set(),new Set(['a0']));assert.equal(shown.has('a0'),false);assert.equal(shown.size,100);assert.equal(V.revealMembers(nodes,{x:50,y:50,k:1.15},view,shown).size,100);assert.equal(V.revealMembers(nodes,{x:50,y:50,k:1.15},view).size,0);assert.equal(V.revealMembers([{id:'a',x:10,y:10},{id:'b',x:11,y:11}],{x:50,y:50,k:2},view).size,0);assert.equal(V.revealMembers(nodes,{x:-10000,y:-10000,k:2},view).size,0);});

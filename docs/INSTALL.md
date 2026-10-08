@@ -6,12 +6,12 @@
 
 ## 安装 Paper Nexus
 
-1. 从[官方发布页](https://github.com/JunyanKang/paper-nexus/releases/latest)下载 **paper-nexus-1.0.14.xpi**，无需解压。
+1. 从[官方发布页](https://github.com/JunyanKang/paper-nexus/releases/latest)下载 **paper-nexus-1.0.15.xpi**，无需解压。
 2. 打开 Zotero，进入 **工具 → 插件**。
 3. 点击右上角齿轮，选择 **从文件安装插件**，选中刚下载的 XPI。
 4. 按 Zotero 提示完成安装；如提示重启，重启后打开一篇 PDF。
 
-阅读器工具栏会出现 Paper Nexus 图标。点击可查看本篇参考文献，悬停正文引文可展开文献卡片。
+文献库工具栏的 Nexus 图标可直接打开朋友圈。打开 PDF 后，阅读器工具栏的同一图标可查看本篇参考文献；悬停正文引文可展开文献卡片。
 
 ## 更新已有插件
 

@@ -20,12 +20,27 @@ var CiteLensServices = {
     this.localMetricCache=new Map();this.localMetricFlight=new Map();
     await this.detectMetricPlugins();
     if(!this.metricObserver&&Zotero.Notifier)this.metricObserver=Zotero.Notifier.registerObserver({notify:()=>{this.localMetricCache.clear();}},['item'],'cite-lens-metrics');
+    this.maintenance=this.maintainCaches().catch(e=>Zotero.logError(e));
     this.epPath=PathUtils.join(PathUtils.parent(this.path),'easypubmed.json');
     this.epIndex=null;
     if(await IOUtils.exists(this.epPath)){
       try{if((await IOUtils.stat(this.epPath)).size>60*1024*1024)throw Error('指标文件过大');this.epIndex=CiteLensEPMetrics.build(JSON.parse(await IOUtils.readUTF8(this.epPath)));}
       catch(e){this.metricWarning='离线指标无法读取，请重新下载；原文件已保留';Zotero.logError(e);}
     }
+  },
+  async maintainCaches(){
+    const now=Date.now();let removed=0,bytes=0,count=0;
+    for(const name of ['cache','authorCache','abstractCache','networkAuthorIDs']){
+      const cache=this.state[name];if(!cache||typeof cache!=='object'||Array.isArray(cache))continue;
+      const rows=Object.entries(cache).sort((a,b)=>(b[1]?.time||b[1]?.expires||0)-(a[1]?.time||a[1]?.expires||0));let kept=0;
+      for(const [key,entry] of rows){
+        if(this.dead)return {removed,bytes};const value=entry?.value,positive=value&&(value.status==='matched'||value.status==='available'||value.authors?.length),expired=(entry?.expires||((entry?.time||0)+7*86400000))<now;
+        const size=entry?JSON.stringify(entry).length*2:0;
+        if(!value||!positive&&expired||kept>=5000||bytes+size>48*1024*1024){if(cache[key]===entry){delete cache[key];removed++;}}else{bytes+=size;kept++;}
+        if(++count%64===0&&Zotero.Promise?.delay)await Zotero.Promise.delay(8);
+      }
+    }
+    if(removed){this.cacheGeneration=(this.cacheGeneration||0)+1;await this.persist();}return {removed,bytes};
   },
   persist() {
     const data=JSON.stringify(this.state,null,2);
@@ -44,12 +59,13 @@ var CiteLensServices = {
   },
   async lookup(record,{force=false}={}) {
     const C=CiteLensCore,key=C.identity(record),cached=this.state.cache[key];
-    if(!force&&cached&&Date.now()-cached.time<7*86400000)return {...C.decide(record,(cached.value.ranked||[]).map(x=>x.record)),cached:true};
+    if(!force&&cached&&Date.now()-cached.time<7*86400000)return {...C.decide(record,(cached.value.ranked||[]).map(x=>x.record)),...(cached.value.doiRecord?{doiRecord:cached.value.doiRecord}:{}),cached:true};
     if(this.inFlight.has(key))return this.inFlight.get(key);
     const work=(async()=>{
       const url=record.DOI?'https://api.crossref.org/works/'+encodeURIComponent(C.doi(record.DOI)):'https://api.crossref.org/works?rows=5&query.bibliographic='+encodeURIComponent((record.raw||C.citation(record)).slice(0,1800));
-      const m=await this.request(url),candidates=record.DOI?[C.fromCrossref(m)]:(m.items||[]).map(C.fromCrossref),result=C.decide(record,candidates);
-      if(!this.dead){this.state.cache[key]={time:Date.now(),value:result};this.cacheGeneration=(this.cacheGeneration||0)+1;const keys=Object.keys(this.state.cache).sort((a,b)=>this.state.cache[b].time-this.state.cache[a].time);for(const k of keys.slice(500))delete this.state.cache[k];await this.persist();}
+      const m=await this.request(url),candidates=record.DOI?[C.fromCrossref(m)]:(m.items||[]).map(C.fromCrossref),result=C.decide(record,candidates);if(record.DOI&&candidates[0]&&C.recordDOI(candidates[0])===C.recordDOI(record))result.doiRecord=candidates[0];
+      const prior=cached?.value?.doiRecord||cached?.value?.ranked?.[0]?.record,latest=result.doiRecord||result.ranked?.[0]?.record;if(prior&&latest&&C.recordDOI(prior)===C.recordDOI(latest)&&C.norm(prior.title)===C.norm(latest.title)&&typeof CiteLensAuthors!=='undefined')latest.creators=CiteLensAuthors.mergeEvidence(latest.creators||[],prior.creators||[]);
+      if(!this.dead){if(result.status==='matched'||cached?.value?.status!=='matched')this.state.cache[key]={time:Date.now(),value:result};else cached.lastAttempt={time:Date.now(),status:result.status};this.cacheGeneration=(this.cacheGeneration||0)+1;const keys=Object.keys(this.state.cache).sort((a,b)=>this.state.cache[b].time-this.state.cache[a].time);for(const k of keys.slice(5000))delete this.state.cache[k];await this.persist();}
       return result;
     })();this.inFlight.set(key,work);try{return await work;}finally{this.inFlight.delete(key);}
   },

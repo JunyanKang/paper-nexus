@@ -24,8 +24,16 @@ var CiteLens = {
     for(const doc of documents)try{for(const b of doc?.querySelectorAll('[data-network-entry]')||[])b.hidden=CiteLensServices.state.settings.networkEnabled!==true;}catch(_){}
   },
   ensureAssets(){if(this.dead||!this.rootURI)return;const resources=Services.io.getProtocolHandler('resource').QueryInterface(Components.interfaces.nsIResProtocolHandler);if(!resources.hasSubstitution(this.assetResource))resources.setSubstitutionWithFlags(this.assetResource,Services.io.newURI(this.rootURI),resources.ALLOW_CONTENT_ACCESS);this.assetURI='resource://'+this.assetResource+'/assets/';},
-  addWindow(win) {if(this.windows.has(win))return;const e=win.document.createXULElement('menuitem');e.id='cite-lens-tools';e.setAttribute('class','menuitem-iconic');e.setAttribute('image',this.assetURI+'nexus.png');e.setAttribute('label','Paper Nexus');e.addEventListener('command',()=>{const reader=Zotero.Reader.getByTabID(win.Zotero_Tabs.selectedID);this.showNetwork(reader);});win.document.getElementById('menu_ToolsPopup')?.append(e);this.windows.set(win,e);},
-  removeWindow(win) {this.windows.get(win)?.remove();this.windows.delete(win);CiteLensThemes.release(win.document);},
+  addWindow(win) {if(this.windows.has(win))return;const e=win.document.createXULElement('menuitem');e.id='cite-lens-tools';e.setAttribute('class','menuitem-iconic');e.setAttribute('image',this.assetURI+'nexus.png');e.setAttribute('label','Paper Nexus');e.addEventListener('command',()=>{const reader=Zotero.Reader.getByTabID(win.Zotero_Tabs.selectedID);this.showNetwork(reader);});win.document.getElementById('menu_ToolsPopup')?.append(e);this.windows.set(win,e);this.libraryToolbar(win);},
+  libraryToolbar(win) {
+    const doc=win.document,host=doc.getElementById('zotero-items-toolbar');if(!host||doc.getElementById('paper-nexus-library-tools'))return;
+    CiteLensUI.style(doc);const group=CiteLensUI.el(doc,'div',null,'cl-library-tools');group.id='paper-nexus-library-tools';group.setAttribute('role','group');group.setAttribute('aria-label','Paper Nexus');
+    const entry=CiteLensUI.button(doc,'',()=>{const view=doc.querySelector('.pn-network');if(view)view._pnClose?.();else this.showNetwork(null,{doc});});entry.classList.add('cl-library-entry');entry.setAttribute('aria-label','Paper Nexus');entry.title='Paper Nexus';entry.append(CiteLensUI.logo(doc,20));group.append(entry);
+    const spacer=[...host.children].find(n=>n.localName==='spacer'||n.getAttribute('flex')==='1');host.insertBefore(group,spacer||null);
+  },
+  readerForDocument(doc){return [...this.readers.keys()].find(r=>r._iframeWindow?.document===doc)||null;},
+  returnToList(reader){if(!reader?._iframeWindow?.document?.body)return;const tab=reader._tabID||reader.tabID;if(tab)Zotero.getMainWindow()?.Zotero_Tabs?.select(tab);const panel=this.panels.get(reader);if(panel?.isConnected){panel.hidden=false;panel.inert=false;panel._clSetOpen?.(true);panel.focus();return panel;}return this.showPanel(reader);},
+  removeWindow(win) {win.document.getElementById('paper-nexus-library-tools')?.remove();this.windows.get(win)?.remove();this.windows.delete(win);CiteLensThemes.release(win.document);},
   toolbar(doc,reader) {const existing=this.toolbarNodes.get(doc)||doc.querySelector('[data-cite-lens=toolbar]');if(existing){existing._paperToolbarLive=true;this.toolbarNodes.set(doc,existing);return existing;}const b=CiteLensUI.button(doc,'',()=>this.togglePanel(reader));b.prepend(CiteLensUI.logo(doc,24));b.dataset.citeLens='toolbar';b.setAttribute('aria-label','Paper Nexus');b.setAttribute('aria-expanded','false');b.style.cssText='display:inline-flex;align-items:center;justify-content:center;padding:3px;width:32px;min-height:30px;font-size:12px';b._paperToolbarLive=true;this.toolbarNodes.set(doc,b);return b;},
   normalizeToolbar(doc) {
     const host=doc.querySelector('.toolbar .end')||doc.querySelector('.toolbar');if(!host)return;
@@ -33,7 +41,7 @@ var CiteLens = {
     const tail=[...host.children].slice(-buttons.length);if(buttons.some((button,i)=>button.parentNode!==host||tail[i]!==button))host.append(...buttons);
   },
   scan() {
-    if(this.dead)return;const active=new Set(Zotero.Reader._readers);
+    if(this.dead)return;for(const win of this.windows.keys())this.libraryToolbar(win);const active=new Set(Zotero.Reader._readers);
     for(const reader of active){try{this.attach(reader);}catch(e){Zotero.logError(e);}}
     for(const reader of this.readers.keys())if(!active.has(reader))this.detach(reader);
   },
@@ -179,7 +187,7 @@ var CiteLens = {
     for(const old of pdfwin.document.querySelectorAll('.cl-citation-flash'))old.remove();
     for(const r of location.position.rects){const rect=page.viewport.convertToViewportRectangle(Components.utils.cloneInto(Array.from(r),pdfwin)),flash=pdfwin.document.createElement('div');flash.className='cl-citation-flash';flash.style.cssText='position:absolute;pointer-events:none;border-radius:3px;z-index:3;left:'+Math.min(rect[0],rect[2])+'px;top:'+Math.min(rect[1],rect[3])+'px;width:'+Math.abs(rect[2]-rect[0])+'px;height:'+Math.abs(rect[3]-rect[1])+'px;background:'+CiteLensThemes.resolve(CiteLensServices.state.settings.theme).highlight;page.div.append(flash);pdfwin.setTimeout(()=>flash.remove(),2400);}
   },
-  showNetwork(reader=null){if(CiteLensServices.state.settings.networkEnabled!==true){CiteLensUI.settingsDialog(reader?._iframeWindow?.document||Zotero.getMainWindow().document);return;}const panel=this.panels.get(reader),focused=panel?.ownerDocument.activeElement;if(panel){panel.hidden=true;panel.inert=true;}return CiteLensNetworkUI.open(reader,{onClose:()=>{if(panel?.isConnected){panel.hidden=false;panel.inert=false;focused?.focus();}}});},
+  showNetwork(reader=null,{doc=Zotero.getMainWindow().document}={}){if(CiteLensServices.state.settings.networkEnabled!==true){CiteLensUI.settingsDialog(reader?._iframeWindow?.document||Zotero.getMainWindow().document);return;}const panel=this.panels.get(reader),focused=panel?.ownerDocument.activeElement;if(panel){panel.hidden=true;panel.inert=true;}return CiteLensNetworkUI.open(reader,{doc,onClose:()=>{if(panel?.isConnected){panel.hidden=false;panel.inert=false;focused?.focus();}}});},
   togglePanel(reader){const panel=this.panels.get(reader);if(panel?.isConnected){panel._clSetOpen?.(!panel._clOpen);return panel;}return this.showPanel(reader);},
   showPanel(reader,options={}) {this.panels.get(reader)?.remove();const doc=reader._iframeWindow.document,panel=CiteLensUI.panel(doc,reader,options);this.panels.set(reader,panel);return panel;},
   refreshMetrics() {for(const reader of this.readers.keys()){const doc=reader._iframeWindow.document;for(const card of doc.querySelectorAll('[data-cite-lens=card]'))card.dispatchEvent(new doc.defaultView.Event('cl-metrics-changed'));this.enhance(reader);doc.querySelector('.cl-root')?.dispatchEvent(new doc.defaultView.Event('cl-metrics-changed'));}},

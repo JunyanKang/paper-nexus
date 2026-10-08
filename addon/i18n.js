@@ -1729,3 +1729,20 @@ for(const [source,values] of Object.entries({
     "Zitierstil"
   ]
 })){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
+
+for(const [language,text] of Object.entries({en:'Updated',ja:'更新済み',fr:'Mis à jour',de:'Aktualisiert'}))CiteLensI18n.catalogs[language]['已更新']=text;
+
+for(const [source,values] of Object.entries({
+ '查找 ORCID':['Find ORCID','ORCID を検索','Rechercher ORCID','ORCID suchen'],
+ '正在查询 ORCID':['Finding ORCID','ORCID を検索中','Recherche ORCID','ORCID wird gesucht'],
+ 'ORCID 查询失败，点击重试':['ORCID unavailable; retry','ORCID を再検索','ORCID indisponible ; réessayer','ORCID nicht verfügbar; erneut versuchen'],
+ 'ORCID 身份待核对':['ORCID needs verification','ORCID の確認が必要','ORCID à vérifier','ORCID prüfen'],
+ '未找到 ORCID，点击重试':['No ORCID found; retry','ORCID 未取得・再検索','ORCID introuvable ; réessayer','Keine ORCID; erneut suchen'],
+ '论文排序':['Sort papers','論文の並べ替え','Trier les articles','Artikel sortieren'],
+ '影响力：低到高':['Impact: low to high','影響度：低→高','Impact : croissant','Einfluss: aufsteigend'],
+ '影响力：高到低':['Impact: high to low','影響度：高→低','Impact : décroissant','Einfluss: absteigend'],
+ '年份：远到近':['Oldest first','古い順','Plus anciens','Älteste zuerst'],
+ '年份：近到远':['Newest first','新しい順','Plus récents','Neueste zuerst'],
+ '题名：A 到 Z':['Title: A–Z','題名：A–Z','Titre : A–Z','Titel: A–Z'],
+ '题名：Z 到 A':['Title: Z–A','題名：Z–A','Titre : Z–A','Titel: Z–A']
+})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
