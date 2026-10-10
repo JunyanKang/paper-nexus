@@ -7,3 +7,16 @@ test('CSL preserves publisher abbreviation and book publication fields',()=>{
  const book=F.item({type:'book',title:'Retinal Methods',journal:'Retinal Methods',edition:'2',place:'London',publisher:'Academic Press',ISBN:'9781234567890'});assert.equal(book['container-title'],'');assert.equal(book['publisher-place'],'London');assert.equal(book.edition,'2');
  const chapter=F.item({type:'bookSection',title:'Photoreceptors',bookTitle:'Retinal Methods',pages:'12–30'});assert.equal(chapter['container-title'],'Retinal Methods');assert.equal(chapter.page,'12–30');
 });
+test('locator round trips volume, issue, electronic pages and chapter pages',()=>{
+ for(const record of [{volume:'42',issue:'2',pages:'68–81.e6'},{volume:'42',issue:'',pages:'68-81.e6'},{volume:'',issue:'',pages:'12–30'},{volume:'',issue:'4',pages:'e01234'},{volume:'',issue:'',pages:''}])assert.deepEqual(JSON.parse(JSON.stringify(F.parseLocator(F.locator(record)))),record);
+ assert.throws(()=>F.parseLocator('42(2)(3), 1–4'));
+});
+test('cached bibliographic enrichment cannot overwrite edits or borrow a different journal abbreviation',()=>{
+ const r={title:'Retinal development',year:'2020',DOI:'10.1234/retina',journal:'Development',volume:'3'},remote={...r,journal:'Old Journal',journalAbbreviation:'Old J',volume:'2'};
+ ctx.CiteLensServices={state:{cache:{[C.identity(r)]:{value:{ranked:[{record:remote}]}}}}};
+ const edited=F.enriched(r);assert.equal(edited.volume,'3');assert.equal(edited.journal,'Development');assert.equal(edited.journalAbbreviation,'');
+ remote.journal='Development';remote.journalAbbreviation='Dev';assert.equal(F.enriched(r).journalAbbreviation,'Dev');
+});
+test('CSL accepts date-only metadata and chapter container aliases',()=>{
+ const r=F.item({title:'Chapter',type:'bookSection',containerTitle:'Methods',date:'2022-05-06',publisher:'Press'});assert.equal(r['container-title'],'Methods');assert.equal(r.issued['date-parts'][0][0],2022);
+});

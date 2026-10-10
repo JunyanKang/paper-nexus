@@ -384,7 +384,7 @@ var CiteLensUI = {
       this.bindAbstract(doc,root,title,()=>record);
       const authorData=record.authorData,authors=authorData?.authors?.length?authorData.authors:record.creators?.length?record.creators:record.author?[{lastName:record.author}]:[];
       if(authors.length)root.append(this.authorList(doc,authors,{incomplete:!authorData?.authors?.length&&!record.verified&&/et al\b|…|\.\.\./i.test(record.raw||'')}));
-      const journal=this.el(doc,'div',null,'cl-journal'),journalName=this.el(doc,'strong',C.publicationLine(record),'cl-journal-name');journalName.setAttribute('aria-label',journalName.textContent);const journalText=this.el(doc,'span',journalName.textContent,'cl-journal-text');journalName.replaceChildren(journalText);journal.append(journalName);root.append(journal);
+      const journal=this.el(doc,'div',null,'cl-journal'),journalName=this.el(doc,'strong','','cl-journal-name');const journalText=this.publication(doc,record);journalName.replaceChildren(journalText);journal.append(journalName);root.append(journal);
       journal.append(this.citationControl(doc,root,reader,record,{context,onJump:()=>{const floating=root.closest('.cl-floating');if(floating)floating.remove();for(const view of [reader?._internalReader?._primaryView,reader?._internalReader?._secondaryView])view?._onSetOverlayPopup?.(null);}}));
       const currentMetric=S.metricFor(record);if(currentMetric.status==='available')journal.append(this.metric(doc,record));
       const doi=C.doi(record.DOI||authorData?.DOI);
@@ -439,8 +439,8 @@ var CiteLensUI = {
           const item=items[0].item,publisher=item.getField('publisher'),publication=item.getField('publicationTitle');
           const identifier=item.getField('ISSN'),metricChanged=(!record.ISSN&&!!identifier)||(!record.journal&&!!publication);
           if(!record.ISSN&&identifier)record.ISSN=identifier;
-          if(!record.publisher&&publisher){record.publisher=publisher;if(['book','bookSection'].includes(record.type)){if(!record.journal)journalText.textContent=publisher;else{const publisherLine=this.el(doc,'div','出版 · '+publisher,'cl-publisher');journal.after(publisherLine);}}}
-          if(!record.journal&&publication){record.journal=publication;journalText.textContent=publication;}
+          if(!record.publisher&&publisher){record.publisher=publisher;CiteLensCitationFormat.bind(journalText,record);}
+          if(!record.journal&&publication){record.journal=publication;CiteLensCitationFormat.bind(journalText,record);}
           if(metricChanged){render();return;}
         }
         doc.defaultView.requestAnimationFrame(()=>this.fitPopup(root,doc));
@@ -547,9 +547,12 @@ var CiteLensUI = {
     const source=this.disclosure(doc,'查看原始参考文献');source.append(this.el(doc,'p',original.raw,'cl-raw'));root.append(this.title(doc,original),this.el(doc,'div',this.byline(original),'cl-byline'),source);
     for(const c of ranked){
       const box=this.el(doc,'div',null,'cl-candidate');
-      box.append(this.title(doc,c.record),this.authorList(doc,c.record.creators||[]),this.el(doc,'div',c.record.year||'','cl-byline'),this.el(doc,'div',c.record.journal,'cl-muted'),this.el(doc,'div',c.record.DOI,'cl-muted'),this.el(doc,'p',c.reasons.join('；'),c.conflict?'cl-error':'cl-muted'),this.button(doc,'选择此文献',async()=>{await apply(c.record);close();}));root.append(box);
+      box.append(this.title(doc,c.record),this.authorList(doc,c.record.creators||[]),this.publication(doc,c.record,'div','cl-byline'),this.el(doc,'div',c.record.DOI,'cl-muted'),this.el(doc,'p',c.reasons.join('；'),c.conflict?'cl-error':'cl-muted'),this.button(doc,'选择此文献',async()=>{await apply(c.record);close();}));root.append(box);
     }
     footer.append(this.button(doc,'保留原始条目',close));
+  },
+  publication(doc,record,tag='span',className='cl-journal-text'){
+    const node=this.el(doc,tag,'',className);CiteLensCitationFormat.bind(node,record,{onText:()=>{const host=node.closest('.cl-card,.pn-member,.cl-list-item')||node.parentElement;if(host)this.fitAuthors(host,doc);}});return node;
   },
   saveDialog(doc,original,context,onSaved,records=null) {
     const C=CiteLensCore,S=CiteLensServices,dialog=this.dialog(doc,records?'批量保存到 Zotero':'保存到 Zotero',{className:'cl-save-dialog',header:false}),{root,footer,close}=dialog,targets=S.targets();
@@ -569,17 +572,33 @@ var CiteLensUI = {
       const last=S.state.settings.lastTarget;if(last?.libraryID===Number(library.value)&&[...collection.options].some(o=>o.value===String(last.collectionID)))collection.value=String(last.collectionID);
       describe();
     };populate();library.addEventListener('change',populate);collection.addEventListener('change',describe);
-    let title,type,year,journal,doi,authors,review;
+    let title,type,year,journal,locator,doi,authors,review,preview,editedRecord;
     if(!records){
       review=this.disclosure(doc,original.verified?'检查 / 编辑书目信息':'核对书目信息 · 保存前请确认');
       if(!original.verified)review.append(this.el(doc,'p','书目信息可能不完整，请核对后保存。','cl-note'));
       title=this.field(doc,review,'题名',C.plainTitle(original.title),'textarea');title.rows=2;
-      const grid=this.el(doc,'div',null,'cl-grid');type=this.field(doc,grid,'条目类型','','select');
-      for(const [v,t] of [['journalArticle','期刊论文'],['book','书籍'],['bookSection','书籍章节'],['conferencePaper','会议论文'],['preprint','预印本'],['thesis','学位论文'],['document','文档']]){const o=this.el(doc,'option',t);o.value=v;type.append(o);}type.value=original.type||'journalArticle';
-      year=this.field(doc,grid,'年份',original.year);year.inputMode='numeric';root.append(review);review.append(grid);
-      authors=this.field(doc,review,'作者（每行：姓, 名）',(original.creators||[]).map(a=>a.lastName+(a.firstName?', '+a.firstName:'')).join('\n'),'textarea');
-      journal=this.field(doc,review,'期刊或书名',original.journal);doi=this.field(doc,review,'DOI（可留空）',original.DOI);
-      if(original.raw)review.append(this.el(doc,'p',original.raw,'cl-raw cl-reference-text'));
+      const grid=this.el(doc,'div',null,'cl-save-metadata');type=this.field(doc,grid,'类型','','select');
+      for(const [v,t] of [['journalArticle','期刊'],['book','书籍'],['bookSection','章节'],['conferencePaper','会议'],['preprint','预印本'],['thesis','学位'],['document','文档']]){const o=this.el(doc,'option',t);o.value=v;type.append(o);}type.value=original.type||'journalArticle';
+      const canonicalJournal=original.type==='bookSection'?(original.bookTitle||original.journal||''):original.journal||original.publicationTitle||'';
+      journal=this.field(doc,grid,'期刊或书名',canonicalJournal);journal.title=canonicalJournal;
+      year=this.field(doc,grid,'年份',original.year);year.inputMode='numeric';
+      locator=this.field(doc,grid,'卷(期), 页码',CiteLensCitationFormat.locator(original));locator.placeholder='42(2), 68–81.e6';
+      root.append(review);review.append(grid);
+      authors=this.field(doc,review,'作者（每行：姓, 名）',(original.creators||[]).map(a=>a.name||[a.lastName,a.firstName].filter(Boolean).join(', ')).join('\n'),'textarea');
+      doi=this.field(doc,review,'DOI（可留空）',original.DOI);
+      preview=this.el(doc,'output','','cl-reference-preview');preview.setAttribute('aria-label','引文预览');preview.setAttribute('aria-live','polite');review.append(preview);
+      let journalEdited=false,previewTimer=0;
+      editedRecord=()=>{
+        const creators=authors.value.split('\n').map(x=>x.trim()).filter(Boolean).map(x=>{const [lastName,...rest]=x.split(',');const old=(original.creators||[]).find(a=>(a.name||[a.lastName,a.firstName].filter(Boolean).join(', '))===x);return old?{...old}:{lastName:lastName.trim(),firstName:rest.join(',').trim(),creatorType:'author'};});
+        const changedYear=year.value.trim()!==String(original.year||''),container=journalEdited?journal.value.trim():canonicalJournal;
+        return {...original,...CiteLensCitationFormat.parseLocator(locator.value),title:title.value.trim(),type:type.value,year:year.value.trim(),date:changedYear?year.value.trim():original.date||year.value.trim(),journal:container,bookTitle:type.value==='bookSection'?container:'',journalAbbreviation:journalEdited?'':original.journalAbbreviation,DOI:C.doi(doi.value),creators,author:creators[0]?.lastName||'',verified:true};
+      };
+      const updatePreview=()=>{try{CiteLensCitationFormat.bind(preview,editedRecord(),{part:'citation'});locator.removeAttribute('aria-invalid');}catch(e){preview.textContent='';locator.setAttribute('aria-invalid','true');}};
+      for(const field of [title,type,year,journal,locator,doi,authors])field.addEventListener('input',()=>{if(field===journal)journalEdited=true;doc.defaultView.clearTimeout(previewTimer);previewTimer=doc.defaultView.setTimeout(updatePreview,180);});
+      type.addEventListener('change',updatePreview);
+      CiteLensCitationFormat.format(original,undefined,'container').then(value=>{if(journal.isConnected&&!journalEdited&&value)journal.value=value;}).catch(()=>{});
+      updatePreview();
+
     }else{
       review=this.disclosure(doc,'查看本次保存的文献');for(const e of records)review.append(this.el(doc,'p',`${e.record.title} · ${this.byline(e.record)}`,'cl-raw'));root.append(review);
     }
@@ -602,9 +621,7 @@ var CiteLensUI = {
           if(!title.value.trim())invalid(title,'请填写题名');
           if(doi.value.trim()&&!C.doi(doi.value))invalid(doi,'DOI 格式不正确');
           if(year.value.trim()&&!/^(1[6-9]|20)\d{2}$/.test(year.value.trim()))invalid(year,'年份需为四位数字');
-          const creators=authors.value.split('\n').map(x=>x.trim()).filter(Boolean).map(x=>{const [lastName,...rest]=x.split(',');return {lastName:lastName.trim(),firstName:rest.join(',').trim(),creatorType:'author'};});
-          const changedYear=year.value.trim()!==String(original.year||'');
-          const edited={...original,title:title.value.trim(),type:type.value,year:year.value.trim(),date:changedYear?year.value.trim():original.date||year.value.trim(),journal:journal.value.trim(),DOI:C.doi(doi.value),creators,author:creators[0]?.lastName||'',verified:true};
+          const edited=editedRecord();
           const result=await S.save(edited,target,context);onSaved?.(result);dialog.setBusy(false);close();
         }
       }catch(e){this.status(status,e.message,true);}finally{dialog.setBusy(false);b.disabled=false;cancel.disabled=false;}
@@ -678,10 +695,10 @@ var CiteLensUI = {
             const expanded=item.querySelector('.cl-inline-detail');
             if(expanded){expanded.remove();title.setAttribute('aria-expanded','false');return;}
             for(const open of body.querySelectorAll('.cl-inline-detail')){open.parentElement.querySelector('.cl-row-title')?.setAttribute('aria-expanded','false');open.remove();}
-            const detail=this.el(doc,'div',null,'cl-inline-detail');const card=this.card(doc,entry.record,reader,{detailed:true,context:entry.context,onRecord:r=>{entry.record=r;doi.hidden=!CiteLensCore.recordDOI(r);title.replaceChildren(this.title(doc,r,'span'));const byline=item.querySelector(':scope > .cl-byline');if(byline)byline.textContent=this.byline(r)+(r.journal?' · '+r.journal:'');},onChange:()=>{},onCollapse:()=>{detail.remove();title.setAttribute('aria-expanded','false');title.focus();}});detail.append(card);item.append(detail);title.setAttribute('aria-expanded','true');card.querySelector('.cl-collapse-detail').focus();
+            const detail=this.el(doc,'div',null,'cl-inline-detail');const card=this.card(doc,entry.record,reader,{detailed:true,context:entry.context,onRecord:r=>{entry.record=r;doi.hidden=!CiteLensCore.recordDOI(r);title.replaceChildren(this.title(doc,r,'span'));const byline=item.querySelector(':scope > .cl-byline');if(byline)byline.replaceChildren(this.el(doc,'span',this.byline(r)),this.publication(doc,r));},onChange:()=>{},onCollapse:()=>{detail.remove();title.setAttribute('aria-expanded','false');title.focus();}});detail.append(card);item.append(detail);title.setAttribute('aria-expanded','true');card.querySelector('.cl-collapse-detail').focus();
           });title.className='cl-row-title';title.append(this.title(doc,record,'span'));title.setAttribute('aria-expanded','false');
           this.bindAbstract(doc,item,title,()=>entry.record,{activateOnClick:false});
-          item.append(title,this.el(doc,'div',this.byline(record)+(record.journal?' · '+record.journal:''),'cl-byline'));
+          const byline=this.el(doc,'div',null,'cl-byline cl-list-publication');byline.append(this.el(doc,'span',this.byline(record)),this.publication(doc,record));item.append(title,byline);
           const meta=this.el(doc,'div',null,'cl-list-meta');meta.append(this.el(doc,'span',this.type(record),'cl-chip'));
           const metric=CiteLensServices.metricFor(record);
           if(metric.status==='available'){const brief=this.el(doc,'span',`IF ${metric.jif===null?'未提供':metric.jif} · ${metric.categories.map(x=>x.quartile).filter(q=>/^Q[1-4]$/.test(q)).sort()[0]||'分区未提供'}`,'cl-muted');brief.title=(metric.metricYear?metric.metricYear+' 指标年':'年份未标注')+' · 最佳学科分区\n'+metric.categories.map(x=>x.name+' '+(x.quartile||'未提供')).join('\n');meta.append(brief);}
@@ -820,7 +837,7 @@ var CiteLensUI = {
     apiInput.addEventListener('input',()=>{testTicket++;testNCBI.disabled=false;ncbiResult('测试');});apiInput.addEventListener('change',()=>{try{CiteLensAbstracts.apiKey(apiInput.value);}catch(e){ncbiResult('密钥无效',true,e.message);}});
     const citationSelect=row(data,'引文格式','citationStyle',this.el(doc,'select')),citationStatus=this.el(doc,'div','','cl-status');data.prepend(citationSelect.closest('.cl-setting-row'),citationStatus);const initialStyle=CiteLensCitationFormat.id(S.state.settings.citationStyle),initialChoice=this.el(doc,'option',CiteLensCitationFormat.presets.find(([id])=>CiteLensCitationFormat.id(id)===initialStyle)?.[1]||initialStyle.split('/').pop());initialChoice.value=initialStyle;citationSelect.append(initialChoice);citationSelect.value=initialStyle;citationSelect.disabled=true;
     CiteLensCitationFormat.choices().then(choices=>{if(!root.isConnected)return;citationSelect.replaceChildren();for(const [value,label] of choices){const o=this.el(doc,'option',label);o.value=value;citationSelect.append(o);}citationSelect.value=CiteLensCitationFormat.id(S.state.settings.citationStyle);citationSelect.disabled=false;}).catch(e=>this.status(citationStatus,e.message,true));
-    citationSelect.addEventListener('change',async()=>{const previous=S.state.settings.citationStyle;citationSelect.disabled=true;this.status(citationStatus,'');try{await CiteLensCitationFormat.load(citationSelect.value);S.state.settings.citationStyle=citationSelect.value;await S.persist();}catch(e){citationSelect.value=CiteLensCitationFormat.id(previous);this.status(citationStatus,e.message,true);}finally{citationSelect.disabled=false;}});
+    citationSelect.addEventListener('change',async()=>{const previous=S.state.settings.citationStyle;citationSelect.disabled=true;this.status(citationStatus,'');try{await CiteLensCitationFormat.load(citationSelect.value);S.state.settings.citationStyle=citationSelect.value;await S.persist();CiteLensCitationFormat.refresh();}catch(e){citationSelect.value=CiteLensCitationFormat.id(previous);this.status(citationStatus,e.message,true);}finally{citationSelect.disabled=false;}});
     const automatic=this.el(doc,'input');automatic.type='checkbox';automatic.id='cl-setting-autoUpdate';const autoLabel=this.el(doc,'label',null,'cl-auto-update');autoLabel.htmlFor=automatic.id;autoLabel.append(automatic,this.el(doc,'span','自动更新'));updateRow.append(autoLabel,updateStatus,release,update);
     automatic.addEventListener('change',async()=>{automatic.disabled=true;try{await CiteLensUpdater.setAutomatic(automatic.checked);}finally{automatic.disabled=false;}});
     unsubscribe=CiteLensUpdater.subscribe(state=>{try{if(!root.isConnected){unsubscribe();return;}}catch(_){unsubscribe();return;}automatic.checked=state.automatic;version.textContent='v'+state.version;update.textContent=state.phase==='available'?'安装 v'+state.availableVersion:state.phase==='checking'?'检查中…':state.phase==='installing'?'更新中…':state.phase==='error'?'重试检查':'检查更新';update.disabled=['checking','installing'].includes(state.phase);const message=state.phase==='error'?({timeout:'检查超时',network:'连接失败',manifest:'更新信息异常',security:'安全校验失败',cancelled:'检查已取消',install:'更新失败'}[state.errorKind]||'更新暂不可用'):['current','available'].includes(state.phase)?state.message:'';this.status(updateStatus,message,state.phase==='error');updateStatus.hidden=!message;updateStatus.setAttribute('aria-label',message);release.hidden=state.phase!=='error';});

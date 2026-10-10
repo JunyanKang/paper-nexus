@@ -492,4 +492,13 @@ button[data-cite-lens]:is(:hover,:focus-visible){background:var(--cl-soft);color
 /* A citation surface must remain opaque at its scroll boundary. */
 :is(.cl-native-host,.cl-floating){scrollbar-width:thin;background:var(--cl-bg)!important;mask-image:none;scrollbar-color:color-mix(in srgb,var(--cl-ink) 26%,transparent) transparent}
 
+
+/* Compact bibliographic editor: two stable rows, and a generated read-only citation. */
+.cl-save-dialog .cl-save-metadata{display:grid;grid-template-columns:minmax(78px,.8fr) minmax(0,2fr);column-gap:10px;row-gap:3px;align-items:start}
+.cl-save-dialog .cl-save-metadata>.cl-field{min-width:0;margin:0 0 5px}
+.cl-save-dialog .cl-save-metadata :is(input,select,.cl-select-trigger){margin:2px 0 0!important;width:100%;min-width:0;max-width:100%;height:30px;box-sizing:border-box}
+.cl-save-dialog .cl-save-metadata button.cl-select-trigger{display:flex;margin:2px 0 0!important;height:30px!important;min-height:30px;padding:5px 8px;text-align:left;transform:none}
+.cl-save-dialog .cl-reference-preview{display:block;margin:10px 0 2px;padding:10px 12px;border-radius:9px;background:var(--cl-soft);font-size:var(--cl-ui-size);line-height:1.55;overflow-wrap:anywhere;user-select:text;min-height:3.1em}
+.cl-save-dialog .cl-reference-preview[aria-busy=true]{opacity:.6}
+.cl-list-publication>.cl-journal-text{display:block}
 `;

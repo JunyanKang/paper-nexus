@@ -1576,7 +1576,7 @@ var CiteLensI18n = {
  apply(root){
    const lang=this.language(),update=(node,key,value,set)=>{let map=this.sources.get(node);if(!map){map=new Map();this.sources.set(node,map);}const old=map.get(key),source=old&&old.output===value?old.source:value,exact=(node.nodeType===3?node.parentElement:node)?.closest?.('[data-cl-data="true"]')||(node.nodeType===3&&node.parentElement?.tagName==='OPTION'&&!node.parentElement.closest('.cl-settings')),output=exact?(lang==='zh'?source:this.catalogs[lang][source]||source):this.text(source,lang);map.set(key,{source,output});if(output!==value)set(output);};
    const visit=n=>{if(n.nodeType===3){update(n,'text',n.nodeValue,v=>n.nodeValue=v);return;}if(n.nodeType!==1||['STYLE','SCRIPT'].includes(n.tagName))return;
-     if(n.matches('.cl-title,.cl-row-title,.cl-byline,.cl-journal,.cl-authors,.cl-author-name,.cl-existing,.cl-raw,.cl-summary-content:not([data-ui-status="true"]),.cl-cite-snippet,.pn-snippet,.pn-authorline,.pn-node-abstract,.pn-node-link>button:first-child,.pn-abstract-preview p,.pn-proof-row>span,.pn-paper,.pn-publication,.pn-authors,.pn-location'))return;
+     if(n.matches('.cl-reference-preview,[data-cl-citation],.cl-title,.cl-row-title,.cl-byline,.cl-journal,.cl-authors,.cl-author-name,.cl-existing,.cl-raw,.cl-summary-content:not([data-ui-status="true"]),.cl-cite-snippet,.pn-snippet,.pn-authorline,.pn-node-abstract,.pn-node-link>button:first-child,.pn-abstract-preview p,.pn-proof-row>span,.pn-paper,.pn-publication,.pn-authors,.pn-location'))return;
      if(n.matches('[data-select-id="cl-setting-interfaceLanguage"],#cl-setting-interfaceLanguage'))return;
      for(const key of ['title','data-cl-tooltip','aria-label','placeholder'])if(n.hasAttribute(key))update(n,key,n.getAttribute(key),v=>n.setAttribute(key,v));
      if(['INPUT','TEXTAREA'].includes(n.tagName))return;for(const c of n.childNodes)visit(c);
@@ -1799,4 +1799,15 @@ for(const [source,values] of Object.entries({
  '年份：近到远':['Newest first','新しい順','Plus récents','Neueste zuerst'],
  '题名：A 到 Z':['Title: A–Z','題名：A–Z','Titre : A–Z','Titel: A–Z'],
  '题名：Z 到 A':['Title: Z–A','題名：Z–A','Titre : Z–A','Titel: Z–A']
+})){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
+
+for(const [source,values] of Object.entries({
+ '类型':['Type','種類','Type','Typ'],
+ '期刊':['Journal','雑誌','Article','Artikel'],
+ '章节':['Chapter','章','Chapitre','Kapitel'],
+ '会议':['Conference','会議','Congrès','Konferenz'],
+ '学位':['Thesis','学位論文','Thèse','Dissertation'],
+ '卷(期), 页码':['Vol(issue), pages','巻(号), 頁','Vol(n°), pages','Bd(Heft), Seiten'],
+ '引文预览':['Citation preview','引用プレビュー','Aperçu de citation','Zitatvorschau'],
+ '引文格式暂不可用，请在设置中重试':['Citation style unavailable; retry in settings','引用形式を設定で再試行してください','Style indisponible ; réessayer dans les réglages','Zitierstil nicht verfügbar; in Einstellungen erneut versuchen']
 })){['en','ja','fr','de'].forEach((language,i)=>CiteLensI18n.catalogs[language][source]=values[i]);}
