@@ -3,9 +3,9 @@
     "cite-lens@local.research": {
       "updates": [
         {
-          "version": "1.1.2",
-          "update_link": "https://kanglab.cool/paper-nexus/v1.1.2/paper-nexus-1.1.2.xpi",
-          "update_hash": "sha512:1cb2cce797c3c63cabb4ba7df6ef14d106814eb4ea393ead5e376e6ea99431fd3a2da5e39955ad90f7e5cebc15843ab5da3c4effa062dd1d7906458087ed1b72",
+          "version": "1.1.3",
+          "update_link": "https://kanglab.cool/paper-nexus/v1.1.3/paper-nexus-1.1.3.xpi",
+          "update_hash": "sha512:c490c8fe155cc5d71b2925269d0dced7f227753f893fb4133cba2e03dfe9734f6949750adaa4d8a0d7e9e6928c1bc2d8b4c6d05f8723d03c60af5ec6e9901e55",
           "applications": {
             "zotero": {
               "strict_min_version": "10.0.5",
