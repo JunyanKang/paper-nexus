@@ -1,7 +1,9 @@
+> **Paper Voice and Paper Nexus are now Paper Loom.** [Open Paper Loom](https://github.com/JunyanKang/paper-loom) · [Download 1.1.0](https://github.com/JunyanKang/paper-loom/releases/tag/v1.1.0). Existing users can check for updates in the old plugin: this transition release installs Paper Loom 1.1.0, preserves your library, settings and voice assets, then disables the previous plugins. If the download fails, keep using the old plugin and retry from **Tools → Move to Paper Loom**.
+
 <p align="center"><img src="docs/images/hero.png" width="880" alt="Paper Nexus — Read a paper. Discover the connections."></p>
 <p align="center"><b>From a citation to a research community.</b></p>
 <p align="center"><a href="README.md">简体中文</a> · <b>English</b></p>
-<p align="center"><a href="https://github.com/JunyanKang/paper-nexus/releases/latest"><b>Download</b></a> · <a href="#get-started">Get started</a> · <a href="docs/GUIDE.md">User guide (中文)</a></p>
+<p align="center"><a href="https://github.com/JunyanKang/paper-loom/releases/latest"><b>Download</b></a> · <a href="#get-started">Get started</a> · <a href="docs/GUIDE.md">User guide (中文)</a></p>
 
 Paper Nexus is a free Zotero plugin for following research connections. Preview cited papers, read and translate abstracts, save papers for later, and explore the people behind your library.
 
@@ -33,7 +35,7 @@ Open the career view for an author with a linked ORCID. Browse public education,
 
 Supports **Zotero 10.0.5–10.0.x**. macOS and Windows use the same **XPI** file.
 
-1. Download the XPI from [Releases](https://github.com/JunyanKang/paper-nexus/releases/latest). Do not unzip it.
+1. Download the XPI from [Releases](https://github.com/JunyanKang/paper-loom/releases/latest). Do not unzip it.
 2. In Zotero, choose **Tools → Plugins → gear menu → Install Plugin From File**.
 3. Open a PDF and hover over a citation, or click the Nexus icon in the library toolbar to explore coauthors.
 

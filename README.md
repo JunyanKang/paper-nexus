@@ -1,7 +1,9 @@
+> **Paper Voice 与 Paper Nexus 已整合为 Paper Loom。** [前往 Paper Loom](https://github.com/JunyanKang/paper-loom) · [下载 1.1.0](https://github.com/JunyanKang/paper-loom/releases/tag/v1.1.0)。已有用户可在旧插件中检查并安装更新，1.1.4 迁移版会安装 Paper Loom 1.1.0，保留文献、设置和声音包，并停用旧插件。网络失败时原插件继续可用，可从「工具 → 迁移到 Paper Loom」重试。
+
 <p align="center"><img src="docs/images/hero.png" width="880" alt="Paper Nexus — Read a paper. Discover the connections."></p>
 <p align="center"><b>从一处引文，到一个研究圈。</b></p>
 <p align="center"><b>简体中文</b> · <a href="README.en.md">English</a></p>
-<p align="center"><a href="https://github.com/JunyanKang/paper-nexus/releases/latest"><b>下载插件</b></a> · <a href="docs/INSTALL.md">安装指南</a> · <a href="docs/GUIDE.md">开始使用</a></p>
+<p align="center"><a href="https://github.com/JunyanKang/paper-loom/releases/latest"><b>下载插件</b></a> · <a href="docs/INSTALL.md">安装指南</a> · <a href="docs/GUIDE.md">开始使用</a></p>
 
 Paper Nexus 是免费的 Zotero 插件，将引文预览、摘要阅读、论文收藏和作者合作网络连在一起。读到感兴趣的引用，就地了解它；发现值得追踪的研究者，再沿着合作关系与学术履历继续探索。
 
@@ -33,7 +35,7 @@ Paper Nexus 是免费的 Zotero 插件，将引文预览、摘要阅读、论文
 
 适用于 **Zotero 10.0.5–10.0.x**，macOS 与 Windows 使用同一个 **XPI**。
 
-1. 在[发布页](https://github.com/JunyanKang/paper-nexus/releases/latest)下载 XPI，无需解压。
+1. 在[发布页](https://github.com/JunyanKang/paper-loom/releases/latest)下载 XPI，无需解压。
 2. 在 Zotero 的 **工具 → 插件 → 齿轮 → 从文件安装插件** 中选择它。
 3. 打开 PDF 悬停引文；或在文献库工具栏点击 Nexus 图标，探索朋友圈。
 

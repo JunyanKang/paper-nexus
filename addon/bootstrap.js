@@ -8,8 +8,10 @@ async function startup({rootURI, version}) {
   CiteLensScope.CiteLens.version = version;
   CiteLensScope.CiteLens.rootURI = rootURI;
   await CiteLensScope.CiteLens.start();
+  Services.scriptloader.loadSubScript(rootURI+'loom-migration.js', CiteLensScope);
+  CiteLensScope.PaperLoomMigration.start('cite-lens@local.research',version);
 }
-async function shutdown() { if (CiteLensScope) await CiteLensScope.CiteLens.stop(); CiteLensScope = null; }
+async function shutdown() { CiteLensScope?.PaperLoomMigration?.stop(); if (CiteLensScope) await CiteLensScope.CiteLens.stop(); CiteLensScope = null; }
 function install() {}
 function uninstall() {}
 function onMainWindowLoad({window}) { CiteLensScope?.CiteLens.addWindow(window); }

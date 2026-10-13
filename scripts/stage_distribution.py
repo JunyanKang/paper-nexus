@@ -42,3 +42,6 @@ copy(XPI, Path('v' + VERSION) / XPI.name)
 copy(UPDATES, Path('updates.json'), immutable=False)
 (DESTINATION / '.nojekyll').touch()
 print('Staged one versioned XPI and its update manifest.')
+
+# Redirect the landing page only; legacy feeds and immutable downloads stay available.
+(DESTINATION/'index.html').write_text('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0; url=https://kanglab.cool/paper-loom/"><link rel="canonical" href="https://kanglab.cool/paper-loom/"><title>Moved to Paper Loom</title><body><p>Paper Voice and Paper Nexus are now Paper Loom.</p><p><a href="https://kanglab.cool/paper-loom/">Continue to Paper Loom · 前往 Paper Loom</a></p></body></html>',encoding='utf-8')
